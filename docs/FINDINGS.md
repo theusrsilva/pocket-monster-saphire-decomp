@@ -278,6 +278,11 @@ Inimigos com **MOV 0** não se movem (os chefes de cada fase).
 ## Eventos e falas das fases
 
 * O script de uma fase de campanha `s` (1–25) é o **`s + $20`** no índice de `$5D:$4000`.
+* Rotina `$01:$4D37`, ao terminar o movimento: terreno **15** = cura (repete); **16–17** = nada (toda
+  fase tem uma casa 16/17); **18–32** = mensagem de mesmo número, **uma vez por entrada na fase**
+  (flags `$C518 + t − 18`, zeradas ao entrar); **27 (`$1B`)** = sem mensagem, ensina golpe
+  (`$09:$4C12`): na fase 21 as espécies `$1C/$1D` aprendem `$57`, na fase 18 `$27/$28` aprendem `$1E`,
+  na fase 8 `$2E/$2F` aprendem `$45`, gravando no 4º espaço de golpe (`[$C933]`) só se ele estiver vazio.
 * Ao terminar o movimento numa casa de terreno com id **15–32** (3º byte da tabela +2C da fase), o
   jogo mostra a mensagem de **mesmo índice** desse script:
   * **15**: centro de cura ("Please let me help you to cure"), pode repetir;
@@ -338,6 +343,18 @@ grafo. Rotina de movimento: `$09:$69D8`. Grafo em **`$09:$6B7D`**, 24 bytes por 
 `$C510`+, que nenhuma trava usa), mostra a mensagem `$21` só se fase < `$1A`, e volta ao mapa
 (`[$C007] = 0`). A fase 25 termina o jogo (`$18:$4D43`).
 
+## Loja: não existe
+
+Procurei a loja e **o jogo não tem loja nem dinheiro**:
+
+* O save (`$01:$78C6`) grava só `$C000–$C00E` e `$C4E0–$C55E` (inventário, itens-chave, fases
+  vencidas, eventos e posição no mapa). Não há contador de dinheiro nesse bloco.
+* O inventário `$C4E0+` só muda em três lugares: o comando `EE 01` das falas (baús, casas e
+  recompensas), o uso de item (`$01:$4EC8`) e a evolução (`$01:$5626`, consome a insígnia).
+* Nenhuma fala fala em comprar, vender, preço ou dinheiro ("Yuan ... points" nas falas `$41` 5+ é a
+  descrição dos golpes de cura). Os menus dos lugares (cidade, Instituto, BabyAlliance) não têm loja.
+* O terreno `$1B` dentro das fases, que parecia candidato, é o evento de ensinar golpe (acima).
+
 ## Escolha do time ("One can attack NN/MM")
 
 Ao entrar numa fase (`$10:$4000`) o jogo monta a lista (`$10:$42C8`) com o elenco recrutado
@@ -364,7 +381,7 @@ escolher unidades com A/↓ → START.
 ## Próximos passos
 
 1. ~~Stats das espécies~~ ✅ ~~Inimigos e posições por fase~~ ✅. ~~Golpes, itens, eventos e falas~~ ✅.
-   ~~Mapa-múndi~~ ✅. Falta: loja (terreno `$1B` numa fase chama `$09:$4C12`: a investigar).
+   ~~Mapa-múndi~~ ✅. ~~Loja~~: não existe no original (ver **Loja**).
 2. Achar as tabelas de metasprite dos frames de batalha (90–B1): seguir no debugger a rotina que
    escreve na OAM ($FE00 / DMA) durante uma luta.
 3. ~~Formato dos mapas~~ ✅. Falta: confirmar a tabela de terreno (+2C) e a paleta de cada sprite de unidade.

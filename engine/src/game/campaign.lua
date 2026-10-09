@@ -24,7 +24,7 @@ end
 
 function Campaign.new(data)
   local self = setmetatable({
-    version = Campaign.VERSION, roster = {}, inventory = {}, keyItems = {}, cleared = {}, visited = {},
+    version = Campaign.VERSION, roster = {}, inventory = {}, keyItems = {}, cleared = {},
     node = Campaign.START_NODE,
   }, Campaign)
   for i, sp in ipairs(data.species) do
@@ -93,14 +93,6 @@ function Campaign:peek(addr)
     return self.cleared[s] and s or 0              -- o original grava o número da fase ($00:$092F)
   end
   return 0
-end
-
-function Campaign:eventSeen(stage, idx)
-  return self.visited[stage * 100 + idx] == true
-end
-
-function Campaign:markEvent(stage, idx)
-  self.visited[stage * 100 + idx] = true
 end
 
 return Campaign

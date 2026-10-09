@@ -31,7 +31,7 @@ function Battle.new(data, stageIndex, campaign, team)
     cursor = { x = 0, y = 0 }, selected = nil, reach = nil, prev = nil,
     menu = nil, popups = {}, queue = {}, timer = 0, result = nil, log = {}, pending = {},
     campaign = campaign, inventory = campaign.inventory,
-    messages = (data.messages or {})[stageIndex] or {}, dialog = nil,
+    messages = (data.messages or {})[stageIndex] or {}, dialog = nil, visited = {},
   }, Battle)
   -- Aliados: o elenco recrutado da campanha, nas posições iniciais da fase.
   for i, r in ipairs(team or campaign:recruited()) do
@@ -177,26 +177,49 @@ end
 
 ---------------------------------------------------------------- eventos e diálogos
 
--- Casas, baús e centro de cura: o id do terreno (15..32) é o número da mensagem no script
--- da fase (fase + $20). A mensagem 15 é sempre a cura; as outras só acontecem uma vez.
+-- Eventos ao parar numa casa ($01:$4D37, terreno = 3º byte da tabela +2C da fase):
+--   15        centro de cura: mostra a mensagem 15 e enche HP/SP (repete)
+--   16, 17    nada
+--   18..32    casas e baús: mostra a mensagem de mesmo número, uma vez por entrada na fase
+--             (flags $C518 + t - 18, zeradas ao entrar na fase)
+--   27 ($1B)  em vez de mensagem, ensina um golpe a certas espécies ($09:$4C12, ver LEARN_SPOTS)
+-- Golpe ensinado pelo terreno $1B: fase -> { espécies, golpe } ($09:$4C5E/$4CA8/$4CF2).
+-- O original grava no 4º espaço de golpe só se ele estiver vazio.
+Battle.LEARN_SPOTS = {
+  [21] = { species = { [0x1C] = true, [0x1D] = true }, skill = 0x57 },
+  [18] = { species = { [0x27] = true, [0x28] = true }, skill = 0x1E },
+  [8] = { species = { [0x2E] = true, [0x2F] = true }, skill = 0x45 },
+}
+
 function Battle:triggerEvent(u)
   local st = self.stage
   local t = st.terrain[u.y * st.cols + u.x + 1]
-  if t < 15 or t > 32 then return false end
+  if t == 0x1B then return self:learnSpot(u) end
+  if t ~= 15 and (t < 18 or t > 32) then return false end
   local msg = self.messages[t]
   if not msg then return false end
   local heal = (t == 15)
-  if not heal and self.campaign:eventSeen(self.stageIndex, t) then return false end
+  if not heal and self.visited[t] then return false end
   if heal then
     u.hp, u.sp = u.maxhp, u.maxsp
     self:say(u.name .. " foi curado")
   else
-    self.campaign:markEvent(self.stageIndex, t)
+    self.visited[t] = true
   end
   self.eventUnit = u
   self.noUndo = true                          -- depois de um evento não dá para desfazer o movimento
   self:showMessage(msg, function() self:openMenu(u) end)
   return true
+end
+
+function Battle:learnSpot(u)
+  local spot = Battle.LEARN_SPOTS[self.stageIndex]
+  if not spot or not spot.species[u.species] or #u.skills >= 4 then return false end
+  for _, id in ipairs(u.skills) do if id == spot.skill then return false end end
+  u.skills[#u.skills + 1] = spot.skill
+  self:say(("%s aprendeu %s!"):format(u.name, Names.skill_name(spot.skill)))
+  self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = "GOLPE NOVO", t = 0, heal = true }
+  return false
 end
 
 -- Aplica os efeitos do script (itens, recrutamento, itens-chave) e abre a caixa de diálogo.

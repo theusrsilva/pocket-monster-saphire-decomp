@@ -45,7 +45,9 @@ direito voltam · Esc encerra o turno · N alterna nomes oficiais/originais.
 - **Nomes**: oficiais (com golpes em português) ou os originais do jogo, alternando com a tecla N
   (a escolha fica salva); retrato da unidade no painel
 - **Eventos das fases**: casas, baús e centro de cura disparam as falas originais, com o retrato de
-  quem fala; itens dos baús vão para o inventário
+  quem fala; itens dos baús vão para o inventário; casas e baús valem uma vez por entrada na fase e
+  três casas especiais (fases 8, 18 e 21) ensinam um golpe a certas espécies
+- O original não tem loja (verificado no código): os itens vêm só de baús, casas e recompensas
 - **Campanha**: o time começa com os 6 iniciais; a vitória mostra a recompensa da fase e recruta os
   novos Pokémon; elenco, níveis, inventário e fases vencidas ficam salvos (`save.lua`; Delete na
   mapa-múndi recomeça)
@@ -53,7 +55,7 @@ direito voltam · Esc encerra o turno · N alterna nomes oficiais/originais.
 
 ## Ainda não
 
-Loja, tradução das falas, som, paletas dos retratos e a IA original.
+Tradução das falas, som, paletas dos retratos e a IA original.
 
 ## Estrutura
 

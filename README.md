@@ -30,7 +30,7 @@ correção de bugs e melhorias de usabilidade.
 - [x] Subida de nível, evolução e golpes especiais/cura (tabelas do original, no motor)
 - [x] Nomes das espécies e dos golpes (transcritos das imagens), com nomes oficiais e tradução PT
 - [x] Itens e seus efeitos (inventário `$C4E0`), insígnias = pedras de evolução
-- [ ] Loja
+- [x] Loja: verificado que **não existe** no original (sem dinheiro no save; itens só de baús, casas e recompensas)
 - [x] Eventos e falas das fases (casas, baús, centro de cura), recompensas e recrutamento, campanha salva
 - [x] Mapa-múndi: grafo de nós do original, travas por fase vencida e por item-chave, cidades, Instituto e BabyAlliance (evolução)
 - [x] Escolha do time antes da luta (máximo = recrutados até 10, ordem das vagas)

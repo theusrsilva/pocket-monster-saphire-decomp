@@ -201,6 +201,19 @@ function T.run(data)
   check("time: luta usa só as escolhidas nas posições iniciais", #allies == 2
     and allies[1].x == data.stages[1].starts[1].x and allies[1].y == data.stages[1].starts[1].y)
 
+
+  -- 13) Eventos do terreno ($01:$4D37) e golpe ensinado pelo terreno $1B ($09:$4C12)
+  local b21 = Battle.new(data, 21, Campaign.new(data), {})
+  local learner = { side = "ally", species = 0x1C, name = "x", skills = { 0x0C }, x = 27, y = 4, hp = 1, maxhp = 1 }
+  b21:triggerEvent(learner)
+  check("terreno $1B na fase 21 ensina o golpe $57", learner.skills[2] == 0x57)
+  local other = { side = "ally", species = 0x01, name = "y", skills = {}, x = 27, y = 4, hp = 1, maxhp = 1 }
+  b21:triggerEvent(other)
+  check("terreno $1B não ensina a outras espécies", #other.skills == 0)
+  local b1 = Battle.new(data, 1, Campaign.new(data), {})
+  local walker = { side = "ally", species = 1, name = "z", skills = {}, x = 3, y = 6, hp = 1, maxhp = 1 }
+  check("terreno 16/17 não dispara evento", b1:triggerEvent(walker) == false)
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end
