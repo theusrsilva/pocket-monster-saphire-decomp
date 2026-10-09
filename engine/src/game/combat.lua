@@ -1,8 +1,14 @@
 -- Combate, seguindo o código do jogo original (banco $01:$6526 e $09:$695F):
 --
---  acerto% = clamp(100 + PRE(atacante) - ESQ(defensor) +/-20 pela vantagem de tipo, 0, 100)
---            ($01:$6542 / $65AC; o sorteio fica em $38:$73C0: com chance de erro >= 90 sempre erra,
---             < 10 sempre acerta; no meio compara com um byte aleatório)
+--  acerto% ($01:$6542 / $65AC / $6616): a = max(0, 100 + PRE - ESQ); o ajuste de tipo olha só o
+--            byte baixo: forte -> 100 se a >= 80, senão a + 20; fraco -> 0 se a < 32, senão a - 20;
+--            no fim limita a 100. erro% = 100 - acerto%.
+--  sorteio  ($38:$73C4 / $741B): erro >= 90 sempre erra; erro < 20 sempre acerta; no meio acerta
+--            se o byte aleatório (0..99) for MAIOR que o erro
+--  contra   ($09:$6842): o defensor usa o 1º golpe de ataque, do 4º espaço para o 1º, cujo alcance
+--            máximo cubra o alcance máximo da ação do atacante (soma o poder e gasta SP sem
+--            conferir); sem golpe assim, contra-ataca normal só a distância 1. Quando o inimigo
+--            ataca ($01:$6AA9) o contra é sempre normal. Quem caiu não contra-ataca.
 --  dano    = ATK (+ poder do golpe especial) x1.5 se forte / x0.5 se fraco  ($01:$664E)
 --            -- não existe redução por defesa: o HP perde o ataque efetivo inteiro ($09:$695F)
 --  EXP     = derrubou: 16 x 2^dif, só acertou: 8 x 2^dif (dif = nível do alvo - nível próprio,
@@ -25,10 +31,12 @@ function Combat.multiplier(att, def)
 end
 
 function Combat.hitChance(att, def)
-  local h = 100 + att.acc - def.eva
-  if h < 0 then h = 0 end
-  if Combat.isStrong(att, def) then h = math.min(100, h + 20)
-  elseif Combat.isWeak(att, def) then h = math.max(0, h - 20) end
+  local h = math.max(0, 100 + att.acc - def.eva) % 256     -- o ajuste olha só o byte baixo
+  if Combat.isStrong(att, def) then
+    if h ~= 100 then h = (h < 80) and h + 20 or 100 end
+  elseif Combat.isWeak(att, def) then
+    if h ~= 0 then h = (h < 32) and 0 or h - 20 end
+  end
   return math.min(100, h)
 end
 
@@ -42,8 +50,8 @@ end
 function Combat.rollHit(att, def)
   local miss = 100 - Combat.hitChance(att, def)
   if miss >= 90 then return false end
-  if miss < 10 then return true end
-  return Combat.random() >= miss
+  if miss < 20 then return true end
+  return Combat.random() > miss
 end
 
 function Combat.exp(att, def, killed)
@@ -75,14 +83,39 @@ function Combat.actionRange(unit, skill)
   return unit.rmin, unit.rmax
 end
 
--- Resolve um ataque (normal ou golpe especial, que gasta SP e soma o poder ao ATK) com
--- contra-ataque normal do defensor. Retorna a lista de eventos para a UI.
-function Combat.attack(att, def, skill)
+-- Tabela de golpes ($09:$4D5B), preenchida pela batalha (Combat.skills = data.prog.skills).
+Combat.skills = {}
+
+-- Como o defensor responde: devolve "normal", o golpe usado no contra, ou nil (sem contra).
+-- enemyTurn = ataque iniciado pela IA ($01:$6AA9): contra sempre normal.
+function Combat.counterFor(att, def, skill, enemyTurn)
+  if def.hp <= 0 then return nil end
+  if enemyTurn then return "normal" end
+  local _, attMax = Combat.actionRange(att, skill)
+  local list = def.skills or {}
+  for i = math.min(#list, 4), 1, -1 do
+    local s = Combat.skills[list[i]]
+    if s and list[i] >= 0x0C and not s.heal and s.rmax >= attMax then
+      s.id = list[i]
+      return s
+    end
+  end
+  if Path.dist(att.x, att.y, def.x, def.y) == 1 then return "normal" end
+  return nil
+end
+
+-- Resolve um ataque (normal ou golpe especial, que gasta SP e soma o poder ao ATK) e o
+-- contra-ataque do defensor. Retorna a lista de eventos para a UI.
+function Combat.attack(att, def, skill, enemyTurn)
   local ev = {}
   if skill then att.sp = att.sp - skill.cost end
   strike(att, def, ev, false, skill)
-  if def.hp > 0 and Combat.inRange(def, att.x, att.y) then
+  local c = Combat.counterFor(att, def, skill, enemyTurn)
+  if c == "normal" then
     strike(def, att, ev, true)
+  elseif c then
+    def.sp = math.max(0, def.sp - c.cost)    -- o original desconta sem conferir o SP
+    strike(def, att, ev, true, c)
   end
   return ev
 end

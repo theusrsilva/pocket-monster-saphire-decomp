@@ -215,14 +215,20 @@ O bloco do atacante é copiado para `$C900` e o do defensor para `$C980`, no for
 
 | Etapa | Fórmula |
 |---|---|
-| Acerto% | `clamp(100 + PRE(atacante) − ESQ(defensor), 0, 100)`, +20 se forte, −20 se fraco |
-| Sorteio (`$38:$73C0`) | erro% ≥ 90: sempre erra; < 10: sempre acerta; senão compara com o byte aleatório `[$C035]` |
+| Acerto% (`$6542`/`$65AC`/`$6616`) | `a = max(0, 100 + PRE(atacante) − ESQ(defensor))`; o ajuste de tipo olha só o **byte baixo**: forte → 100 se `a ≥ 80`, senão `a + 20`; fraco → 0 se `a < 32`, senão `a − 20`; **só no fim** limita a 100. Erro% = 100 − acerto% |
+| Sorteio (`$38:$73C4` ataque, `$741B` contra) | erro ≥ 90: sempre erra; erro **< 20**: sempre acerta; no meio acerta se o byte aleatório `[$C035]` (0–99) for **maior** que o erro |
 | Dano | `ATK (+ poder do golpe especial)` × 1,5 se forte (`a + a>>1`), × 0,5 se fraco (`a>>1`) |
 | Aplicação (`$09:$695F`) | HP −= dano. **Não existe redução por defesa.** |
 | Golpe especial | SP −= custo (`[$CD14]`), ATK += poder (`[$CD01]`) |
 | EXP (`$1D:$5860`) | derrubou: 16 × 2^dif, acertou: 8 × 2^dif (dif = nível do alvo − nível próprio, 1..9; dif 0 → ×2), máx. 100; alvo de nível menor dá 1; errar dá 0; nível 99 não ganha |
 
-O contra-ataque usa as mesmas contas com os papéis trocados (`$CD45`/`$CD03`).
+O contra-ataque usa as mesmas contas com os papéis trocados (`$CD45`/`$CD03`). **Quem contra-ataca**
+(`$09:$6842`, chamado quando um aliado ataca): o defensor percorre os seus golpes do 4º espaço para
+o 1º e usa o primeiro **golpe de ataque** (id ≥ `$0C`) cujo **alcance máximo** seja ≥ o alcance
+máximo da ação do atacante (`[$C93F]`): soma o poder ao ATK (`$CD40/$CD41`) e **gasta o SP sem
+conferir se tem**. Sem golpe assim, contra-ataca com ataque normal **só se a distância for 1**
+(`[$C012]`, o anel do alvo); senão não há contra. Quando é o inimigo que ataca (`$01:$6AA9`), o contra
+do aliado é sempre o ataque normal. Quem caiu (`[$C066]`) não contra-ataca.
 
 ## IA dos inimigos (`$01:$6B95`)
 
@@ -427,7 +433,9 @@ escolher unidades com A/↓ → START.
 2. Achar as tabelas de metasprite dos frames de batalha (90–B1): seguir no debugger a rotina que
    escreve na OAM ($FE00 / DMA) durante uma luta.
 3. ~~Formato dos mapas~~ ✅. Falta: confirmar a tabela de terreno (+2C) e a paleta de cada sprite de unidade.
-4. ~~Paletas de BG das fases~~ ✅ (rotinas `ROM0:$2C56`/`$2C42`). Falta: paletas da UI e dos retratos.
+4. ~~Paletas de BG das fases~~ ✅ (rotinas `ROM0:$2C56`/`$2C42`). ~~Retratos~~ ✅: as paletas de BG
+   4–7 de toda fase são as da interface; os retratos (luta e diálogos) usam a **paleta 4**
+   (`ff7f df02 3a01 2804`, branco/amarelo/laranja/marrom), a mesma para todas as espécies.
 5. ~~Fórmulas de dano, acerto, EXP, movimento, nível, evolução e golpes~~ ✅ ~~IA original~~ ✅.
-   Falta: regra exata do contra-ataque (e se o defensor pode contra-atacar com golpe).
+   ~~Regra exata do contra-ataque~~ ✅.
 6. O banco `$2C` é o driver de som (registradores NRxx; tabela de ondas em `$2C:$476E`).

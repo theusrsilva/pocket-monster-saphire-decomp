@@ -25,6 +25,7 @@ end
 -- team: unidades do elenco escolhidas na tela de escolha (nil = todo o elenco recrutado)
 function Battle.new(data, stageIndex, campaign, team)
   local st = data.stages[stageIndex]
+  Combat.skills = data.prog.skills
   local self = setmetatable({
     data = data, prog = data.prog, stageIndex = stageIndex, stage = st, units = {},
     phase = "player", turn = 1, mode = "cursor",
@@ -515,7 +516,7 @@ end
 
 function Battle:enemyAct(e)
   local function attack(t)
-    for _, ev in ipairs(Combat.attack(e, t, nil)) do self:announce(ev) end
+    for _, ev in ipairs(Combat.attack(e, t, nil, true)) do self:announce(ev) end
   end
   -- 1. cura
   local s1 = e.skills[1] and self:skill(e.skills[1])

@@ -37,7 +37,8 @@ despeja as falas originais (fora do git), com a chave `banco:endereço` de cada 
   marcados com Z e confirmados em "Lutar" (Esc); entram nas posições iniciais na ordem do elenco
 - Batalha por turnos: o time escolhido nas posições da fase, contra os inimigos da fase
 - **Alcance de movimento idêntico ao original** (custo por espécie e terreno; coberto por teste)
-- **Combate com as fórmulas do jogo original**: acerto, dano com vantagem de tipo, contra-ataque e EXP
+- **Combate com as fórmulas do jogo original**: acerto (com o ajuste de tipo exato), sorteio, dano com
+  vantagem de tipo, EXP e o **contra-ataque do original** (com golpe, se o alcance cobrir; senão só colado)
 - Prévia de ataque com dano, chance de acerto e contra-ataque (o original não mostrava)
 - Desfazer movimento antes de agir, mostrar o alcance de qualquer unidade, suporte a mouse
 - **Subida de nível, ganho de status e bônus escolhido**, com as tabelas do original
@@ -47,7 +48,8 @@ despeja as falas originais (fora do git), com a chave `banco:endereço` de cada 
 - Chefes com MOV 0 ficam parados
 - **Nomes e falas**: em português (nomes oficiais, golpes, tipos, itens e lugares traduzidos e
   **todas as falas da campanha traduzidas**, inclusive a introdução) ou como no jogo original,
-  alternando com a tecla N (a escolha fica salva); retrato da unidade no painel
+  alternando com a tecla N (a escolha fica salva); retrato da unidade no painel, com a paleta do
+  original (paleta 4 de BG)
 - **Eventos das fases**: casas, baús e centro de cura disparam as falas originais, com o retrato de
   quem fala; itens dos baús vão para o inventário; casas e baús valem uma vez por entrada na fase e
   três casas especiais (fases 8, 18 e 21) ensinam um golpe a certas espécies
@@ -61,7 +63,7 @@ despeja as falas originais (fora do git), com a chave `banco:endereço` de cada 
 
 ## Ainda não
 
-Som, paletas dos retratos e a regra exata do contra-ataque.
+Som e música; metasprites das animações de batalha.
 
 ## Estrutura
 

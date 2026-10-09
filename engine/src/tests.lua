@@ -285,6 +285,40 @@ function T.run(data)
   check("IA: anel de raio 1 = cima, direita, esquerda, baixo", data.ai.rings[1][1].dy == -1 and data.ai.rings[1][2].dx == 1
     and data.ai.rings[1][3].dx == -1 and data.ai.rings[1][4].dy == 1)
 
+
+  -- 16) Acerto, sorteio e contra-ataque exatos ($01:$6542/$65AC/$6616, $38:$73C4, $09:$6842)
+  local weakA = { acc = 30, eva = 0, type = 1, strong = 2, weak = 3 }
+  check("acerto: fraco com base acima de 100 fica 100", Combat.hitChance(weakA, { eva = 10, type = 3 }) == 100)
+  check("acerto: fraco com base < 32 vira 0", Combat.hitChance(weakA, { eva = 105, type = 3 }) == 0)
+  check("acerto: forte com base >= 80 vira 100", Combat.hitChance(weakA, { eva = 45, type = 2 }) == 100)
+  local sr = Combat.random
+  local neutral = { acc = 0, type = 1, strong = 9, weak = 9 }
+  Combat.random = function() return 30 end
+  local h30 = Combat.rollHit(neutral, { eva = 30, type = 1 })
+  Combat.random = function() return 31 end
+  local h31 = Combat.rollHit(neutral, { eva = 30, type = 1 })
+  Combat.random = function() return 0 end
+  local h19 = Combat.rollHit(neutral, { eva = 19, type = 1 })
+  Combat.random = sr
+  check("sorteio: acerta só com aleatório maior que o erro; erro < 20 sempre acerta", h30 == false and h31 == true and h19 == true)
+  Combat.skills = data.prog.skills
+  local atk1 = { x = 0, y = 0, rmin = 1, rmax = 1, hp = 10 }
+  local withSkill = { x = 1, y = 0, hp = 10, skills = { 0x0C } }          -- $0C: alcance 1-2
+  local plain = { x = 2, y = 0, hp = 10, skills = {} }
+  local c1 = Combat.counterFor(atk1, withSkill, nil)
+  check("contra: defensor usa golpe de ataque que cobre o alcance do atacante", type(c1) == "table" and c1.id == 0x0C)
+  local far = { x = 0, y = 0, rmin = 2, rmax = 3, hp = 10 }
+  check("contra: sem golpe, só a distância 1", Combat.counterFor(far, plain, nil) == nil
+    and Combat.counterFor(atk1, { x = 1, y = 0, hp = 5, skills = {} }, nil) == "normal")
+  check("contra: golpe que não cobre o alcance do atacante não serve", Combat.counterFor(far, { x = 2, y = 0, hp = 5, skills = { 0x0C } }, nil) == nil)
+  check("contra: ataque da IA sempre recebe contra normal", Combat.counterFor(far, withSkill, nil, true) == "normal")
+
+
+  -- 17) Paleta dos retratos = paleta 4 de BG da fase (lida no PyBoy: ff7f df02 3a01 2804)
+  local pp = data.stages[1].portraitPal
+  check("paleta dos retratos", pp and pp[1][1] == 1 and pp[2][1] == 1 and math.abs(pp[2][2] - 22 / 31) < 1e-6
+    and pp[2][3] == 0 and math.abs(pp[4][1] - 8 / 31) < 1e-6)
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

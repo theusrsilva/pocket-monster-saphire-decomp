@@ -7,7 +7,7 @@ local serialize = require("src.util.serialize")
 local at = Rom.at
 local Importer = {}
 
-Importer.CACHE_VERSION = 9
+Importer.CACHE_VERSION = 10
 local NSTAGES = 32
 local NSPECIES_TABLE = 20     -- espécies recrutáveis ($09:$4000, 20 bytes)
 local NCOST_ROWS = 76         -- linhas da tabela de custo ($09:$4190, 33 bytes)
@@ -129,6 +129,7 @@ local function importStage(rom, s)
   return img, {
     cols = cols, rows = rows, terrain = terrain, enemies = enemies, starts = starts,
     allyPal = bgpal[8], enemyPal = bgpal[7],
+    portraitPal = bgpal[5],          -- paleta 4 de BG: retratos da luta e dos diálogos (igual em todas)
   }
 end
 

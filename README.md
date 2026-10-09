@@ -23,7 +23,7 @@ correção de bugs e melhorias de usabilidade.
 - [ ] Metasprites das animações de batalha
 - [x] Formato das fases: 32 mapas renderizados da ROM, inimigos e posições iniciais (`tools/extract_stages.py`)
 - [x] Mapa da SRAM (elenco e inimigos, 64 bytes por unidade)
-- [x] Paletas CGB das fases
+- [x] Paletas CGB das fases e dos retratos
 - [x] Regra de movimento (custo por espécie × terreno), validada contra o jogo
 - [x] Fórmulas de acerto, dano e EXP tiradas do código original
 - [x] **Protótipo jogável em LÖVE2D** (`engine/`): importador em Lua, batalha por turnos, IA simples

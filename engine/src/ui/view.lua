@@ -83,6 +83,7 @@ end
 
 function View.drawBattle(b)
   local st, cols = b.stage, b.stage.cols
+  View.portraitPal = st.portraitPal
   local camx, camy = View.camera(b)
   love.graphics.setCanvas(View.canvas)
   love.graphics.clear(0, 0, 0, 1)
@@ -196,7 +197,7 @@ function View.drawHud(b, s, ox, oy, camx, camy)
     local pi = u.species                           -- retrato da espécie (bancos $F4/$F5)
     if View.assets.portraits and View.portraitQuads[pi] then
       love.graphics.setShader(View.shader)
-      setPal(View.GRAY)
+      setPal(View.portraitPal or View.GRAY)
       love.graphics.setColor(1, 1, 1)
       love.graphics.draw(View.assets.portraits, View.portraitQuads[pi], px + 8, py + 10, 0, 2.25, 2.25)
       love.graphics.setShader()
@@ -224,7 +225,7 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   if b.mode == "target" then
     local a, t, sk = b.selected, b.targets[b.targetIndex], b.action
     local dmg = sk and sk.heal and -math.min(sk.power, t.maxhp - t.hp) or Combat.damage(a, t, sk and sk.power)
-    local counter = not (sk and sk.heal) and (t.hp - dmg > 0 and Combat.inRange(t, a.x, a.y))
+    local counter = not (sk and sk.heal) and t.hp - dmg > 0 and Combat.counterFor(a, t, sk)
     panel(w - 300, h - 102, 290, 92)
     love.graphics.setColor(1, 1, 1)
     love.graphics.print(("%s -> %s"):format(a.name, t.name), w - 288, h - 94)
@@ -234,7 +235,9 @@ function View.drawHud(b, s, ox, oy, camx, camy)
       love.graphics.print(("Dano %d (HP %d -> %d)  Acerto %d%%"):format(dmg, t.hp, math.max(0, t.hp - dmg),
         Combat.hitChance(a, t)), w - 288, h - 72)
     end
-    love.graphics.print(counter and ("Contra: %d  Acerto %d%%"):format(Combat.damage(t, a), Combat.hitChance(t, a))
+    love.graphics.print(counter and ("Contra%s: %d  Acerto %d%%"):format(
+      counter ~= "normal" and (" (" .. Names.skill_name(counter.id) .. ")") or "",
+      Combat.damage(t, a, counter ~= "normal" and counter.power or nil), Combat.hitChance(t, a))
       or "Sem contra-ataque", w - 288, h - 50)
     love.graphics.setFont(View.small)
     love.graphics.setColor(0.8, 0.85, 1)
@@ -309,7 +312,7 @@ function View.drawDialog(b, w, h)
   local tx = bx + 16
   if page.speaker and View.speakerQuads[page.speaker] then
     love.graphics.setShader(View.shader)
-    setPal(View.GRAY)
+    setPal(View.portraitPal or View.GRAY)
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(View.assets.speakers, View.speakerQuads[page.speaker], bx + 14, by + 14, 0, 2.875, 2.875)
     love.graphics.setShader()
@@ -363,6 +366,7 @@ end
 
 -- Mapa-múndi: o mapa da fase 0, os nós do grafo e o cursor (o líder do time).
 function View.drawWorld(wd, data, campaign)
+  View.portraitPal = data.stages[0].portraitPal
   local World = require("src.game.world")
   local w, h = love.graphics.getDimensions()
   local img = View.assets.stages[0]
