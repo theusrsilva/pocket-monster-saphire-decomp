@@ -8,3 +8,5 @@ tools/rgbds.tar.xz
 *.gb
 *.gbc
 *.sav
+__pycache__/
+*.pyc
