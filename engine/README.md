@@ -31,7 +31,8 @@ direito voltam · Esc encerra o turno · N alterna nomes oficiais/originais.
 - Prévia de ataque com dano, chance de acerto e contra-ataque (o original não mostrava)
 - Desfazer movimento antes de agir, mostrar o alcance de qualquer unidade, suporte a mouse
 - **Subida de nível, ganho de status e bônus escolhido**, com as tabelas do original
-- **Evolução** com os bônus e o golpe aprendido de cada forma (pedras: 1 de cada tipo por batalha, provisório)
+- **Itens** com os efeitos do original (cura, vitaminas permanentes) e **evolução** pelas insígnias,
+  com os bônus e o golpe aprendido de cada forma (inventário de teste por batalha, provisório)
 - **Golpes especiais e de cura** (tabela de golpes do original), também usados pelos inimigos
 - Chefes com MOV 0 ficam parados
 - **Nomes**: oficiais (com golpes em português) ou os originais do jogo, alternando com a tecla N
@@ -40,7 +41,7 @@ direito voltam · Esc encerra o turno · N alterna nomes oficiais/originais.
 
 ## Ainda não
 
-Itens e loja, eventos e falas das fases, escolha do time antes da luta, campanha e mapa-múndi, som, paletas dos retratos e a IA original.
+Loja, eventos e falas das fases (de onde vêm os itens), escolha do time antes da luta, campanha e mapa-múndi, som, paletas dos retratos e a IA original.
 
 ## Estrutura
 

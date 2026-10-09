@@ -171,11 +171,10 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   love.graphics.setFont(View.font)
 
   -- turno / fase
-  panel(10, 10, 360, 30)
+  panel(10, 10, 250, 30)
   love.graphics.setColor(1, 1, 1)
-  love.graphics.print(("Fase %d   Turno %d   %s   Pedras %d/%d/%d/%d/%d"):format(b.stageIndex, b.turn,
-    b.phase == "player" and "Sua vez" or "Inimigos", b.stones[1], b.stones[2], b.stones[3], b.stones[4],
-    b.stones[5]), 20, 16)
+  love.graphics.print(("Fase %d   Turno %d   %s"):format(b.stageIndex, b.turn,
+    b.phase == "player" and "Sua vez" or "Inimigos"), 20, 16)
 
   -- unidade sob o cursor
   local u = b:unitAt(b.cursor.x, b.cursor.y) or b.selected

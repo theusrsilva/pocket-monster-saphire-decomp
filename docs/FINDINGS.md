@@ -81,7 +81,12 @@ Carregador genérico em `ROM0:$300B`: no início do banco há uma tabela `[banco
 | `$F9` | nomes das espécies, id = espécie ($01–$4B) | 7×2 tiles (HDMA `$0D`) |
 | `$79` | nomes dos golpes, id = golpe ($01–$58) | 7×2 tiles |
 | `$F4` (→ `$F5`) | retratos, id = espécie ($01–$4B) | 4×4 tiles (HDMA `$0F`) |
-| `$7C` | lugares/itens (ainda não mapeado) | 18 tiles (HDMA `$11`) |
+| `$7C:$4000` | nomes dos lugares ($00 ChangPanCity … $20 BabyAlliance) | 9×2 tiles (`$11`) |
+| `$7C:$4088` / `$40A0` | ícones dos 5 tipos | 2×2 tiles (`$03`) |
+| `$7C:$40A8` | itens-chave da história (Moon Stone, The pass, Miraculous flute, Red squama, Dragon tooth, Rainbow feather) | 7×2 (`$0D`) |
+| `$7C:$40C4` | nomes dos 6 Palaestras | 7×2 (`$0D`) |
+| `$7C:$40DC` | texto do objetivo da fase ("Defeat all of the enemies") | 36 tiles (`$23`) |
+| `$7C:$4108` | retratos dos personagens dos diálogos (falante do comando `EA`) | 16 tiles (`$0F`) |
 
 Ferramenta: `tools/dump_textimages.py ROM banco largura altura primeiro último saída.png`.
 Os nomes foram transcritos em `engine/src/game/names.lua`, junto com o nome oficial do Pokémon
@@ -209,6 +214,27 @@ O bloco do atacante é copiado para `$C900` e o do defensor para `$C980`, no for
 | EXP (`$1D:$5860`) | derrubou: 16 × 2^dif, acertou: 8 × 2^dif (dif = nível do alvo − nível próprio, 1..9; dif 0 → ×2), máx. 100; alvo de nível menor dá 1; errar dá 0; nível 99 não ganha |
 
 O contra-ataque usa as mesmas contas com os papéis trocados (`$CD45`/`$CD03`).
+
+## Itens (inventário em `$C4E0 + id`, 1 byte por item; efeitos em `$01:$4ECB`)
+
+| id | Item | Efeito |
+|---|---|---|
+| $00 | Candy | HP +200 |
+| $01 | Juice | SP +200 |
+| $02 | Bread | HP +500 |
+| $03 | Milk | SP +400 |
+| $04 | Cake | HP cheio |
+| $05 | Honey | SP +600 |
+| $06 | Life stone | HP máx +10 |
+| $07 | Spirit stone | SP máx +5 |
+| $08 | Flames stone | ATK +2 |
+| $09 | Eye stone | PRE +2 |
+| $0A | Phoenix stone | ESQ +2 |
+| $0B | Flight stone | MOV +2 (máx. 15) |
+| $0C–$10 | Celerity / Equilibrium / Strength / Exceed / Defense badge | evolução (ver abaixo) |
+
+Os itens são dados pelo script de falas (`{GIVE 01 lo hi}` = soma 1 em `$hilo`): "Acquire the bread!!".
+As "badges" são as pedras de evolução que o código de evolução consome (`$C4EC + índice`).
 
 ## Nível e evolução
 

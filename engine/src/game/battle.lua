@@ -3,6 +3,7 @@ local Path = require("src.game.pathfind")
 local Combat = require("src.game.combat")
 local Progress = require("src.game.progress")
 local Names = require("src.game.names")
+local Items = require("src.game.items")
 local nameOf = Names.species_name
 
 local Battle = {}
@@ -27,9 +28,10 @@ function Battle.new(data, stageIndex)
     phase = "player", turn = 1, mode = "cursor",
     cursor = { x = 0, y = 0 }, selected = nil, reach = nil, prev = nil,
     menu = nil, popups = {}, queue = {}, timer = 0, result = nil, log = {}, pending = {},
-    -- PROVISÓRIO: enquanto itens/eventos não existem, cada batalha começa com 1 pedra de evolução
-    -- de cada tipo (no original elas vêm de casas, baús e lojas).
-    stones = { 1, 1, 1, 1, 1 },
+    -- PROVISÓRIO: enquanto os eventos das fases (casas, baús) não existem, cada batalha começa
+    -- com um inventário de teste. No original os itens vêm do script ({GIVE $C4xx}).
+    inventory = { [0x00] = 2, [0x01] = 1, [0x04] = 1, [0x08] = 1,
+      [0x0C] = 1, [0x0D] = 1, [0x0E] = 1, [0x0F] = 1, [0x10] = 1 },
   }, Battle)
   local i = 0
   for _, sp in ipairs(data.species) do
@@ -190,8 +192,8 @@ function Battle:openMenu(u)
   if #skills > 0 then
     items[#items + 1] = { label = "Golpe", action = function() self:openSkillMenu(u, skills) end }
   end
-  if Progress.canEvolve(u, self.prog) and (self.stones[u.type] or 0) > 0 then
-    items[#items + 1] = { label = "Evoluir", action = function() self:evolve(u) end }
+  if #self:usableItems(u) > 0 then
+    items[#items + 1] = { label = "Item", action = function() self:openItemMenu(u) end }
   end
   items[#items + 1] = { label = "Esperar", action = function() self:finishUnit(u) end }
   self.menu = { items = items, index = 1, title = u.name }
@@ -208,16 +210,46 @@ function Battle:openSkillMenu(u, skills)
   self.menu = { items = items, index = 1, title = "Golpes", parent = u, wide = true, extraWide = true }
 end
 
+function Battle:usableItems(u)
+  local out = {}
+  for id = 0x00, 0x10 do
+    if (self.inventory[id] or 0) > 0 and Items.usable(id, u, self.prog) then out[#out + 1] = id end
+  end
+  return out
+end
+
+function Battle:openItemMenu(u)
+  local items = {}
+  for _, id in ipairs(self:usableItems(u)) do
+    local it = Items.list[id]
+    items[#items + 1] = {
+      label = ("%s x%d  %s"):format(Items.name(id, Names.mode), self.inventory[id], it.badge and "evoluir" or it.desc),
+      action = function() self:useItem(u, id) end }
+  end
+  self.menu = { items = items, index = 1, title = "Itens", parent = u, wide = true, extraWide = true }
+end
+
+-- Usar item gasta a ação da unidade (como escolher "Goods" no original).
+function Battle:useItem(u, id)
+  self.inventory[id] = self.inventory[id] - 1
+  local it = Items.list[id]
+  if it.badge then
+    self:evolve(u)
+  else
+    it.use(u)
+    self:say(("%s usou %s (%s)"):format(u.name, Items.name(id, Names.mode), it.desc))
+    self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = it.desc, t = 0, heal = true }
+  end
+  self:finishUnit(u)
+end
+
 function Battle:evolve(u)
-  self.stones[u.type] = self.stones[u.type] - 1
   local old = u.name
   local learned = Progress.evolve(u, self.prog)
   u.name = nameOf(u.species)
   self:say(("%s evoluiu para %s!"):format(old, u.name))
   if learned then self:say(("%s aprendeu %s"):format(u.name, Names.skill_name(learned))) end
-  self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = "EVOLUIU!", t = 0 }
-  -- evoluir não gasta a ação (melhoria/simplificação até existir o menu de itens)
-  self:openMenu(u)
+  self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = "EVOLUIU!", t = 0, heal = true }
 end
 
 function Battle:cancel()

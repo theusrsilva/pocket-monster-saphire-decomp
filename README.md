@@ -29,7 +29,8 @@ correção de bugs e melhorias de usabilidade.
 - [x] **Protótipo jogável em LÖVE2D** (`engine/`): importador em Lua, batalha por turnos, IA simples
 - [x] Subida de nível, evolução e golpes especiais/cura (tabelas do original, no motor)
 - [x] Nomes das espécies e dos golpes (transcritos das imagens), com nomes oficiais e tradução PT
-- [ ] Itens e loja
+- [x] Itens e seus efeitos (inventário `$C4E0`), insígnias = pedras de evolução
+- [ ] Loja
 - [ ] Eventos e falas das fases, campanha, mapa-múndi
 - [ ] IA original dos inimigos
 

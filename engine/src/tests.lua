@@ -100,6 +100,18 @@ function T.run(data)
   check("sem oficial cai no original", Names.species_name(0x40) == "Qimoly")
   Names.mode = m
 
+  -- 8) Itens ($01:$4ECB)
+  local Items = require("src.game.items")
+  local w = { hp = 10, maxhp = 80, sp = 0, maxsp = 50, atk = 30, acc = 20, eva = 25, move = 14, type = 1,
+    species = 1, side = "ally" }
+  Items.list[0x00].use(w)
+  check("doce cura até o máximo", w.hp == 80)
+  Items.list[0x0B].use(w)
+  check("pedra do voo limitada a 15", w.move == 15)
+  Items.list[0x06].use(w)
+  check("pedra da vida: HP máx +10", w.maxhp == 90 and w.hp == 90)
+  check("insígnia do tipo certo evolui", Items.usable(0x0C, w, P) and not Items.usable(0x0D, w, P))
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

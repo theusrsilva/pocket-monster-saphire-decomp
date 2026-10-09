@@ -2,7 +2,8 @@
 """Renderiza os "textos em imagem" (nomes de Pokémon, golpes etc.) de um banco com o
 formato do carregador ROM0:$300B: tabela [banco, 00, ptr u16] por id em BANCO:$4000;
 cada imagem tem W x H tiles em ordem de linhas.
-Uso: dump_textimages.py ROM banco_hex largura altura primeiro_id ultimo_id saida.png"""
+Uso: dump_textimages.py ROM banco_hex largura altura primeiro_id ultimo_id saida.png [tabela_hex]
+(tabela = endereço da tabela de ponteiros; padrão $4000)"""
 import sys
 from PIL import Image, ImageDraw
 rom = open(sys.argv[1], 'rb').read()
@@ -15,6 +16,7 @@ def tile(o):
         lo, hi = rom[o + 2 * y], rom[o + 2 * y + 1]
         for x in range(8): p[x, y] = S[((lo >> (7 - x)) & 1) | (((hi >> (7 - x)) & 1) << 1)]
     return im
+table = int(sys.argv[8], 16) if len(sys.argv) > 8 else 0x4000
 n = last - first + 1
 cols = 3
 cw, ch = W * 8 + 40, H * 8 + 6
@@ -22,7 +24,7 @@ img = Image.new('L', (cols * cw, ((n + cols - 1) // cols) * ch), 255)
 d = ImageDraw.Draw(img)
 for k in range(n):
     i = first + k
-    o = at(bank, 0x4000) + i * 4
+    o = at(bank, table) + i * 4
     bk, a = rom[o], rom[o + 2] | rom[o + 3] << 8
     x0, y0 = (k % cols) * cw, (k // cols) * ch
     d.text((x0, y0 + 2), '%02X' % i, fill=0)
