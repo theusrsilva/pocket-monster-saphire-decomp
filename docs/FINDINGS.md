@@ -498,6 +498,22 @@ Ids `< $20` = moldura comum (`$40:$4000 + id*16`); ids `≥ $20` vêm do bloco d
 | Instituto | `$BD:$5E48` 20×9 | `$41:$4AC0` | Surmount, Raise information |
 | BabyAlliance | `$BD:$5FB0` 20×9 | `$41:$4AC0` | Evolve Condition, Role evolve |
 | cidade | `$BD:$5CE0` 20×9 | `$41:$4AC0` | (nome do Palaestra = imagem `$7C:$40C4`), Mayor, Resident |
+| submenu de itens | `$BD:$4180` 6×6 | `$40:$4340` | Recover goods, Special |
+| itens de cura | `$BD:$43A8` 20×18 | `$40:$49B0` | cabeçalho + 6 nomes (o "×" e os dígitos têm contorno preto e ficam) |
+| pedras | `$BD:$4678` 20×18 | `$40:$5160` | cabeçalho + 6 nomes |
+| tipos (Team show) | `$BD:$4CF0` 20×18 | `$40:$6440` | Player Team show, Celerity, Defence, Balance, Super power, Strength |
+| objetivo | `$BD:$5470` 20×8 | `$40:$7AD0` | Win Condition (o texto do objetivo é a imagem `$7C:$40DC`) |
+| aviso de turno | `$BD:$55B0` / `$BD:$5600` 10×4 | `$48:$4000` | Enemy action / Player action |
+
+O número de tiles livres limita o tamanho do texto novo (por isso "Objetivo" e não "Condição de
+vitória"). O status da unidade (LV, EXP, HP, SP, ATK, AGI, HIT, MOV) fica como está.
+
+**Descrições** de golpes e itens: script `$46` (golpes, 1 a `$58`) cuja lista continua na dos
+scripts `$47` em diante (itens, pedras, itens-chave, insígnias) — as listas do índice se sobrepõem,
+então o conversor lê cada lista até uma entrada inválida ou o começo do texto (`$5D:$50DC`) e
+atribui cada entrada à lista que começa mais perto. As traduções seguem modelos com os números do
+próprio texto (`src/romhack/descriptions.lua`). A caixa das descrições usa outra tabela de
+caracteres (minúsculas viram maiúsculas), então nela os acentos aparecem sem acento.
 
 ## Emulação para pesquisa
 

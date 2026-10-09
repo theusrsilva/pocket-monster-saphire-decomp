@@ -199,19 +199,39 @@ function Dialogs.entries(rom)
   local sorted = {}
   for _, p in pairs(ptrs) do sorted[#sorted + 1] = p end
   table.sort(sorted)
-  local out = {}
-  for s, p in pairs(ptrs) do
-    local nextp = 0x8000
-    for _, q in ipairs(sorted) do if q > p then nextp = q; break end end
-    local n = math.min(math.floor((nextp - p) / 4), 64)
-    for m = 0, n - 1 do
-      local e = at(INDEX_BANK, p) + m * 4
-      local lo, hi, bank = rom:u8(e), rom:u8(e + 1), rom:u8(e + 2)
-      local addr = lo + hi * 256
-      if not (TEXT_BANKS[bank] and addr >= 0x4000 and addr < 0x8000) then break end
-      out[#out + 1] = { script = s, msg = m, entry = e, bank = bank, addr = addr }
+  -- 1ª passada: cada lista até o próximo ponteiro, para achar onde começa o texto no banco $5D
+  local textStart = 0x8000
+  local function read(limitOf)
+    local out = {}
+    for s, p in pairs(ptrs) do
+      local nextp = 0x8000
+      for _, q in ipairs(sorted) do if q > p then nextp = q; break end end
+      local stop = limitOf(p, nextp)
+      local m = 0
+      while p + m * 4 + 3 < stop do
+        local e = at(INDEX_BANK, p) + m * 4
+        local lo, hi, bank = rom:u8(e), rom:u8(e + 1), rom:u8(e + 2)
+        local addr = lo + hi * 256
+        if not (TEXT_BANKS[bank] and addr >= 0x4000 and addr < 0x8000) then break end
+        out[#out + 1] = { script = s, msg = m, entry = e, bank = bank, addr = addr, table = p }
+        m = m + 1
+      end
     end
+    return out
   end
+  for _, e in ipairs(read(function(_, nextp) return nextp end)) do
+    if e.bank == INDEX_BANK and e.addr > sorted[#sorted] and e.addr < textStart then textStart = e.addr end
+  end
+  -- 2ª passada: as listas se sobrepõem (a do script $46 continua na do $47), então cada uma vai até
+  -- uma entrada inválida ou o começo do texto; a lista vazia compartilhada ($4096) vai até o próximo
+  local all = read(function(p, nextp) return p == lowest and nextp or textStart end)
+  local byEntry = {}
+  for _, e in ipairs(all) do                     -- cada entrada fica com a lista mais próxima
+    local cur = byEntry[e.entry]
+    if not cur or e.table > cur.table then byEntry[e.entry] = e end
+  end
+  local out = {}
+  for _, e in pairs(byEntry) do out[#out + 1] = e end
   table.sort(out, function(a, b) return a.entry < b.entry end)
   return out
 end
@@ -253,6 +273,8 @@ function Dialogs.apply(rom, PT, freeBanks)
     return k
   end
   local entries = Dialogs.entries(rom)
+  local nDesc
+  PT, nDesc = require("src.romhack.descriptions").add(rom, PT, entries)
   for _, e in ipairs(entries) do
     e.key = visit(e.bank, e.addr, Dialogs.boxWidth(rom, e.script, e.msg))
   end
@@ -298,6 +320,7 @@ function Dialogs.apply(rom, PT, freeBanks)
     rom:write(e.entry, { newAddr[k] % 256, math.floor(newAddr[k] / 256), newBank[k] })
   end
   report.entries = #entries
+  report.descriptions = nDesc
   return report
 end
 

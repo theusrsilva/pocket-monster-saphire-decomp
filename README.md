@@ -42,8 +42,9 @@ correção de bugs e melhorias de usabilidade.
 - [x] Conversor de ROM (tela de configuração): gera uma ROM de GBC/GBA com as falas em português
   (acentos na fonte do jogo), nomes de golpes/espécies/lugares/itens redesenhados e a autocura do
   inimigo corrigida
-- [x] Conversor de ROM: menus da unidade, do mapa, escolha do time, Instituto, BabyAlliance e cidades
-- [ ] Conversor de ROM: lista de itens, tela de status, confirmações e demais telas
+- [x] Conversor de ROM: menus da unidade, do mapa, escolha do time, Instituto, BabyAlliance, cidades,
+  listas de itens, tipos, objetivo, avisos de turno e descrições de golpes/itens
+- [ ] Conversor de ROM: tela de título, confirmações e telas de evolução/vitória (a conferir)
 
 Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).
 
