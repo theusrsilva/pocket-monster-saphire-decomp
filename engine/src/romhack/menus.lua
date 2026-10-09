@@ -62,6 +62,10 @@ Menus.SCREENS = {
       { 1, 1, 11, 2, align = "left", texts = { "Podem lutar" } },
       { 0, 15, 15, 16, align = "left", gap = 4, splitAt = { 82, 104 }, texts = { "Lutar", "Trocar", false, "Pág." } },
     } },
+  { name = "salvar", group = "f", map = { 0xBD, 0x6DB8, 20, 18 }, chunk = { 0x41, 0x74F0 },
+    regions = { { 1, 14, 18, 15, align = "center", gap = 20, outlined = 3, texts = { "SALVAR" } } } },
+  { name = "carregar", group = "f", map = { 0xBD, 0x7088, 20, 18 }, chunk = { 0x41, 0x74F0 },
+    regions = { { 1, 14, 18, 15, align = "center", gap = 20, outlined = 3, texts = { "CARREGAR" } } } },
   { name = "Instituto", group = "c", map = { 0xBD, 0x5E48, 20, 9 }, chunk = { 0x41, 0x4AC0 },
     regions = { { 1, 1, 19, 2, align = "center", texts = { "Vantagens", "Dicas" } } } },
   { name = "BabyAlliance", group = "c", map = { 0xBD, 0x5FB0, 20, 9 }, chunk = { 0x41, 0x4AC0 },
@@ -214,7 +218,15 @@ local function relabel(sc, rg, canvas, W, H, bg, ink)
   for i, s in ipairs(segs) do
     local t = rg.texts[i]
     if t then
-      for y = s.y0, s.y1 do for x = s.x0, s.x1 do if mask[y][x] then canvas[y][x] = bg end end end
+      if rg.outlined then                       -- letra clara com contorno: apaga os dois
+        for y = math.max(0, s.y0 - 1), math.min(H - 1, s.y1 + 1) do
+          for x = math.max(0, s.x0 - 1), math.min(W - 1, s.x1 + 1) do
+            if canvas[y][x] == ink or canvas[y][x] == rg.outlined then canvas[y][x] = bg end
+          end
+        end
+      else
+        for y = s.y0, s.y1 do for x = s.x0, s.x1 do if mask[y][x] then canvas[y][x] = bg end end end
+      end
       local prev, nxt = segs[i - 1], segs[i + 1]
       local xmin = (prev and prev.y0 <= s.y1 and prev.y1 >= s.y0) and prev.x1 + 4 or 0
       local xmax = (nxt and nxt.y0 <= s.y1 and nxt.y1 >= s.y0) and nxt.x0 - 4 or W - 1
@@ -223,7 +235,7 @@ local function relabel(sc, rg, canvas, W, H, bg, ink)
   end
   for _, p in ipairs(plan) do
     local font, gap = "normal", 1
-    local room = p.xmax - p.xmin + 1
+    local room = p.xmax - p.xmin + 1 - (rg.outlined and 2 or 0)
     local tw = PixelFont.width(font, p.t, gap)
     if tw > room then gap = 0; tw = PixelFont.width(font, p.t, gap) end
     if tw > room then font, gap = "small", 1; tw = PixelFont.width(font, p.t, gap) end
@@ -234,78 +246,99 @@ local function relabel(sc, rg, canvas, W, H, bg, ink)
     x = math.max(p.xmin, math.min(x, p.xmax - tw + 1))
     -- normal: corpo nas linhas 2-8 da célula (base na 8); small: 2-6 (base na 6)
     local top = p.s.base - (font == "normal" and 8 or 6)
+    local drawn = {}
     PixelFont.draw(font, p.t, x, top, gap, function(px, py)
-      if py >= 0 and py < H and px >= 0 and px < W then canvas[py][px] = ink end
+      if py >= 0 and py < H and px >= 0 and px < W then
+        canvas[py][px] = ink
+        drawn[#drawn + 1] = { px, py }
+      end
     end)
+    if rg.outlined then
+      for _, d in ipairs(drawn) do
+        for dy = -1, 1 do
+          for dx = -1, 1 do
+            local r = canvas[d[2] + dy]
+            if r and r[d[1] + dx] == bg then r[d[1] + dx] = rg.outlined end
+          end
+        end
+      end
+    end
   end
 end
 
--- otherMaps: os outros mapas do mesmo grupo (os usos neles contam como fora das regiões).
-function Menus.applyScreen(rom, sc, otherMaps)
-  local mapBank, mapAddr, mw, mh = sc.map[1], sc.map[2], sc.map[3], sc.map[4]
-  local mo = at(mapBank, mapAddr)
-  local ao = mo + mw * mh                      -- atributos logo depois do mapa
-  local function data(id) return readTile(rom, tileOffset(sc.chunk, id)) end
-  -- 1) cada região: canvas com o que aparece na tela (espelhos aplicados), apaga e escreve
-  local cellPx, origKey = {}, {}
+-- Processa um grupo de telas que dividem o bloco de tiles: primeiro monta e reescreve todas as
+-- regiões (lendo o original), depois escolhe os ids com um conjunto único de tiles livres = ids cujos
+-- usos em todos os mapas do grupo estão dentro das regiões.
+function Menus.applyGroup(rom, screens)
+  local chunk = screens[1].chunk
+  local function data(id) return readTile(rom, tileOffset(chunk, id)) end
+  -- cell = offset absoluto do byte do mapa; attrOf[cell] = offset do atributo
+  local cellPx, origKey, attrOf = {}, {}, {}
   local bg
-  for _, rg in ipairs(sc.regions) do
-    local cx0, cy0, cx1, cy1 = rg[1], rg[2], rg[3], rg[4]
-    local W, H = (cx1 - cx0 + 1) * 8, (cy1 - cy0 + 1) * 8
-    local canvas = {}
-    for y = 0, H - 1 do canvas[y] = {} end
-    for cy = cy0, cy1 do
-      for cx = cx0, cx1 do
-        local i = cy * mw + cx
-        local attr = rom:u8(ao + i)
-        local fx, fy = math.floor(attr / 32) % 2 == 1, math.floor(attr / 64) % 2 == 1
-        local px = data(rom:u8(mo + i))
-        local shown = {}
-        for y = 0, 7 do
-          shown[y] = {}
-          for x = 0, 7 do
-            local v = px[fy and 7 - y or y][fx and 7 - x or x]
-            shown[y][x] = v
-            canvas[(cy - cy0) * 8 + y][(cx - cx0) * 8 + x] = v
+  for _, sc in ipairs(screens) do
+    assert(sc.chunk[1] == chunk[1] and sc.chunk[2] == chunk[2], "grupo com blocos diferentes")
+    local mw, mh = sc.map[3], sc.map[4]
+    local mo = at(sc.map[1], sc.map[2])
+    local ao = mo + mw * mh                    -- atributos logo depois do mapa
+    for _, rg in ipairs(sc.regions) do
+      local cx0, cy0, cx1, cy1 = rg[1], rg[2], rg[3], rg[4]
+      local W, H = (cx1 - cx0 + 1) * 8, (cy1 - cy0 + 1) * 8
+      local canvas = {}
+      for y = 0, H - 1 do canvas[y] = {} end
+      for cy = cy0, cy1 do
+        for cx = cx0, cx1 do
+          local i = cy * mw + cx
+          local attr = rom:u8(ao + i)
+          local fx, fy = math.floor(attr / 32) % 2 == 1, math.floor(attr / 64) % 2 == 1
+          local px = data(rom:u8(mo + i))
+          local shown = {}
+          for y = 0, 7 do
+            shown[y] = {}
+            for x = 0, 7 do
+              local v = px[fy and 7 - y or y][fx and 7 - x or x]
+              shown[y][x] = v
+              canvas[(cy - cy0) * 8 + y][(cx - cx0) * 8 + x] = v
+            end
           end
+          origKey[mo + i] = key(tileBytes(shown))
+          attrOf[mo + i] = ao + i
         end
-        origKey[i] = key(tileBytes(shown))
       end
-    end
-    local count = { [0] = 0, 0, 0, 0 }
-    for y = 0, H - 1 do for x = 0, W - 1 do count[canvas[y][x]] = count[canvas[y][x]] + 1 end end
-    bg = 0
-    for c = 0, 3 do if count[c] > count[bg] then bg = c end end
-    relabel(sc, rg, canvas, W, H, bg, rg.ink or (bg ~= 0 and 0 or 3))
-    for cy = cy0, cy1 do
-      for cx = cx0, cx1 do
-        local px = {}
-        for y = 0, 7 do
-          px[y] = {}
-          for x = 0, 7 do px[y][x] = canvas[(cy - cy0) * 8 + y][(cx - cx0) * 8 + x] end
+      local count = { [0] = 0, 0, 0, 0 }
+      for y = 0, H - 1 do for x = 0, W - 1 do count[canvas[y][x]] = count[canvas[y][x]] + 1 end end
+      bg = 0
+      for c = 0, 3 do if count[c] > count[bg] then bg = c end end
+      if Menus.debug then io.stderr:write("  região de " .. sc.name .. "\n") end
+      relabel(sc, rg, canvas, W, H, bg, rg.ink or (bg ~= 0 and 0 or 3))
+      for cy = cy0, cy1 do
+        for cx = cx0, cx1 do
+          local px = {}
+          for y = 0, 7 do
+            px[y] = {}
+            for x = 0, 7 do px[y][x] = canvas[(cy - cy0) * 8 + y][(cx - cx0) * 8 + x] end
+          end
+          cellPx[mo + cy * mw + cx] = px
         end
-        cellPx[cy * mw + cx] = px
       end
     end
   end
-  -- 2) ids exclusivos: todos os usos (neste mapa e nos outros do grupo) estão dentro das regiões
-  local inRegion, total = {}, {}
-  for i = 0, mw * mh - 1 do
-    local id = rom:u8(mo + i)
-    total[id] = (total[id] or 0) + 1
-    if cellPx[i] then inRegion[id] = (inRegion[id] or 0) + 1 end
-  end
-  for _, m in ipairs(otherMaps) do
-    local o = at(m[1], m[2])
-    for i = 0, m[3] * m[4] - 1 do
-      local id = rom:u8(o + i)
-      total[id] = (total[id] or 0) + 1
+  -- ids exclusivos: todos os usos nos mapas do grupo estão dentro das regiões
+  local inRegion, total, seenMap = {}, {}, {}
+  for _, sc in ipairs(screens) do
+    local mo = at(sc.map[1], sc.map[2])
+    if not seenMap[mo] then
+      seenMap[mo] = true
+      for i = 0, sc.map[3] * sc.map[4] - 1 do
+        local id = rom:u8(mo + i)
+        total[id] = (total[id] or 0) + 1
+        if cellPx[mo + i] then inRegion[id] = (inRegion[id] or 0) + 1 end
+      end
     end
   end
   local known, pool, seen, ids = {}, {}, {}, {}
   for id = 0x1F, 0, -1 do known[key(tileBytes(data(id)))] = id end      -- moldura comum
-  for i in pairs(cellPx) do
-    local id = rom:u8(mo + i)
+  for c in pairs(cellPx) do
+    local id = rom:u8(c)
     if not seen[id] then seen[id] = true; ids[#ids + 1] = id end
   end
   table.sort(ids)
@@ -318,17 +351,17 @@ function Menus.applyScreen(rom, sc, otherMaps)
       elseif inRegion[id] == total[id] then pool[#pool + 1] = id end
     end
   end
-  -- 3) atribui ids e grava
+  -- atribui ids e grava
   local newData, used, cells = {}, 0, {}
-  for i in pairs(cellPx) do cells[#cells + 1] = i end
+  for c in pairs(cellPx) do cells[#cells + 1] = c end
   table.sort(cells)
-  for _, i in ipairs(cells) do
-    local bytes = tileBytes(cellPx[i])
+  for _, c in ipairs(cells) do
+    local bytes = tileBytes(cellPx[c])
     local k = key(bytes)
-    local id0 = rom:u8(mo + i)
+    local id0 = rom:u8(c)
     local exclusive = id0 >= 0x20 and inRegion[id0] == total[id0]
     local id
-    if k == origKey[i] and not exclusive then
+    if k == origKey[c] and not exclusive then
       id = id0
     elseif known[k] then
       id = known[k]
@@ -337,29 +370,31 @@ function Menus.applyScreen(rom, sc, otherMaps)
     else
       used = used + 1
       id = pool[used]
-      if not id then error(("%s: faltam tiles livres (%d disponíveis)"):format(sc.name, #pool)) end
+      if not id then error(("%s: faltam tiles livres (%d disponíveis)"):format(screens[1].name, #pool)) end
       newData[k] = { id = id, bytes = bytes }
     end
-    if id ~= id0 or k ~= origKey[i] then
-      local attr = rom:u8(ao + i)
-      rom:set(ao + i, attr - (math.floor(attr / 32) % 4) * 32)        -- sem espelho
+    if id ~= id0 or k ~= origKey[c] then
+      local attr = rom:u8(attrOf[c])
+      rom:set(attrOf[c], attr - (math.floor(attr / 32) % 4) * 32)      -- sem espelho
     end
-    rom:set(mo + i, id)
+    rom:set(c, id)
   end
-  for _, d in pairs(newData) do rom:write(tileOffset(sc.chunk, d.id), d.bytes) end
+  for _, d in pairs(newData) do rom:write(tileOffset(chunk, d.id), d.bytes) end
   return used, #pool
 end
 
 function Menus.apply(rom)
-  local report = {}
+  local report, groups, order = {}, {}, {}
   for _, sc in ipairs(Menus.SCREENS) do
-    local others = {}
-    for _, o in ipairs(Menus.SCREENS) do
-      if o ~= sc and o.group == sc.group then others[#others + 1] = o.map end
-    end
-    if Menus.debug then io.stderr:write("tela " .. sc.name .. "\n") end
-    local used, pool = Menus.applyScreen(rom, sc, others)
-    report[#report + 1] = ("%s: %d/%d tiles"):format(sc.name, used, pool)
+    if not groups[sc.group] then groups[sc.group] = {}; order[#order + 1] = sc.group end
+    table.insert(groups[sc.group], sc)
+  end
+  for _, g in ipairs(order) do
+    local names = {}
+    for _, sc in ipairs(groups[g]) do names[#names + 1] = sc.name end
+    if Menus.debug then io.stderr:write("grupo " .. table.concat(names, ", ") .. "\n") end
+    local used, pool = Menus.applyGroup(rom, groups[g])
+    report[#report + 1] = ("%s: %d/%d tiles"):format(table.concat(names, " + "), used, pool)
   end
   return report
 end

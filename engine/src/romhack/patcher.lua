@@ -65,6 +65,7 @@ function Patcher.build(bytes, opts)
     if opts.images ~= false then
       report.images = require("src.romhack.images").apply(rom)
       report.menus = require("src.romhack.menus").apply(rom)
+      report.title = require("src.romhack.title").apply(rom)
     end
   end
   if opts.fixHeal ~= false then

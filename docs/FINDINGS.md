@@ -505,6 +505,15 @@ Ids `< $20` = moldura comum (`$40:$4000 + id*16`); ids `≥ $20` vêm do bloco d
 | objetivo | `$BD:$5470` 20×8 | `$40:$7AD0` | Win Condition (o texto do objetivo é a imagem `$7C:$40DC`) |
 | aviso de turno | `$BD:$55B0` / `$BD:$5600` 10×4 | `$48:$4000` | Enemy action / Player action |
 
+| salvar / carregar | `$BD:$6DB8` / `$BD:$7088` 20×18 | `$41:$74F0` | SELECT SAVE FILE / SELECT LOAD FILE (letra branca com contorno preto; os dois mapas dividem os tiles, por isso o grupo é processado junto) |
+
+**Título** (depois de uma derrota): mapa `$19:$5022` (letras Unown, sem texto) e opções em sprites 8×16
+(LCDC `$C7`). "LOAD"/"EXIT": 7 sprites (56×16) cada, tiles seguidos cima/baixo em `$85:$5510` e
+`$85:$56C0`, com um segundo quadro de animação em `$85:$55F0` e `$85:$57A0` (preenchimento cor 1,
+contorno cor 2, sombra cor 3). Botões "NEW GAME"/"RECORDS": 10 sprites (80×16) em `$8C:$5310` e
+`$8C:$5460`, letra cor 3 de 6 linhas nas linhas 5–10. A vitória não tem tela própria (vai direto à fala
+da recompensa) e a evolução só mostra nomes em imagem e rótulos de status.
+
 O número de tiles livres limita o tamanho do texto novo (por isso "Objetivo" e não "Condição de
 vitória"). O status da unidade (LV, EXP, HP, SP, ATK, AGI, HIT, MOV) fica como está.
 

@@ -44,7 +44,7 @@ correção de bugs e melhorias de usabilidade.
   inimigo corrigida
 - [x] Conversor de ROM: menus da unidade, do mapa, escolha do time, Instituto, BabyAlliance, cidades,
   listas de itens, tipos, objetivo, avisos de turno e descrições de golpes/itens
-- [ ] Conversor de ROM: tela de título, confirmações e telas de evolução/vitória (a conferir)
+- [x] Conversor de ROM: tela de título, salvar/carregar; evolução e vitória conferidas (sem texto além dos nomes)
 
 Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).
 

@@ -152,6 +152,7 @@ src/romhack/buffer.lua    cópia editável da ROM + checksum
 src/romhack/images.lua    nomes em imagem redesenhados em PT
 src/romhack/pixelfont.lua fontes de pixel próprias (normal e versalete)
 src/romhack/menus.lua     palavras dos menus (refaz os tiles e o mapa da região)
+src/romhack/title.lua     opções da tela de título (sprites)
 src/romhack/descriptions.lua  descrições de golpes e itens (modelos com os números da ROM)
 src/game/items.lua        itens e efeitos
 src/game/names.lua        nomes transcritos (oficiais/originais)
