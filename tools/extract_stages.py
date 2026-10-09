@@ -11,7 +11,7 @@ Fontes na ROM:
 
 Registro de inimigo (24 bytes):
   +0 nivel  +1 especie  +2 tipo  +3 y(px u16)  +5 x(px u16)  +7 slot grafico
-  +8 SP(u16)  +10 HP(u16)  +12 ATK  +13 DEF  +14 SPD  +15 MOV  +16 forte contra
+  +8 SP(u16)  +10 HP(u16)  +12 ATK  +13 PRE  +14 ESQ  +15 MOV  +16 forte contra
   +17 fraco contra  +18 alcance min  +19 alcance max  +20..+23 golpe [id, poder, custo, ?]
 
 Uso: extract_stages.py ROM saida.json pasta_png
@@ -46,7 +46,7 @@ def enemies(stage):
         out.append({
             'level': r[0], 'species': r[1], 'type': TYPES.get(r[2], r[2]),
             'y': u16(o + 3) // 16, 'x': u16(o + 5) // 16, 'slot': r[7],
-            'sp': u16(o + 8), 'hp': u16(o + 10), 'atk': r[12], 'def': r[13], 'spd': r[14],
+            'sp': u16(o + 8), 'hp': u16(o + 10), 'atk': r[12], 'acc': r[13], 'eva': r[14],
             'move': r[15], 'strong_vs': TYPES.get(r[16], r[16]), 'weak_vs': TYPES.get(r[17], r[17]),
             'range': [r[18], r[19]], 'skill': list(r[20:24]) if r[20] else None,
             'raw': r.hex(' ')})

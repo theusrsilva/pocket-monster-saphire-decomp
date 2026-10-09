@@ -7,8 +7,8 @@ Campos confirmados comparando com a RAM do jogo rodando (lista $DE00 / bloco $C9
   +2  tipo 1..5 (1 Celerity, 2 Equilibrium, 3 Strength, 4 Super Power, 5 Defense)
   +3  SP base (u16 LE)
   +5  HP base (u16 LE)
-  +7  ATK   +8 DEF   +9 terceiro atributo (provavel SPD/agilidade)
-  +10 movimento (casas)            [hipotese: 9 Celerity ... 6 Strength]
+  +7  ATK   +8 PRE (precisao)   +9 ESQ (esquiva)  -- acerto% = 100 + PRE(atac) - ESQ(def)
+  +10 MOV: pontos de movimento; custo por casa em $09:$4190 + especie*33 + terreno
   +11 tipo contra o qual e forte   (ciclo 1>2>3>4>5>1)
   +12 tipo contra o qual e fraco
   +13 1 = ja vem no time no comeco do jogo
@@ -34,7 +34,7 @@ for i in range(COUNT):
         'type': TYPES.get(r[2], r[2]),
         'sp': r[3] | r[4] << 8,
         'hp': r[5] | r[6] << 8,
-        'atk': r[7], 'def': r[8], 'spd': r[9],
+        'atk': r[7], 'acc': r[8], 'eva': r[9],
         'move': r[10],
         'strong_vs': TYPES.get(r[11], r[11]),
         'weak_vs': TYPES.get(r[12], r[12]),
@@ -46,8 +46,8 @@ for i in range(COUNT):
 
 json.dump(out, open(sys.argv[2], 'w'), indent=1)
 print('%-3s %-4s %-4s %-11s %4s %4s %4s %4s %4s %4s %-7s %s' %
-      ('#', 'lv', 'gfx', 'tipo', 'HP', 'SP', 'ATK', 'DEF', 'SPD', 'MOV', 'alcance', 'skills'))
+      ('#', 'lv', 'gfx', 'tipo', 'HP', 'SP', 'ATK', 'PRE', 'ESQ', 'MOV', 'alcance', 'skills'))
 for s in out:
     print('%-3d %-4d %02X   %-11s %4d %4d %4d %4d %4d %4d %-7s %s%s' % (
-        s['index'], s['level'], s['gfx_id'], s['type'], s['hp'], s['sp'], s['atk'], s['def'],
-        s['spd'], s['move'], '%d-%d' % tuple(s['range']), s['skills'], '  *inicial' if s['starter'] else ''))
+        s['index'], s['level'], s['gfx_id'], s['type'], s['hp'], s['sp'], s['atk'], s['acc'],
+        s['eva'], s['move'], '%d-%d' % tuple(s['range']), s['skills'], '  *inicial' if s['starter'] else ''))

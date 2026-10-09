@@ -24,12 +24,21 @@ correção de bugs e melhorias de usabilidade.
 - [x] Formato das fases: 32 mapas renderizados da ROM, inimigos e posições iniciais (`tools/extract_stages.py`)
 - [x] Mapa da SRAM (elenco e inimigos, 64 bytes por unidade)
 - [x] Paletas CGB das fases
-- [ ] Fórmulas de batalha / IA
-- [ ] Motor em LÖVE2D
+- [x] Regra de movimento (custo por espécie × terreno), validada contra o jogo
+- [x] Fórmulas de acerto, dano e EXP tiradas do código original
+- [x] **Protótipo jogável em LÖVE2D** (`engine/`): importador em Lua, batalha por turnos, IA simples
+- [ ] Golpes especiais, itens, subida de nível e evolução
+- [ ] Eventos e falas das fases, campanha, mapa-múndi
+- [ ] IA original dos inimigos
 
 Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).
 
-## Uso
+## Jogar o protótipo
+
+Precisa do [LÖVE 11.x](https://love2d.org). Coloque a ROM em `rom/saphire.gbc` e rode `love engine`
+(ou arraste a ROM na janela). Detalhes em [`engine/README.md`](engine/README.md).
+
+## Ferramentas de pesquisa
 
 ```sh
 ./tools/setup.sh                  # baixa mgbdis + RGBDS, gera disasm/ e confere o round-trip
