@@ -3,17 +3,22 @@
 --
 -- Linha de comando (útil para desenvolvimento/testes):
 --   love engine --rom caminho/saphire.gbc     importa a ROM (se ainda não houver cache)
---   love engine --stage 26                    vai direto para uma fase
+--   love engine --stage 26                    vai direto para uma fase (sem passar pelo mapa-múndi)
+--   love engine --node 9                      põe o cursor do mapa-múndi num nó
 --   love engine --script "right z wait10"     injeta entradas (teclas/waitN)
 --   love engine --shot saida.png              salva um screenshot ao fim do script e sai
 --   love engine --cheat-move 1                (testes) aliados com movimento alto
 --   love engine --cheat-win 1                 (testes) vence a fase ao entrar
+--   love engine --cleared 5 --keys 2          (testes) fases 1-5 vencidas, itens-chave 0-1
+--   love engine --new-save 1                  (testes) começa do zero
+-- Com qualquer opção de teste o progresso vai para save_test.lua, não para o save do jogador.
 local Importer = require("src.import.importer")
 local Battle = require("src.game.battle")
 local View = require("src.ui.view")
 local Names = require("src.game.names")
 local Campaign = require("src.game.campaign")
-local campaign
+local World = require("src.game.world")
+local campaign, world
 
 -- Preferências do jogador (pasta de dados do LÖVE)
 local function loadOptions()
@@ -26,7 +31,7 @@ local function saveOptions()
 end
 
 local state = "boot"
-local data, battle, sel = nil, nil, 1
+local data, battle = nil, nil
 local importCo, importMsg, importErr = nil, "", nil
 local opts = {}
 
@@ -62,6 +67,14 @@ local function loadAssets()
   View.init(assets)
 end
 
+local enterStage
+
+local function openWorld()
+  world = World.new(data, campaign)
+  world.onEnter = function(s) enterStage(s) end
+  state = "world"
+end
+
 local function startImport(bytes)
   importErr = nil
   importCo = coroutine.create(function()
@@ -81,7 +94,7 @@ local function readFile(path)
   return b
 end
 
-local function enterStage(i)
+function enterStage(i)
   battle = Battle.new(data, i, campaign)
   if opts["cheat-move"] then                  -- só para testes: aliados andam muito
     for _, u in ipairs(battle.units) do if u.side == "ally" then u.move = 60 end end
@@ -139,6 +152,11 @@ function love.load(args)
       if k then for _ = 1, tonumber(rep) do script[#script + 1] = k end else script[#script + 1] = tok end
     end
   end
+  -- execuções de teste não mexem no save do jogador
+  if opts["cheat-move"] or opts["cheat-win"] or opts.cleared or opts.keys or opts["new-save"] then
+    Campaign.FILE = "save_test.lua"
+    if opts["new-save"] then love.filesystem.remove(Campaign.FILE) end
+  end
   data = Importer.load()
   if opts.test ~= nil or hasFlag("--test") then
     if not data then
@@ -153,8 +171,11 @@ function love.load(args)
   end
   if data then
     loadAssets()
-    state = "select"
-    if opts.stage then sel = tonumber(opts.stage); enterStage(sel) end
+    if opts.cleared then for i = 1, tonumber(opts.cleared) do campaign.cleared[i] = true end end
+    if opts.keys then for i = 0, tonumber(opts.keys) - 1 do campaign.keyItems[i] = 1 end end
+    if opts.node then campaign.node = tonumber(opts.node) end
+    openWorld()
+    if opts.stage then enterStage(tonumber(opts.stage)) end
   else
     local path = opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc")
     local bytes = readFile(path)
@@ -182,17 +203,19 @@ function love.update(dt)
       if res then
         data = Importer.load()
         loadAssets()
-        state = "select"
-        if opts.stage then sel = tonumber(opts.stage); enterStage(sel) end
+        openWorld()
+        if opts.stage then enterStage(tonumber(opts.stage)) end
       else
         importErr, state = err, "needrom"
       end
     end
   elseif state == "battle" then
     battle:update(dt)
+  elseif state == "world" then
+    world:update(dt)
   end
   if #script > 0 or scriptWait > 0 or opts.shot then
-    if state == "battle" or state == "select" then runScriptStep() end
+    if state == "battle" or state == "world" then runScriptStep() end
   end
 end
 
@@ -210,19 +233,31 @@ function love.keypressed(key)
     if battle then battle:refreshNames() end
     return
   end
-  if state == "select" then
-    if key == "delete" then
+  if state == "world" then
+    local wd = world
+    if key == "delete" and wd.mode == "map" then
       campaign = Campaign.new(data)
       campaign:save()
+      openWorld()
       return
     end
-    if k == "up" then sel = (sel - 2) % 31 + 1
-    elseif k == "down" then sel = sel % 31 + 1
-    elseif k == "a" then enterStage(sel) end
+    if wd.mode == "dialog" then
+      if k == "a" or k == "b" then
+        local l = wd.dialogLayout or { shown = 3, total = 1 }
+        wd:advanceDialog(l.shown, l.total)
+      end
+    elseif wd.mode == "menu" then
+      if k == "up" then wd:menuMove(-1) elseif k == "down" then wd:menuMove(1)
+      elseif k == "a" then wd:confirm() elseif k == "b" then wd:cancel() end
+    else
+      if k == "up" then wd:move(World.UP) elseif k == "down" then wd:move(World.DOWN)
+      elseif k == "left" then wd:move(World.LEFT) elseif k == "right" then wd:move(World.RIGHT)
+      elseif k == "a" then wd:confirm() end
+    end
   elseif state == "battle" then
     local b = battle
     if b.result then
-      if k == "a" then state = "select" end
+      if k == "a" then campaign:save(); openWorld() end
       return
     end
     if b.mode == "dialog" then
@@ -252,7 +287,7 @@ end
 function love.mousepressed(mx, my, button)
   if state ~= "battle" or not battle.cam then return end
   local b = battle
-  if b.result then state = "select" return end
+  if b.result then campaign:save(); openWorld() return end
   if b.mode == "dialog" then
     local l = b.dialogLayout or { shown = 3, total = 1 }
     b:advanceDialog(l.shown, l.total)
@@ -277,8 +312,8 @@ function love.draw()
   local w, h = love.graphics.getDimensions()
   if state == "battle" then
     View.drawBattle(battle)
-  elseif state == "select" then
-    View.drawStageSelect(sel, data, campaign)
+  elseif state == "world" then
+    View.drawWorld(world, data, campaign)
   else
     love.graphics.clear(0.04, 0.06, 0.16)
     love.graphics.setColor(1, 1, 1)

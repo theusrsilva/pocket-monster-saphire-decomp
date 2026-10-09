@@ -56,7 +56,7 @@ function Progress.gainExp(unit, amount, prog)
 end
 
 function Progress.canEvolve(unit, prog)
-  return unit.side == "ally" and not prog.final[unit.species] and prog.evoBonus[unit.species + 1] ~= nil
+  return unit.side ~= "enemy" and not prog.final[unit.species] and prog.evoBonus[unit.species + 1] ~= nil
 end
 
 -- Evolução: espécie+1, soma o bônus da nova forma, recupera HP/SP e aprende o golpe da forma.

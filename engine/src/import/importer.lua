@@ -7,7 +7,7 @@ local serialize = require("src.util.serialize")
 local at = Rom.at
 local Importer = {}
 
-Importer.CACHE_VERSION = 5
+Importer.CACHE_VERSION = 6
 local NSTAGES = 32
 local NSPECIES_TABLE = 20     -- espécies recrutáveis ($09:$4000, 20 bytes)
 local NCOST_ROWS = 76         -- linhas da tabela de custo ($09:$4190, 33 bytes)
@@ -270,13 +270,18 @@ end
 
 -- Script de falas: índice $5D:$4000 (u16 por script) -> entradas [lo, hi, banco, 00] por mensagem.
 -- Bytes < $E0 são texto; >= $E0 são comandos com tamanho na tabela ROM0:$3427.
+--   E2 a16 v16 pIgual pDif  desvio: se byte[a16] == v16 (byte baixo) segue em pIgual, senão em pDif
+--                           (handler ROM0:$355C; os ponteiros são do mesmo banco)
 --   EA xx       muda o falante (retrato xx de $7C:$4108)
 --   EE 01 a16   soma 1 no byte a16  (itens: $C4E0 + id)
 --   EE 02 a16   liga o byte a16     (recrutamento: $AA00 + vaga*64 + $1D)
 --   EE 03 a16 v16  grava v16 em a16 (itens-chave: $C4F1+)
-local function decodeMessage(rom, o, cmdLen)
-  local pages, cur = {}, { text = {} }
+-- Uma mensagem vira { pages, effects } ou, com E2, também { cond = {addr, value}, eq, ne }.
+local function decodeMessage(rom, bank, addr, cmdLen, speaker, depth)
+  local o = at(bank, addr)
+  local pages, cur = {}, { text = {}, speaker = speaker }
   local effects = {}
+  local out = { pages = pages, effects = effects }
   local function flush()
     local t = table.concat(cur.text):gsub("^%s+", ""):gsub("%s+$", "")
     if t ~= "" then pages[#pages + 1] = { speaker = cur.speaker, text = t } end
@@ -297,17 +302,25 @@ local function decodeMessage(rom, o, cmdLen)
       o = o + 1
     else
       local n = math.max(cmdLen[c] or 1, 1)
-      if c == 0xEA then
+      if c == 0xE2 then
+        flush()
+        if (depth or 0) < 4 then
+          out.cond = { addr = rom:u16(o + 1), value = rom:u8(o + 3) }
+          out.eq = decodeMessage(rom, bank, rom:u16(o + 5), cmdLen, cur.speaker, (depth or 0) + 1)
+          out.ne = decodeMessage(rom, bank, rom:u16(o + 7), cmdLen, cur.speaker, (depth or 0) + 1)
+        end
+        return out
+      elseif c == 0xEA then
         flush()
         cur.speaker = rom:u8(o + 1)
       elseif c == 0xEE then
-        local kind, addr = rom:u8(o + 1), rom:u16(o + 2)
-        if kind == 1 and addr >= 0xC4E0 and addr <= 0xC4F0 then
-          effects[#effects + 1] = { item = addr - 0xC4E0, page = #pages + 1 }
-        elseif kind == 2 and addr >= 0xAA00 and addr < 0xB200 and (addr - 0xAA1D) % 64 == 0 then
-          effects[#effects + 1] = { recruit = (addr - 0xAA1D) / 64, page = #pages + 1 }
+        local kind, a16 = rom:u8(o + 1), rom:u16(o + 2)
+        if kind == 1 and a16 >= 0xC4E0 and a16 <= 0xC4F0 then
+          effects[#effects + 1] = { item = a16 - 0xC4E0, page = #pages + 1 }
+        elseif kind == 2 and a16 >= 0xAA00 and a16 < 0xB200 and (a16 - 0xAA1D) % 64 == 0 then
+          effects[#effects + 1] = { recruit = (a16 - 0xAA1D) / 64, page = #pages + 1 }
         elseif kind == 3 then
-          effects[#effects + 1] = { key = addr - 0xC4F1, value = rom:u16(o + 4), page = #pages + 1 }
+          effects[#effects + 1] = { key = a16 - 0xC4F1, value = rom:u16(o + 4), page = #pages + 1 }
           n = 6
         end
       end
@@ -315,29 +328,55 @@ local function decodeMessage(rom, o, cmdLen)
     end
   end
   flush()
-  return { pages = pages, effects = effects }
+  return out
 end
 
+-- Mensagens por nó do mapa-múndi: script = nó + $20 (fases 1-25, cidades 26-31 = $3A-$3F,
+-- Instituto 32 = $40, BabyAlliance 33 = $41).
 local function importMessages(rom)
   local cmdLen = {}
   for i = 0, 31 do cmdLen[0xE0 + i] = rom:u8(0x3427 + i * 4 + 2) end
   local out = {}
-  for stage = 1, 25 do                         -- fases de campanha; script = fase + $20
-    local script = stage + 0x20
+  for node = 1, 33 do
+    local script = node + 0x20
     local p = rom:u16(at(0x5D, 0x4000) + script * 2)
     local msgs = {}
-    for idx = 0, 40 do
+    for idx = 0, node <= 25 and 40 or 12 do
       local e = at(0x5D, p) + idx * 4
       local lo, hi, bank = rom:u8(e), rom:u8(e + 1), rom:u8(e + 2)
       local addr = lo + hi * 256
       if addr >= 0x4000 and addr < 0x8000 and (bank == 0x5D or bank == 0x70) then
-        local m = decodeMessage(rom, at(bank, addr), cmdLen)
-        if #m.pages > 0 or #m.effects > 0 then msgs[idx] = m end
+        local m = decodeMessage(rom, bank, addr, cmdLen)
+        if #m.pages > 0 or #m.effects > 0 or m.cond then msgs[idx] = m end
       end
     end
-    out[stage] = msgs
+    out[node] = msgs
   end
   return out
+end
+
+-- Mapa-múndi ($09:$69D8): grafo em $09:$6B7D, 24 bytes por nó (índice = [$C529]):
+--   +0 id u16, +2 x px u16, +4 y px u16, +6/+8/+10/+12 vizinho para cima/baixo/esquerda/direita,
+--   +14/+16/+18/+20 endereço da flag exigida para andar nessa direção (0 = livre; todas são
+--   flags de fase vencida $C4F7 + fase - 1), +22 ?
+-- O nó n corresponde ao terreno $20 + n do mapa da fase 0.
+-- Retratos do prefeito e do morador de cada cidade: $01:$52C8 + cidade*2.
+local function importWorld(rom)
+  local W = { nodes = {}, townSpeakers = {} }
+  for n = 1, 33 do
+    local o = at(0x09, 0x6B7D) + n * 24
+    local node = { x = math.floor(rom:u16(o + 2) / 16), y = math.floor(rom:u16(o + 4) / 16), nb = {}, gate = {} }
+    for d = 1, 4 do
+      node.nb[d] = rom:u16(o + 6 + (d - 1) * 2)
+      local g = rom:u16(o + 14 + (d - 1) * 2)
+      node.gate[d] = g ~= 0 and (g - 0xC4F7 + 1) or 0   -- fase que precisa estar vencida
+    end
+    W.nodes[n] = node
+  end
+  for t = 0, 5 do
+    W.townSpeakers[26 + t] = { rom:u8(at(0x01, 0x52C8) + t * 2), rom:u8(at(0x01, 0x52C8) + t * 2 + 1) }
+  end
+  return W
 end
 
 -- Executa a importação. progress(msg) é chamado entre etapas. Retorna true ou nil, erro.
@@ -359,6 +398,7 @@ function Importer.run(bytes, progress)
   data.prog = importProgression(rom)
   progress("falas")
   data.messages = importMessages(rom)
+  data.world = importWorld(rom)
   importSpeakers(rom):encode("png", "generated/speakers.png")
   progress("sprites")
   importUnitSprites(rom):encode("png", "generated/units.png")

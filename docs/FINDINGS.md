@@ -39,6 +39,7 @@ de robôs da própria Sintax (o cabeçalho ainda diz `ROBOT WAR v3.0`).
 | Cmd | Tam. | Uso observado |
 |---|---|---|
 | E1 | 9 | ? (comando longo, provavelmente movimento/cena) |
+| E2 | 9 | desvio: `E2 a16 v16 pIgual pDif`: se `byte[a16] == v16` segue em `pIgual`, senão em `pDif` (handler `ROM0:$355C`). Usado nas portas das fases com item-chave |
 | E5, EB | 3 | ? |
 | EA xx | 2 | troca falante/retrato (xx = id do personagem) |
 | EE 01 lo hi | 4 | dá item: +1 em `$hilo` (`$C4E0 + id`, ex.: `$C4E6` = Life Stone) |
@@ -292,6 +293,51 @@ As unidades **não são sprites**: viram tiles do BG. Os 4 tiles da espécie (`$
 são copiados para a VRAM em `$89C0 + slot*64` (`$10:$420F`). Aliados usam a paleta de BG 7 e
 inimigos a 6, ambas vindas da própria fase. Só o cursor usa OAM.
 
+## Mapa-múndi (fase 0)
+
+O mapa-múndi é a fase 0 (mapa 32×32). O cursor não anda casa a casa: ele pula de **nó em nó** por um
+grafo. Rotina de movimento: `$09:$69D8`. Grafo em **`$09:$6B7D`**, 24 bytes por nó, indexado por
+`[$C529]` (nó atual), copiado para `$C530`:
+
+| Off | Conteúdo |
+|---|---|
+| +0 | id do nó (u16) |
+| +2 / +4 | x / y em px (u16; ÷16 = casa) |
+| +6 / +8 / +10 / +12 | vizinho para **cima / baixo / esquerda / direita** (bits `$04/$08/$02/$01` de `[$FFCC]`) |
+| +14 / +16 / +18 / +20 | endereço da flag exigida para andar na direção. O código faz `ld a,[bc] / or a`: 0 = livre (lê ROM `$0000` = `$FA`). Todas as travas são flags de fase vencida `$C4F7 + fase − 1` |
+| +22 | ? (com o botão `$10` e o campo ≠ 0 a rotina não anda) |
+
+* **Nó n = terreno `$20 + n`** no mapa da fase 0. Nós 1–25 = fases, 26–31 = cidades com Palaestra
+  (`$3A`–`$3F`), 32 = Instituto do Doutor (`$40`), 33 = BabyAlliance (`$41`). O nó 0 é um registro
+  vazio.
+* Nome do lugar: texto-em-imagem `$7C:$4000`, **id = nó − 1** (transcritos em `names.lua`).
+* Jogo novo: `[$C529] = [$C00C] + 1 = $20` (Instituto), lido em `$00:$03F3`.
+* Exemplo conferido no PyBoy: de ChangPanCity (nó 1) para cima só anda com `$C4F7` ligado (fase 1
+  vencida); ligando o byte na RAM o cursor vai para o nó 3.
+
+**Apertar A num nó** (`$01:$547D`, valor `[$C217]` = terreno do nó):
+
+* **Fase (`$21`–`$39`)**: se `$C4F7 + fase − 1` ≠ 0 (já vencida), **não faz nada** (fase não se
+  repete). As fases **9, 11, 16, 19, 24 e 25** testam o item-chave `$C4F1`–`$C4F6` (Moon Stone, The
+  pass, Miraculous flute, Red squama, Dragon tooth, Rainbow feather) e mostram a mensagem **`$22`** do
+  script da fase, que tem um `E2` com a fala de "não pode entrar" e a de "pode entrar". Sem o item a
+  rotina volta; com o item entra. Antes da fase 25 o jogo mostra também a mensagem 0. Entrar:
+  `[$C007] = terreno − $20`, zera os eventos da fase (`$C518`, 15 bytes) e vai para a escolha do time.
+* **Cidade (`$3A`–`$3F`)**: menu (`$01:$55A8`, janela `$17`) com **Palaestra**, **Prefeito** e
+  **Morador**. Palaestra entra na fase `terreno − $20` (26–31), sem trava e **pode repetir** (treino).
+  Prefeito e Morador mostram as mensagens 0 e 1 do script da cidade (`$3A`+), com o retrato de
+  `$01:$52C8 + cidade*2` (`[prefeito, morador]`).
+* **Instituto (`$40`)**, janela `$18`, retrato 3: "Surmount" = mensagem 8 (ciclo de tipos); "Raise
+  information" = mensagens 0–5 (dicas).
+* **BabyAlliance (`$41`)**, janela `$19`, retrato 4: "Evolve Condition" = mensagens 0–3; "Role evolve" =
+  tela do time por tipo, onde a **evolução** acontece (`$01:$5630`, consome a insígnia
+  `$C4EC + tipo − 1`). As insígnias **não são usadas dentro da luta**: a própria dica do jogo diz que é
+  preciso ir à BabyAlliance.
+
+**Vencer** (`$00:$0928`): grava o **número da fase** em `$C4F7 + fase − 1` (também nas Palaestras,
+`$C510`+, que nenhuma trava usa), mostra a mensagem `$21` só se fase < `$1A`, e volta ao mapa
+(`[$C007] = 0`). A fase 25 termina o jogo (`$18:$4D43`).
+
 ## Emulação para pesquisa
 
 `tools/run_headless.py` + `tools/play.py` rodam a ROM no **PyBoy** sem janela
@@ -303,7 +349,7 @@ escolher unidades com A/↓ → START.
 ## Próximos passos
 
 1. ~~Stats das espécies~~ ✅ ~~Inimigos e posições por fase~~ ✅. ~~Golpes, itens, eventos e falas~~ ✅.
-   Falta: loja e o mapa-múndi (fase 0, nomes dos lugares em `$7C:$4000`).
+   ~~Mapa-múndi~~ ✅. Falta: loja (terreno `$1B` numa fase chama `$09:$4C12`: a investigar).
 2. Achar as tabelas de metasprite dos frames de batalha (90–B1): seguir no debugger a rotina que
    escreve na OAM ($FE00 / DMA) durante uma luta.
 3. ~~Formato dos mapas~~ ✅. Falta: confirmar a tabela de terreno (+2C) e a paleta de cada sprite de unidade.

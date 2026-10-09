@@ -295,7 +295,7 @@ function View.drawHud(b, s, ox, oy, camx, camy)
     love.graphics.printf(b.result == "vitória" and "VITÓRIA!" or "DERROTA...", 0, h / 2 - 30, w, "center")
     love.graphics.setFont(View.font)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.printf("Enter: voltar à seleção de fases", 0, h / 2 + 10, w, "center")
+    love.graphics.printf("Enter: voltar ao mapa-múndi", 0, h / 2 + 10, w, "center")
   end
 end
 
@@ -343,51 +343,152 @@ function View.cellAt(b, mx, my)
   return x, y
 end
 
-function View.drawStageSelect(sel, data, campaign)
+-- Caixa de menu genérica (mapa-múndi).
+local function drawMenuBox(m, w, h)
+  local mw = m.wide and 440 or 260
+  local mh = 12 + #m.items * 24 + (m.title and 26 or 0)
+  local mx, my = (w - mw) / 2, math.max(50, (h - mh) / 2 - 40)
+  panel(mx, my, mw, mh)
+  local ty = my + 6
+  if m.title then
+    love.graphics.setColor(0.7, 0.85, 1)
+    love.graphics.print(m.title, mx + 10, ty)
+    ty = ty + 26
+  end
+  for i, it in ipairs(m.items) do
+    love.graphics.setColor(i == m.index and { 1, 1, 0.4 } or { 1, 1, 1 })
+    love.graphics.print((i == m.index and "> " or "  ") .. it.label, mx + 10, ty + (i - 1) * 24)
+  end
+end
+
+-- Mapa-múndi: o mapa da fase 0, os nós do grafo e o cursor (o líder do time).
+function View.drawWorld(wd, data, campaign)
+  local World = require("src.game.world")
   local w, h = love.graphics.getDimensions()
-  love.graphics.clear(0.04, 0.06, 0.16)
-  love.graphics.setFont(View.big)
+  local img = View.assets.stages[0]
+  local cx, cy = wd:cursorPos()
+  -- o painel de baixo cobre ~40 px do canvas: a câmera pode passar da borda de baixo do mapa
+  local camx = math.max(0, math.min(img:getWidth() - View.W, cx * CELL + 8 - View.W / 2))
+  local camy = math.max(0, math.min(img:getHeight() - View.H + 44, cy * CELL + 8 - (View.H - 44) / 2))
+  camx, camy = math.floor(camx + 0.5), math.floor(camy + 0.5)
+  local t = love.timer.getTime()
+
+  love.graphics.setCanvas(View.canvas)
+  love.graphics.clear(0.02, 0.05, 0.15, 1)
+  love.graphics.push()
+  love.graphics.translate(-camx, -camy)
   love.graphics.setColor(1, 1, 1)
-  love.graphics.print("Pocket Monster Saphire  -  protótipo", 20, 14)
-  love.graphics.setFont(View.font)
-  local names = { [0] = "Mapa-múndi" }
-  for i = 26, 31 do names[i] = "Palaestra " .. (i - 25) end
-  local listY, lineH = 60, 22
-  local first = math.max(1, math.min(sel - 8, 31 - 17))
-  for i = first, math.min(31, first + 17) do
-    local st = data.stages[i]
-    local done = campaign and campaign.cleared[i]
-    love.graphics.setColor(i == sel and { 1, 1, 0.4 } or (done and { 0.55, 0.9, 0.6 } or { 0.85, 0.9, 1 }))
-    love.graphics.print(("%s Fase %2d  %s  (%d inimigos)%s"):format(i == sel and ">" or " ", i,
-      names[i] or "Campanha", #st.enemies, done and "  vencida" or ""), 20, listY + (i - first) * lineH)
-  end
-  local img = View.assets.stages[sel]
-  local maxw, maxh = w - 480, h - 100
-  local sc = math.min(maxw / img:getWidth(), maxh / img:getHeight(), 2)
-  love.graphics.setColor(1, 1, 1)
-  love.graphics.draw(img, 450, 60, 0, sc, sc)
-  -- marca inimigos e posições iniciais no preview
-  local st = data.stages[sel]
-  for _, e in ipairs(st.enemies) do
-    love.graphics.setColor(1, 0.2, 0.2, 0.8)
-    love.graphics.rectangle("fill", 450 + (e.x * 16 + 4) * sc, 60 + (e.y * 16 + 4) * sc, 8 * sc, 8 * sc)
-  end
-  for _, p in ipairs(st.starts) do
-    love.graphics.setColor(0.2, 0.5, 1, 0.9)
-    love.graphics.rectangle("line", 450 + (p.x * 16 + 2) * sc, 60 + (p.y * 16 + 2) * sc, 12 * sc, 12 * sc)
-  end
-  love.graphics.setColor(1, 1, 1, 0.75)
-  love.graphics.setFont(View.small)
-  if campaign then
-    local team = {}
-    for _, r in ipairs(campaign:recruited()) do
-      team[#team + 1] = ("%s Nv%d"):format(Names.species_name(r.species), r.level)
+  love.graphics.draw(img, 0, 0)
+  -- marcadores das fases: vencida (verde), aberta (amarelo pulsando), trancada por item-chave (vermelho)
+  for n, node in pairs(wd.world.nodes) do
+    if World.kind(n) == "stage" then
+      local st = wd:stageStatus(n)
+      local px, py = node.x * CELL, node.y * CELL
+      if st == "vencida" then
+        love.graphics.setColor(0.2, 0.9, 0.35, 0.9)
+        love.graphics.circle("fill", px + 13, py + 3, 3)
+      elseif st == "trancada" then
+        love.graphics.setColor(1, 0.25, 0.25, 0.9)
+        love.graphics.rectangle("fill", px + 10, py + 1, 5, 5)
+      else
+        love.graphics.setColor(1, 1, 0.3, 0.55 + 0.45 * math.sin(t * 5))
+        love.graphics.rectangle("line", px + 0.5, py + 0.5, CELL - 1, CELL - 1)
+      end
     end
-    love.graphics.setColor(0.8, 0.9, 1)
-    love.graphics.printf("Time: " .. table.concat(team, ", "), 450, h - 70, w - 470)
   end
+  -- direções possíveis a partir do nó atual
+  if wd.mode == "map" and not wd.anim then
+    local node = wd:node()
+    local dirs = { { 0, -1 }, { 0, 1 }, { -1, 0 }, { 1, 0 } }
+    for d = 1, 4 do
+      if node.nb[d] ~= 0 then
+        local ok = wd:canMove(d)
+        local ax, ay = node.x * CELL + 8 + dirs[d][1] * 13, node.y * CELL + 8 + dirs[d][2] * 13
+        if ok then love.graphics.setColor(1, 1, 1, 0.6 + 0.4 * math.sin(t * 6)) else love.graphics.setColor(1, 0.2, 0.2, 0.8) end
+        love.graphics.circle("fill", ax, ay, 2)
+      end
+    end
+  end
+  -- cursor: o primeiro Pokémon do time
+  local leader = campaign:recruited()[1]
+  love.graphics.setShader(View.shader)
+  setPal(data.stages[0].allyPal)
+  love.graphics.setColor(1, 1, 1)
+  local bob = math.floor(math.abs(math.sin(t * 4)) * 2)
+  love.graphics.draw(View.assets.units, View.quads[(leader and leader.species or 1) % 256],
+    math.floor(cx * CELL + 0.5), math.floor(cy * CELL + 0.5) - bob)
+  love.graphics.setShader()
+  love.graphics.pop()
+  love.graphics.setCanvas()
+
+  local s, ox, oy = View.layout()
+  love.graphics.setColor(1, 1, 1)
+  love.graphics.draw(View.canvas, ox, oy, 0, s, s)
+
+  -- topo: progresso
+  love.graphics.setFont(View.font)
+  local cleared = 0
+  for i = 1, 25 do if campaign.cleared[i] then cleared = cleared + 1 end end
+  panel(10, 10, 300, 30)
+  love.graphics.setColor(1, 1, 1)
+  love.graphics.print(("Mapa-múndi   Fases vencidas: %d/25"):format(cleared), 20, 16)
+
+  if wd.mode == "dialog" and wd.dialog then
+    View.drawDialog(wd, w, h)
+    return
+  end
+
+  -- painel do lugar
+  local n = campaign.node
+  local kind = World.kind(n)
+  local ph = 84
+  panel(10, h - ph - 26, w - 20, ph)
+  love.graphics.setFont(View.big)
+  love.graphics.setColor(1, 1, 0.6)
+  love.graphics.print(Names.place_name(n), 24, h - ph - 20)
+  love.graphics.setFont(View.font)
+  love.graphics.setColor(0.85, 0.9, 1)
+  local info
+  if kind == "stage" then
+    local st = wd:stageStatus(n)
+    info = ("Fase %d  -  %d inimigos  -  %s"):format(n, #data.stages[n].enemies, st)
+    local k = World.KEY_FOR_STAGE[n]
+    if k then
+      info = info .. ("  -  exige: %s%s"):format(Names.key_item_name(k),
+        (campaign.keyItems[k] or 0) ~= 0 and " (tem)" or "")
+    end
+  elseif kind == "town" then
+    info = "Cidade: Palaestra (treino, pode repetir), Prefeito e Morador"
+      .. (campaign.cleared[n] and "  -  Palaestra vencido" or "")
+  elseif kind == "institute" then
+    info = "Instituto do Doutor: vantagens de tipo e dicas"
+  else
+    info = "Evolução: gasta a insígnia do tipo do Pokémon"
+  end
+  love.graphics.print(info, 24, h - ph + 14)
+  local team = {}
+  for _, r in ipairs(campaign:recruited()) do
+    team[#team + 1] = ("%s %d"):format(Names.species_name(r.species), r.level)
+  end
+  love.graphics.setFont(View.small)
+  love.graphics.setColor(0.75, 0.85, 1)
+  love.graphics.printf("Time: " .. table.concat(team, ", "), 24, h - ph + 38, w - 60)
+
+  if wd.menu and wd.mode == "menu" then drawMenuBox(wd.menu, w, h) end
+
+  if #wd.log > 0 then
+    local lw = 380
+    panel(w - lw - 10, 10, lw, 12 + #wd.log * 18)
+    love.graphics.setFont(View.small)
+    for i, line in ipairs(wd.log) do
+      love.graphics.setColor(1, 1, 1, 1 - (i - 1) * 0.25)
+      love.graphics.print(line, w - lw, 16 + (i - 1) * 18)
+    end
+  end
+  love.graphics.setFont(View.small)
   love.graphics.setColor(1, 1, 1, 0.75)
-  love.graphics.print("Cima/baixo: escolher   Enter/Z: jogar   Delete: novo jogo", 20, h - 24)
+  love.graphics.printf(("Setas: andar   Z/Enter: entrar   X: voltar   N: nomes (%s)   Delete: novo jogo"):format(Names.mode),
+    0, h - 18, w - 10, "right")
   love.graphics.setFont(View.font)
 end
 

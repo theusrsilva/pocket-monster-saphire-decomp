@@ -2,6 +2,7 @@
 -- Os valores esperados vêm de observações do jogo original rodando em emulador.
 local Path = require("src.game.pathfind")
 local Combat = require("src.game.combat")
+local Campaign = require("src.game.campaign")
 
 local T = { passed = 0, failed = 0 }
 
@@ -126,7 +127,6 @@ function T.run(data)
     and rec[1] == 10 and rec[2] == 6 and #clear.pages == 3)
 
   -- 10) Campanha: elenco inicial, recrutamento e serialização (tabelas esparsas)
-  local Campaign = require("src.game.campaign")
   local c = Campaign.new(data)
   check("elenco inicial = 6 iniciais", #c:recruited() == 6)
   c:recruit(10)
@@ -134,6 +134,48 @@ function T.run(data)
   local back = loadstring(require("src.util.serialize")(c))()
   check("save ida e volta", back.roster[10].recruited == true and back.cleared[2] == true
     and back.cleared[1] == nil and back.roster[0].species == c.roster[0].species)
+
+
+  -- 11) Mapa-múndi ($09:$6B7D, $09:$69D8, $01:$547D), conferido no PyBoy:
+  --     da Vila Ifleaf ($3A) cima -> ChangPanCity ($21), esquerda -> ChangPanWoods ($22),
+  --     direita -> BabyAlliance ($41), baixo -> Instituto ($40); de $21 para cima só com $C4F7 ligado.
+  local World = require("src.game.world")
+  local W = data.world
+  local n26 = W.nodes[26]
+  check("mapa: vizinhos da Vila Ifleaf", n26.nb[1] == 1 and n26.nb[2] == 32 and n26.nb[3] == 2 and n26.nb[4] == 33
+    and n26.x == 5 and n26.y == 26)
+  check("mapa: nó = terreno - $20", data.stages[0].terrain[22 * 32 + 5 + 1] == 0x21
+    and W.nodes[1].x == 5 and W.nodes[1].y == 22)
+  local cw = Campaign.new(data)
+  local wd = World.new(data, cw)
+  check("mapa: jogo novo começa no Instituto", cw.node == 32)
+  wd:move(World.UP); wd:move(World.UP)
+  local blocked = not wd:move(World.UP)
+  cw.cleared[1] = true
+  check("mapa: sair da fase 1 para cima exige a fase 1 vencida", blocked and wd:move(World.UP) and cw.node == 3)
+  check("mapa: fase 9 trancada sem a Pedra da Lua", wd:stageStatus(9) == "trancada" and wd:stageStatus(2) == "aberta"
+    and wd:stageStatus(1) == "vencida")
+  check("mapa: retratos do prefeito/morador de Ifleaf", W.townSpeakers[26][1] == 0x0D and W.townSpeakers[26][2] == 0x11)
+  -- fala $22 da fase 9: E2 testa $C4F1 (Pedra da Lua) e escolhe o ramo
+  local Messages = require("src.game.messages")
+  local gate = data.messages[9][0x22]
+  local without = Messages.resolve(gate, cw)
+  cw.keyItems[0] = 1
+  local with = Messages.resolve(gate, cw)
+  check("fala com desvio E2 (item-chave)", gate.cond and gate.cond.addr == 0xC4F1
+    and without.pages[1].text:find("MOONSTONE") ~= nil and with.pages[1].text ~= without.pages[1].text)
+  check("peek: fase vencida grava o número da fase", cw:peek(0xC4F7) == 1 and cw:peek(0xC4F8) == 0)
+  local Names2 = require("src.game.names")
+  local m2 = Names2.mode
+  Names2.mode = "original"
+  check("nome do lugar", Names2.place_name(1) == "ChangPanCity" and Names2.place_name(33) == "BabyAlliance")
+  Names2.mode = m2
+  -- evolução só na BabyAlliance, gastando a insígnia do tipo
+  local pk = cw.roster[0]
+  cw.inventory[World.badgeFor(pk)] = 1
+  local ev, okType, hasPk = wd:evolvable(), true, false
+  for _, u in ipairs(ev) do okType = okType and u.type == pk.type; hasPk = hasPk or u == pk end
+  check("BabyAlliance: só quem tem a insígnia do tipo pode evoluir", #ev >= 1 and okType and hasPk)
 
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0

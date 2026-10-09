@@ -175,6 +175,53 @@ Names.skills = {
   [0x58] = { en = "Crossattack", pt = "Ataque Cruzado" },
 }
 
+-- Lugares do mapa-múndi (imagens 9x2 tiles em $7C:$4000; id da imagem = nó - 1, nó = terreno - $20)
+Names.places = {
+  [0x01] = { en = "ChangPanCity", pt = "Cidade ChangPan" },
+  [0x02] = { en = "ChangPanWoods", pt = "Bosque ChangPan" },
+  [0x03] = { en = "Niby City", pt = "Cidade Niby" },
+  [0x04] = { en = "JiegengCity", pt = "Cidade Jiegeng" },
+  [0x05] = { en = "MoonMountain", pt = "Monte da Lua" },
+  [0x06] = { en = "WitheredleafCity", pt = "Cidade Folha Seca" },
+  [0x07] = { en = "Astana relic", pt = "Ruínas de Astana" },
+  [0x08] = { en = "The rathole", pt = "A Toca do Rato" },
+  [0x09] = { en = "Capecabin", pt = "Cabana do Cabo" },
+  [0x0A] = { en = "ThepinkCity", pt = "Cidade Rosa" },
+  [0x0B] = { en = "RainbowCity", pt = "Cidade Arco-Íris" },
+  [0x0C] = { en = "Gold City", pt = "Cidade Dourada" },
+  [0x0D] = { en = "Flowerhole", pt = "Gruta das Flores" },
+  [0x0E] = { en = "FlowerbasketCity", pt = "Cidade Cesta de Flores" },
+  [0x0F] = { en = "Unmanpowerplant", pt = "Usina Abandonada" },
+  [0x10] = { en = "Combustiontower", pt = "Torre da Combustão" },
+  [0x11] = { en = "Quartzplateau", pt = "Planalto de Quartzo" },
+  [0x12] = { en = "TheGeminiIsland", pt = "Ilha Gêmeos" },
+  [0x13] = { en = "ThewindCity", pt = "Cidade do Vento" },
+  [0x14] = { en = "TheRocktunnel", pt = "Túnel de Pedra" },
+  [0x15] = { en = "redlotus island", pt = "Ilha Lótus Vermelho" },
+  [0x16] = { en = "Thedragoncave", pt = "Caverna do Dragão" },
+  [0x17] = { en = "Magicalbabytower", pt = "Torre dos Pokémon" },
+  [0x18] = { en = "turbinationisland", pt = "Ilha do Redemoinho" },
+  [0x19] = { en = "Thebelltower", pt = "Torre do Sino" },
+  [0x1A] = { en = "Ifleaf town", pt = "Vila Ifleaf" },
+  [0x1B] = { en = "Wild town", pt = "Vila Selvagem" },
+  [0x1C] = { en = "Cypress town", pt = "Vila Cipreste" },
+  [0x1D] = { en = "New town", pt = "Vila Nova" },
+  [0x1E] = { en = "Red lotus town", pt = "Vila Lótus Vermelho" },
+  [0x1F] = { en = "Clove town", pt = "Vila Cravo" },
+  [0x20] = { en = "Doctorinstitute", pt = "Instituto do Doutor" },
+  [0x21] = { en = "BabyAlliance", pt = "Aliança Pokémon" },
+}
+
+-- Itens-chave da história ($C4F1 + id; imagens 7x2 em $7C:$40A8)
+Names.keyItems = {
+  [0] = { en = "Moon Stone", pt = "Pedra da Lua" },
+  [1] = { en = "The pass", pt = "Passe" },
+  [2] = { en = "Miraculous flute", pt = "Flauta Milagrosa" },
+  [3] = { en = "Red squama", pt = "Escama Vermelha" },
+  [4] = { en = "Dragon tooth", pt = "Dente de Dragão" },
+  [5] = { en = "Rainbow feather", pt = "Pena Arco-Íris" },
+}
+
 -- Modo de nomes: "oficial" (nomes oficiais + golpes em PT) ou "original" (como no jogo).
 Names.mode = "oficial"
 Names.MODES = { "oficial", "original" }
@@ -189,6 +236,18 @@ end
 function Names.skill_name(id)
   local n = Names.skills[id]
   if not n then return ("Golpe #%02X"):format(id) end
+  return Names.mode == "oficial" and n.pt or n.en
+end
+
+function Names.place_name(node)
+  local n = Names.places[node]
+  if not n then return ("Lugar #%02X"):format(node) end
+  return Names.mode == "oficial" and n.pt or n.en
+end
+
+function Names.key_item_name(id)
+  local n = Names.keyItems[id]
+  if not n then return ("Item-chave #%d"):format(id) end
   return Names.mode == "oficial" and n.pt or n.en
 end
 

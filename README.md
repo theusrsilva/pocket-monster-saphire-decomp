@@ -32,7 +32,8 @@ correção de bugs e melhorias de usabilidade.
 - [x] Itens e seus efeitos (inventário `$C4E0`), insígnias = pedras de evolução
 - [ ] Loja
 - [x] Eventos e falas das fases (casas, baús, centro de cura), recompensas e recrutamento, campanha salva
-- [ ] Mapa-múndi e escolha do time antes da luta
+- [x] Mapa-múndi: grafo de nós do original, travas por fase vencida e por item-chave, cidades, Instituto e BabyAlliance (evolução)
+- [ ] Escolha do time antes da luta
 - [ ] IA original dos inimigos
 
 Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).

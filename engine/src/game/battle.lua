@@ -4,6 +4,7 @@ local Combat = require("src.game.combat")
 local Progress = require("src.game.progress")
 local Names = require("src.game.names")
 local Items = require("src.game.items")
+local Messages = require("src.game.messages")
 local nameOf = Names.species_name
 
 local Battle = {}
@@ -199,6 +200,7 @@ end
 
 -- Aplica os efeitos do script (itens, recrutamento, itens-chave) e abre a caixa de diálogo.
 function Battle:showMessage(msg, onClose)
+  msg = Messages.resolve(msg, self.campaign)
   for _, ef in ipairs(msg.effects) do
     if ef.item then
       self.inventory[ef.item] = (self.inventory[ef.item] or 0) + 1
@@ -266,7 +268,9 @@ end
 function Battle:usableItems(u)
   local out = {}
   for id = 0x00, 0x10 do
-    if (self.inventory[id] or 0) > 0 and Items.usable(id, u, self.prog) then out[#out + 1] = id end
+    if (self.inventory[id] or 0) > 0 and not Items.list[id].badge and Items.usable(id, u, self.prog) then
+      out[#out + 1] = id
+    end
   end
   return out
 end
@@ -276,33 +280,21 @@ function Battle:openItemMenu(u)
   for _, id in ipairs(self:usableItems(u)) do
     local it = Items.list[id]
     items[#items + 1] = {
-      label = ("%s x%d  %s"):format(Items.name(id, Names.mode), self.inventory[id], it.badge and "evoluir" or it.desc),
+      label = ("%s x%d  %s"):format(Items.name(id, Names.mode), self.inventory[id], it.desc),
       action = function() self:useItem(u, id) end }
   end
   self.menu = { items = items, index = 1, title = "Itens", parent = u, wide = true, extraWide = true }
 end
 
+-- As insígnias só são usadas na BabyAlliance ("Role evolve", $01:$5630), fora da luta.
 -- Usar item gasta a ação da unidade (como escolher "Goods" no original).
 function Battle:useItem(u, id)
   self.inventory[id] = self.inventory[id] - 1
   local it = Items.list[id]
-  if it.badge then
-    self:evolve(u)
-  else
-    it.use(u)
-    self:say(("%s usou %s (%s)"):format(u.name, Items.name(id, Names.mode), it.desc))
-    self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = it.desc, t = 0, heal = true }
-  end
+  it.use(u)
+  self:say(("%s usou %s (%s)"):format(u.name, Items.name(id, Names.mode), it.desc))
+  self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = it.desc, t = 0, heal = true }
   self:finishUnit(u)
-end
-
-function Battle:evolve(u)
-  local old = u.name
-  local learned = Progress.evolve(u, self.prog)
-  u.name = nameOf(u.species)
-  self:say(("%s evoluiu para %s!"):format(old, u.name))
-  if learned then self:say(("%s aprendeu %s"):format(u.name, Names.skill_name(learned))) end
-  self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = "EVOLUIU!", t = 0, heal = true }
 end
 
 function Battle:cancel()
@@ -432,8 +424,8 @@ function Battle:checkEnd()
       self.result = "vitória"
       self.campaign:save()
     end
-    -- mensagem 33: recompensa e quem entra no time ($C2B1 = $21 no fim da fase)
-    local msg = self.messages[33]
+    -- mensagem 33: recompensa e quem entra no time ($C2B1 = $21 no fim da fase; só fases < $1A)
+    local msg = self.stageIndex <= 25 and self.messages[33]
     if msg then
       self.queue = {}
       self:showMessage(msg, finish)
