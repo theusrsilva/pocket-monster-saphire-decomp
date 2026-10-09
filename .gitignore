@@ -10,3 +10,4 @@ tools/rgbds.tar.xz
 *.sav
 __pycache__/
 *.pyc
+dist/

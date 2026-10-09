@@ -21,6 +21,7 @@ correção de bugs e melhorias de usabilidade.
 - [x] Inimigos de cada fase (stats completos)
 - [x] Golpes (nomes/efeitos), itens, eventos das fases
 - [ ] Metasprites das animações de batalha
+- [x] Layout de duas telas (3DS) e empacotamento para LÖVE Potion (`tools/package.sh`; não testado em hardware)
 - [x] Música e efeitos: o driver de som original roda ao vivo no motor (interpretador SM83 + APU)
 - [x] Formato das fases: 32 mapas renderizados da ROM, inimigos e posições iniciais (`tools/extract_stages.py`)
 - [x] Mapa da SRAM (elenco e inimigos, 64 bytes por unidade)

@@ -25,6 +25,28 @@ nomes transcritos das imagens e a tradução das falas. O texto original em ingl
 repositório; ele é lido da ROM. Para revisar a tradução, `love engine --dump-text out/falas.txt`
 despeja as falas originais (fora do git), com a chave `banco:endereço` de cada trecho.
 
+## Console (3DS/Switch via LÖVE Potion)
+
+O motor já vem preparado para o [LÖVE Potion](https://lovebrew.org):
+
+- **3DS (duas telas)**: o mapa fica na tela de cima (400×240) e os painéis, menus e falas na de
+  baixo (320×240). Para ver esse layout no PC: `love engine --dual 1`.
+- **Switch**: usa o layout normal (uma tela).
+- Sem shaders (o LÖVE Potion não tem): os sprites indexados são coloridos por paleta em cache
+  (`--noshader 1` força esse caminho no PC).
+- Sem LuaJIT: `src/util/bit.lua` tem uma versão em Lua puro das operações de bits.
+- Botões: A confirma, B volta, START encerra o turno/vai para "Lutar", X troca PT/original,
+  Y liga/desliga o som, direcional move. No 3DS, tocar na tela de baixo confirma.
+- ROM: coloque `saphire.gbc` na pasta de dados do jogo no cartão SD. Como a importação em Lua é
+  lenta no 3DS, o melhor é importar no PC e copiar a pasta de dados
+  (`~/.local/share/love/saphire-recomp/`, com `generated/`) para a pasta de dados no console.
+
+Empacotar: `tools/package.sh` gera `dist/saphire-recomp.love` (roda em qualquer LÖVE 11) e
+`dist/lovepotion/` com a configuração do lovebrew (`tools/lovebrew.toml`); com o `lovebrew`
+instalado, ele gera os `.3dsx`/`.nro`. **Não testado em hardware nem no LÖVE Potion**: a API do
+LÖVE Potion pode exigir ajustes (principalmente `love.draw(screen)`, `QueueableSource` e
+`ImageData`).
+
 ## O que já funciona (protótipo)
 
 - Importador em Lua: as 32 fases (mapa renderizado, terreno, inimigos, posições iniciais), as
@@ -82,6 +104,8 @@ src/util/sm83.lua         interpretador da CPU do Game Boy (roda o driver de som
 src/audio/apu.lua         síntese do APU (2 pulsos, onda, ruído)
 src/audio/sound.lua       som em tempo real (QueueableSource)
 src/import/music.lua      máquina mínima do driver + exportação em WAV (--render-music)
+src/ui/dual.lua           telas de baixo do modo de duas telas (3DS)
+src/util/bit.lua          operações de bits (LuaJIT ou Lua puro)
 src/game/items.lua        itens e efeitos
 src/game/names.lua        nomes transcritos (oficiais/originais)
 src/game/battle.lua       estado da batalha, eventos, turnos e IA do original

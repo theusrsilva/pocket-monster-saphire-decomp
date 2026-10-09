@@ -1,7 +1,7 @@
 -- Interpretador da CPU do Game Boy (SM83), usado só no importador para executar o driver de som
 -- original da ROM do jogador e capturar o que ele escreve nos registradores de áudio.
 -- Não emula vídeo, interrupções nem temporização fina: roda rotinas até elas retornarem.
-local bit = require("bit")
+local bit = require("src.util.bit")
 local band, bor, bxor, lshift, rshift = bit.band, bit.bor, bit.bxor, bit.lshift, bit.rshift
 
 local CPU = {}

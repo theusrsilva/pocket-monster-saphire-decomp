@@ -2,7 +2,7 @@
 -- Usado pelo importador: o driver de som original roda no interpretador SM83 e cada quadro de
 -- escritas vira amostras PCM aqui. Implementa os 4 canais (2 pulsos com envelope e sweep, onda,
 -- ruído), o sequenciador de quadros (comprimento 256 Hz, sweep 128 Hz, envelope 64 Hz) e NR50/NR51.
-local bit = require("bit")
+local bit = require("src.util.bit")
 local band, bor, rshift, lshift, bxor = bit.band, bit.bor, bit.rshift, bit.lshift, bit.bxor
 
 local APU = {}

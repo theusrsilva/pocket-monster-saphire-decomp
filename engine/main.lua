@@ -22,6 +22,10 @@ local Campaign = require("src.game.campaign")
 local World = require("src.game.world")
 local TeamSelect = require("src.game.teamselect")
 local Sound = require("src.audio.sound")
+local Dual = require("src.ui.dual")
+-- LÖVE Potion (3DS/Switch) define love._console; o 3DS tem duas telas.
+local CONSOLE = love._console or love._console_name
+local dual = false
 local campaign, world, teamsel
 
 -- Preferências do jogador (pasta de dados do LÖVE)
@@ -71,6 +75,8 @@ local function loadAssets()
   assets.units = love.graphics.newImage("generated/units.png")
   assets.portraits = love.graphics.newImage("generated/portraits.png")
   assets.speakers = love.graphics.newImage("generated/speakers.png")
+  assets.paths = { units = "generated/units.png", portraits = "generated/portraits.png", speakers = "generated/speakers.png" }
+  if opts.noshader then View.noShader = true end
   campaign = Campaign.load(data)
   View.init(assets)
   if not testRun and not opts.mute then Sound.init(data.music and data.music.stage) end
@@ -102,10 +108,15 @@ end
 
 local function readFile(path)
   local f = io.open(path, "rb")
-  if not f then return nil end
-  local b = f:read("*a")
-  f:close()
-  return b
+  if f then
+    local b = f:read("*a")
+    f:close()
+    return b
+  end
+  -- no console (ou sem a pasta rom/), procura a ROM na pasta de dados do jogo
+  for _, p in ipairs({ "saphire.gbc", "rom/saphire.gbc" }) do
+    if love.filesystem.getInfo(p) then return love.filesystem.read(p) end
+  end
 end
 
 function enterStage(i, team)
@@ -172,6 +183,12 @@ function love.load(args)
     Campaign.FILE = "save_test.lua"
     testRun = true
     if opts["new-save"] then love.filesystem.remove(Campaign.FILE) end
+  end
+  dual = opts.dual ~= nil or CONSOLE == "3DS"
+  if dual then
+    View.W, View.H = Dual.TOP_W, Dual.TOP_H                  -- o mapa ocupa a tela de cima inteira
+    Dual.init()
+    if not CONSOLE then love.window.setMode(800, 960) end    -- --dual no PC: as duas telas em 2x
   end
   data = Importer.load()
   if opts["render-music"] then               -- desenvolvimento: despeja as músicas em WAV (fora do git)
@@ -390,8 +407,13 @@ function love.keypressed(key)
   end
 end
 
+-- Toque na tela de baixo do 3DS: confirma (como o botão A).
+function love.touchpressed()
+  if dual and CONSOLE then love.keypressed("z") end
+end
+
 function love.mousepressed(mx, my, button)
-  if state ~= "battle" or not battle.cam then return end
+  if dual or state ~= "battle" or not battle.cam then return end
   local b = battle
   if b.result then campaign:save(); openWorld() return end
   if b.mode == "dialog" then
@@ -414,7 +436,60 @@ function love.mousepressed(mx, my, button)
   end
 end
 
-function love.draw()
+local function drawMessage(w, h)
+  love.graphics.clear(0.04, 0.06, 0.16)
+  love.graphics.setColor(1, 1, 1)
+  local msg
+  if state == "importing" then
+    msg = "Importando a ROM... " .. importMsg
+  else
+    msg = CONSOLE and "Coloque a ROM (saphire.gbc) na pasta de dados do jogo e reinicie."
+      or "Arraste aqui a sua ROM do Pocket Monster Saphire (versão Fixed, .gbc)."
+    if importErr then msg = msg .. "\n\nErro: " .. importErr end
+  end
+  love.graphics.printf(msg, 10, h / 2 - 30, w - 20, "center")
+end
+
+-- Uma das telas do modo duplo: "top" (mapa) ou "bottom" (painéis).
+local function drawScreen(which)
+  if which == "top" then
+    View.forced = { Dual.TOP_W, Dual.TOP_H }
+    if state == "battle" then View.drawBattle(battle, true)
+    elseif state == "world" then View.drawWorld(world, data, campaign, true)
+    elseif state == "team" then Dual.drawTeamTop(teamsel, data)
+    else drawMessage(Dual.TOP_W, Dual.TOP_H) end
+  else
+    View.forced = { Dual.BOT_W, Dual.BOT_H }
+    if state == "battle" then Dual.drawBattleBottom(battle)
+    elseif state == "world" then Dual.drawWorldBottom(world, data, campaign)
+    elseif state == "team" then Dual.drawTeamBottom(teamsel, data)
+    else love.graphics.clear(0.03, 0.06, 0.2) end
+  end
+  View.forced = nil
+end
+
+function love.draw(screen)
+  if dual and CONSOLE then                 -- LÖVE Potion chama love.draw uma vez por tela
+    drawScreen(screen == "bottom" and "bottom" or "top")
+    return
+  end
+  if dual then                             -- PC: desenha as duas telas empilhadas, em 2x
+    Dual.topCanvas = Dual.topCanvas or love.graphics.newCanvas(Dual.TOP_W, Dual.TOP_H)
+    Dual.botCanvas = Dual.botCanvas or love.graphics.newCanvas(Dual.BOT_W, Dual.BOT_H)
+    View.target = Dual.topCanvas
+    love.graphics.setCanvas(Dual.topCanvas); drawScreen("top")
+    View.target = Dual.botCanvas
+    love.graphics.setCanvas(Dual.botCanvas); drawScreen("bottom")
+    View.target = nil
+    love.graphics.setCanvas()
+    local w, h = love.graphics.getDimensions()
+    local sc = math.max(1, math.floor(math.min(w / Dual.TOP_W, h / (Dual.TOP_H + Dual.BOT_H))))
+    love.graphics.clear(0, 0, 0)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(Dual.topCanvas, math.floor((w - Dual.TOP_W * sc) / 2), 0, 0, sc, sc)
+    love.graphics.draw(Dual.botCanvas, math.floor((w - Dual.BOT_W * sc) / 2), Dual.TOP_H * sc, 0, sc, sc)
+    return
+  end
   local w, h = love.graphics.getDimensions()
   if state == "battle" then
     View.drawBattle(battle)
@@ -423,15 +498,14 @@ function love.draw()
   elseif state == "team" then
     View.drawTeam(teamsel, data)
   else
-    love.graphics.clear(0.04, 0.06, 0.16)
-    love.graphics.setColor(1, 1, 1)
-    local msg
-    if state == "importing" then
-      msg = "Importando a ROM... " .. importMsg
-    else
-      msg = "Arraste aqui a sua ROM do Pocket Monster Saphire (versão Fixed, .gbc)."
-      if importErr then msg = msg .. "\n\nErro: " .. importErr end
-    end
-    love.graphics.printf(msg, 40, h / 2 - 30, w - 80, "center")
+    drawMessage(w, h)
   end
+end
+
+-- Controles (3DS/Switch e controles no PC): botões viram as teclas equivalentes.
+local PAD = { a = "z", b = "x", start = "escape", x = "n", y = "m", dpup = "up", dpdown = "down",
+  dpleft = "left", dpright = "right" }
+function love.gamepadpressed(_, button)
+  local k = PAD[button]
+  if k then love.keypressed(k) end
 end

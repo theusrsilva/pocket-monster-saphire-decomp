@@ -22,10 +22,21 @@ local TYPE_COLORS = {
   { 1.0, 0.85, 0.2 }, { 0.3, 0.75, 1.0 }, { 1.0, 0.4, 0.3 }, { 0.75, 0.45, 1.0 }, { 0.6, 0.8, 0.4 },
 }
 
+-- Tamanho da área de desenho (a janela, ou uma tela forçada no modo de duas telas).
+function View.dims()
+  if View.forced then return View.forced[1], View.forced[2] end
+  return love.graphics.getDimensions()
+end
+
 function View.init(assets)
   View.assets = assets
   View.canvas = love.graphics.newCanvas(View.W, View.H)
-  View.shader = love.graphics.newShader(PAL_SHADER)
+  -- LÖVE Potion (3DS/Switch) não tem shaders: nesse caso as imagens indexadas são pré-coloridas
+  if love.graphics.newShader and not View.noShader then
+    local ok, sh = pcall(love.graphics.newShader, PAL_SHADER)
+    if ok then View.shader = sh end
+  end
+  View.colored = {}
   View.font = love.graphics.newFont(14)
   View.small = love.graphics.newFont(11)
   View.big = love.graphics.newFont(22)
@@ -50,7 +61,7 @@ end
 
 -- Escala e deslocamento do canvas na janela.
 function View.layout()
-  local w, h = love.graphics.getDimensions()
+  local w, h = View.dims()
   local s = math.max(1, math.floor(math.min(w / View.W, h / View.H)))
   return s, math.floor((w - View.W * s) / 2), math.floor((h - View.H * s) / 2)
 end
@@ -74,6 +85,32 @@ local function setPal(pal)
   View.shader:send("c2", pal[3]); View.shader:send("c3", pal[4])
 end
 
+-- Desenha um quadro de uma imagem indexada (units/portraits/speakers: canal R = índice 0..3)
+-- com a paleta pal. Sem shader, usa uma cópia colorida da imagem, criada uma vez por paleta.
+function View.drawIndexed(name, quad, pal, x, y, sx, sy)
+  if View.shader then
+    love.graphics.setShader(View.shader)
+    setPal(pal)
+    love.graphics.draw(View.assets[name], quad, x, y, 0, sx or 1, sy or 1)
+    love.graphics.setShader()
+    return
+  end
+  local key = name
+  for i = 1, 4 do key = key .. ("|%.3f,%.3f,%.3f"):format(pal[i][1], pal[i][2], pal[i][3]) end
+  local img = View.colored[key]
+  if not img then
+    local data = love.image.newImageData(View.assets.paths[name])
+    data:mapPixel(function(_, _, r, g, b, a)
+      if a < 0.5 then return 0, 0, 0, 0 end
+      local c = pal[math.floor(r * 3 + 0.5) + 1]
+      return c[1], c[2], c[3], 1
+    end)
+    img = love.graphics.newImage(data)
+    View.colored[key] = img
+  end
+  love.graphics.draw(img, quad, x, y, 0, sx or 1, sy or 1)
+end
+
 local function drawCells(reach, cols, r, g, bl, a)
   love.graphics.setColor(r, g, bl, a)
   for k in pairs(reach) do
@@ -81,7 +118,8 @@ local function drawCells(reach, cols, r, g, bl, a)
   end
 end
 
-function View.drawBattle(b)
+-- mapOnly: só o mapa (tela de cima no modo de duas telas).
+function View.drawBattle(b, mapOnly)
   local st, cols = b.stage, b.stage.cols
   View.portraitPal = st.portraitPal
   local camx, camy = View.camera(b)
@@ -115,16 +153,14 @@ function View.drawBattle(b)
   if b.previewReach then drawCells(b.previewReach, cols, 1, 0.5, 0.2, 0.35) end
 
   -- unidades
-  love.graphics.setShader(View.shader)
   for _, u in ipairs(b.units) do
     if u.hp > 0 then
-      setPal(u.side == "ally" and st.allyPal or st.enemyPal)
       local dim = (u.acted and b.phase == "player" and u.side == "ally") and 0.5 or 1
       love.graphics.setColor(dim, dim, dim)
-      love.graphics.draw(View.assets.units, View.quads[u.species % 256], u.x * CELL, u.y * CELL)
+      View.drawIndexed("units", View.quads[u.species % 256], u.side == "ally" and st.allyPal or st.enemyPal,
+        u.x * CELL, u.y * CELL)
     end
   end
-  love.graphics.setShader()
 
   -- barras de HP em cima das unidades
   for _, u in ipairs(b.units) do
@@ -144,14 +180,14 @@ function View.drawBattle(b)
   love.graphics.setLineWidth(1)
   love.graphics.rectangle("line", b.cursor.x * CELL + 0.5, b.cursor.y * CELL + 0.5, CELL - 1, CELL - 1)
   love.graphics.pop()
-  love.graphics.setCanvas()
+  love.graphics.setCanvas(View.target)
 
   local s, ox, oy = View.layout()
   love.graphics.setColor(1, 1, 1)
   love.graphics.draw(View.canvas, ox, oy, 0, s, s)
 
   -- números de dano flutuando (na resolução da janela)
-  love.graphics.setFont(View.big)
+  love.graphics.setFont(mapOnly and View.font or View.big)
   for _, p in ipairs(b.popups) do
     local px = ox + (p.x * CELL - camx + 8) * s
     local py = oy + (p.y * CELL - camy) * s - p.t * 30
@@ -161,10 +197,23 @@ function View.drawBattle(b)
     love.graphics.printf(p.text, px - 50, py, 100, "center")
   end
 
+  if mapOnly then
+    love.graphics.setFont(View.small)
+    love.graphics.setColor(0, 0, 0, 0.6)
+    love.graphics.rectangle("fill", 2, 2, 150, 16, 3, 3)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print(("Fase %d  Turno %d  %s"):format(b.stageIndex, b.turn,
+      b.phase == "player" and "Sua vez" or "Inimigos"), 6, 4)
+    return
+  end
   View.drawHud(b, s, ox, oy, camx, camy)
 end
 
 local function panel(x, y, w, h)
+  return View.panel(x, y, w, h)
+end
+
+function View.panel(x, y, w, h)
   love.graphics.setColor(0.05, 0.1, 0.35, 0.88)
   love.graphics.rectangle("fill", x, y, w, h, 6, 6)
   love.graphics.setColor(0.45, 0.75, 1, 1)
@@ -173,7 +222,7 @@ local function panel(x, y, w, h)
 end
 
 function View.drawHud(b, s, ox, oy, camx, camy)
-  local w, h = love.graphics.getDimensions()
+  local w, h = View.dims()
   local types = setmetatable({}, { __index = function(_, t) return Names.type_name(t) end })
   love.graphics.setFont(View.font)
 
@@ -196,11 +245,8 @@ function View.drawHud(b, s, ox, oy, camx, camy)
     panel(px, py, pw, ph)
     local pi = u.species                           -- retrato da espécie (bancos $F4/$F5)
     if View.assets.portraits and View.portraitQuads[pi] then
-      love.graphics.setShader(View.shader)
-      setPal(View.portraitPal or View.GRAY)
       love.graphics.setColor(1, 1, 1)
-      love.graphics.draw(View.assets.portraits, View.portraitQuads[pi], px + 8, py + 10, 0, 2.25, 2.25)
-      love.graphics.setShader()
+      View.drawIndexed("portraits", View.portraitQuads[pi], View.portraitPal or View.GRAY, px + 8, py + 10, 2.25, 2.25)
     end
     px = px + 80
     local tc = TYPE_COLORS[u.type] or { 1, 1, 1 }
@@ -311,11 +357,9 @@ function View.drawDialog(b, w, h)
   panel(bx, by, bw, bh)
   local tx = bx + 16
   if page.speaker and View.speakerQuads[page.speaker] then
-    love.graphics.setShader(View.shader)
-    setPal(View.portraitPal or View.GRAY)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.draw(View.assets.speakers, View.speakerQuads[page.speaker], bx + 14, by + 14, 0, 2.875, 2.875)
-    love.graphics.setShader()
+    View.drawIndexed("speakers", View.speakerQuads[page.speaker], View.portraitPal or View.GRAY, bx + 14, by + 14,
+      2.875, 2.875)
     tx = bx + 124
   end
   love.graphics.setFont(View.font)
@@ -365,15 +409,16 @@ local function drawMenuBox(m, w, h)
 end
 
 -- Mapa-múndi: o mapa da fase 0, os nós do grafo e o cursor (o líder do time).
-function View.drawWorld(wd, data, campaign)
+function View.drawWorld(wd, data, campaign, mapOnly)
   View.portraitPal = data.stages[0].portraitPal
   local World = require("src.game.world")
-  local w, h = love.graphics.getDimensions()
+  local w, h = View.dims()
   local img = View.assets.stages[0]
   local cx, cy = wd:cursorPos()
   -- o painel de baixo cobre ~40 px do canvas: a câmera pode passar da borda de baixo do mapa
   local camx = math.max(0, math.min(img:getWidth() - View.W, cx * CELL + 8 - View.W / 2))
-  local camy = math.max(0, math.min(img:getHeight() - View.H + 44, cy * CELL + 8 - (View.H - 44) / 2))
+  local margin = mapOnly and 0 or 44
+  local camy = math.max(0, math.min(img:getHeight() - View.H + margin, cy * CELL + 8 - (View.H - margin) / 2))
   camx, camy = math.floor(camx + 0.5), math.floor(camy + 0.5)
   local t = love.timer.getTime()
 
@@ -415,19 +460,24 @@ function View.drawWorld(wd, data, campaign)
   end
   -- cursor: o primeiro Pokémon do time
   local leader = campaign:recruited()[1]
-  love.graphics.setShader(View.shader)
-  setPal(data.stages[0].allyPal)
   love.graphics.setColor(1, 1, 1)
   local bob = math.floor(math.abs(math.sin(t * 4)) * 2)
-  love.graphics.draw(View.assets.units, View.quads[(leader and leader.species or 1) % 256],
+  View.drawIndexed("units", View.quads[(leader and leader.species or 1) % 256], data.stages[0].allyPal,
     math.floor(cx * CELL + 0.5), math.floor(cy * CELL + 0.5) - bob)
-  love.graphics.setShader()
   love.graphics.pop()
-  love.graphics.setCanvas()
+  love.graphics.setCanvas(View.target)
 
   local s, ox, oy = View.layout()
   love.graphics.setColor(1, 1, 1)
   love.graphics.draw(View.canvas, ox, oy, 0, s, s)
+  if mapOnly then
+    love.graphics.setFont(View.small)
+    love.graphics.setColor(0, 0, 0, 0.6)
+    love.graphics.rectangle("fill", 2, 2, 210, 16, 3, 3)
+    love.graphics.setColor(1, 1, 0.6)
+    love.graphics.print(Names.place_name(campaign.node), 6, 4)
+    return
+  end
 
   -- topo: progresso
   love.graphics.setFont(View.font)
@@ -499,7 +549,7 @@ end
 
 -- Escolha do time ("One can attack NN/MM"): elenco na ordem das vagas, A marca, START vai ao botão.
 function View.drawTeam(ts, data)
-  local w, h = love.graphics.getDimensions()
+  local w, h = View.dims()
   love.graphics.clear(0.03, 0.08, 0.25)
   local types = setmetatable({}, { __index = function(_, t) return Names.type_name(t) end })
   love.graphics.setFont(View.big)
@@ -523,11 +573,8 @@ function View.drawTeam(ts, data)
       love.graphics.setColor(1, 1, 0.4, 0.25)
       love.graphics.rectangle("fill", 26, y + 2, w - 52, rowH - 8, 5, 5)
     end
-    love.graphics.setShader(View.shader)
-    setPal(data.stages[ts.stage].allyPal)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.draw(View.assets.units, View.quads[u.species % 256], 64, y + 6, 0, 1.25, 1.25)
-    love.graphics.setShader()
+    View.drawIndexed("units", View.quads[u.species % 256], data.stages[ts.stage].allyPal, 64, y + 6, 1.25, 1.25)
     love.graphics.setColor(ts.picked[i] and { 0.4, 1, 0.5 } or { 0.5, 0.55, 0.7 })
     love.graphics.print(ts.picked[i] and "[X]" or "[ ]", 34, y + 6)
     love.graphics.setColor(sel and { 1, 1, 0.5 } or { 1, 1, 1 })
