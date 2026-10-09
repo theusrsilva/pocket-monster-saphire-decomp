@@ -480,7 +480,24 @@ Ao entrar numa fase (`$10:$4000`) o jogo monta a lista (`$10:$42C8`) com o elenc
    cores da imagem original (fundo = cor mais comum, letra = a segunda). Ordem de tentativa: uma linha
    na fonte normal (7 px), duas linhas em versalete de 5 px, uma linha em versalete, depois sem
    espaço entre letras; "Onda Eletromagnética" vira "Onda Eletromag.".
-5. Checksum global recalculado (`$14E–$14F`); o cabeçalho não muda.
+5. Palavras dos menus (ver "Menus" abaixo): achadas automaticamente na região (faixas de tinta),
+   apagadas e reescritas na mesma linha de base; os tiles da região são refeitos (célula vazia →
+   tile vazio, célula igual a um tile da moldura → moldura, resto → ids que só aparecem dentro da
+   região, deduplicados) e o espelhamento das células regravadas é zerado.
+6. Checksum global recalculado (`$14E–$14F`); o cabeçalho não muda.
+
+**Menus** (mapas de tela no banco `$BD`: ids de tile `w×h` seguidos dos atributos `w×h`; atributo
+`$0E/$0F` = banco 1 da VRAM + paleta, bit 5/6 = espelho — o original deduplica tiles espelhando).
+Ids `< $20` = moldura comum (`$40:$4000 + id*16`); ids `≥ $20` vêm do bloco de cada menu:
+
+| Tela | Mapa | Bloco (id → base + id*16) | Palavras |
+|---|---|---|---|
+| menu da unidade | `$BD:$40F0` 6×12 | `$40:$4340` | Attack, Skill, Goods, State, Rest |
+| menu do mapa | `$BD:$4C18` 9×12 | `$40:$5E10` | Team show, Save, Load, Win Condition, End |
+| escolha do time | `$BD:$63E8` 20×18 | `$41:$5770` | One can attack; attack, Change ←→ Page (números escritos em tempo de execução) |
+| Instituto | `$BD:$5E48` 20×9 | `$41:$4AC0` | Surmount, Raise information |
+| BabyAlliance | `$BD:$5FB0` 20×9 | `$41:$4AC0` | Evolve Condition, Role evolve |
+| cidade | `$BD:$5CE0` 20×9 | `$41:$4AC0` | (nome do Palaestra = imagem `$7C:$40C4`), Mayor, Resident |
 
 ## Emulação para pesquisa
 

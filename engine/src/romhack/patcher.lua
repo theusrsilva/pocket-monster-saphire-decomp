@@ -64,6 +64,7 @@ function Patcher.build(bytes, opts)
     report.dialogs = Dialogs.apply(rom, PT, takeBanks(4))
     if opts.images ~= false then
       report.images = require("src.romhack.images").apply(rom)
+      report.menus = require("src.romhack.menus").apply(rom)
     end
   end
   if opts.fixHeal ~= false then
