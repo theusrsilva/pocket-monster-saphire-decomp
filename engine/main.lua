@@ -13,6 +13,7 @@
 --   love engine --new-save 1                  (testes) começa do zero
 --   love engine --dump-text out/falas.txt     (tradução) despeja as falas originais (não vai pro git)
 --   love engine --render-music out --ids "16 17" --secs 20   (som) despeja músicas em WAV
+--   love engine --audio-rate 11025            taxa do som (padrão 22050; 11025 no 3DS)
 -- Com qualquer opção de teste o progresso vai para save_test.lua, não para o save do jogador.
 local Importer = require("src.import.importer")
 local Battle = require("src.game.battle")
@@ -79,7 +80,10 @@ local function loadAssets()
   if opts.noshader then View.noShader = true end
   campaign = Campaign.load(data)
   View.init(assets)
-  if not testRun and not opts.mute then Sound.init(data.music and data.music.stage) end
+  if not testRun and not opts.mute then
+    local rate = tonumber(opts["audio-rate"] or "") or (CONSOLE == "3DS" and 11025 or nil)
+    Sound.init(data.music and data.music.stage, rate)
+  end
 end
 
 local enterStage
@@ -268,7 +272,11 @@ function love.load(args)
   if opts.test ~= nil or hasFlag("--test") then
     if not data then
       local bytes = readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc"))
-      assert(bytes, "ROM não encontrada")
+      if not bytes then
+        print("ROM não encontrada: use --rom caminho/saphire.gbc")
+        love.event.quit(1)
+        return
+      end
       assert(Importer.run(bytes))
       data = Importer.load()
     end

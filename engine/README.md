@@ -41,11 +41,22 @@ O motor já vem preparado para o [LÖVE Potion](https://lovebrew.org):
   lenta no 3DS, o melhor é importar no PC e copiar a pasta de dados
   (`~/.local/share/love/saphire-recomp/`, com `generated/`) para a pasta de dados no console.
 
-Empacotar: `tools/package.sh` gera `dist/saphire-recomp.love` (roda em qualquer LÖVE 11) e
-`dist/lovepotion/` com a configuração do lovebrew (`tools/lovebrew.toml`); com o `lovebrew`
-instalado, ele gera os `.3dsx`/`.nro`. **Não testado em hardware nem no LÖVE Potion**: a API do
-LÖVE Potion pode exigir ajustes (principalmente `love.draw(screen)`, `QueueableSource` e
-`ImageData`).
+Empacotar: `tools/package.sh` gera `dist/saphire-recomp.love` (roda em qualquer LÖVE 11). Passando
+os executáveis do LÖVE Potion, ele também "funde" o jogo neles, que é como o LÖVE Potion 3 carrega um
+jogo: `tools/package.sh lovepotion.3dsx lovepotion.nro` gera `dist/saphire-recomp.3dsx` e `.nro`.
+A fusão foi conferida com o LÖVE do PC (o executável fundido passa nos testes).
+
+- **Música no console**: o LÖVE Potion 3.x tem `newQueueableSource` no C++ mas não o registra no
+  `love.audio`; sem isso o jogo roda mudo. Compile o LÖVE Potion com
+  `tools/lovepotion-queueable.patch` (uma linha; `git apply` dentro do repositório do lovepotion).
+- **Desempenho**: o LÖVE Potion usa Lua 5.1 sem JIT. Medido no PC com Lua 5.1 puro, o som custa
+  ~0,9 ms por quadro a 22 kHz; no 3DS o padrão é 11 kHz (`--audio-rate` muda). No 3DS antigo
+  (268 MHz) ainda pode pesar: se faltar quadro, desligue o som (Y).
+- **Pasta de dados**: num jogo fundido o LÖVE usa a pasta do nome do jogo (`saphire-recomp`),
+  não `love/saphire-recomp`. Importe a ROM no PC e copie essa pasta (com `generated/`) para a pasta
+  de dados do LÖVE Potion no cartão SD.
+
+**Não testado em hardware.**
 
 ## O que já funciona (protótipo)
 

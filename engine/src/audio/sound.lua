@@ -26,8 +26,15 @@ function Sound.shim(bin)
   }
 end
 
-function Sound.init(stageMusic)
+-- rate: taxa de amostragem (no 3DS antigo, 11025 alivia a CPU; o padrão é 22050)
+function Sound.init(stageMusic, rate)
   Sound.stageMusic = stageMusic or {}
+  if rate then Sound.RATE = rate end
+  if not (love.audio and love.audio.newQueueableSource) then
+    -- LÖVE Potion 3.x: a função existe no C++ mas não está registrada (ver tools/lovepotion-queueable.patch)
+    print("som desligado: love.audio.newQueueableSource não existe nesta versão")
+    return false
+  end
   if not (love.audio and love.sound) then return false end
   local ok, err = pcall(function()
     local bin = assert(love.filesystem.read("generated/sound.bin"))

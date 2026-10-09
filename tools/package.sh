@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
-# Empacota o motor para distribuição. Não inclui nada da ROM (o jogador importa a própria ROM).
-#   dist/saphire-recomp.love   roda em qualquer LÖVE 11.x (PC) e é o jogo que o LÖVE Potion carrega
-#   dist/lovepotion/           pasta pronta para o lovebrew gerar .3dsx (3DS) e .nro (Switch)
+# Empacota o motor. Não inclui nada da ROM (o jogador importa a própria ROM).
+#
+#   tools/package.sh                                  -> dist/saphire-recomp.love (qualquer LÖVE 11)
+#   tools/package.sh lovepotion.3dsx lovepotion.nro   -> também dist/saphire-recomp.3dsx/.nro
+#
+# O LÖVE Potion 3 carrega o jogo "fundido": o .love vai grudado no fim do executável
+# (boot.lua faz love.filesystem.setSource no próprio executável). Use os binários do LÖVE Potion
+# compilados com tools/lovepotion-queueable.patch para ter música.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-rm -rf dist && mkdir -p dist/lovepotion
+rm -rf dist && mkdir -p dist
 ( cd engine && zip -qr -9 ../dist/saphire-recomp.love . -x '*.DS_Store' )
-cp -r engine dist/lovepotion/game
-cp tools/lovebrew.toml dist/lovepotion/lovebrew.toml
 echo "dist/saphire-recomp.love ($(du -h dist/saphire-recomp.love | cut -f1))"
-if command -v lovebrew >/dev/null 2>&1; then
-  ( cd dist/lovepotion && lovebrew build ) && echo "binários do LÖVE Potion em dist/lovepotion/build"
-else
-  echo "lovebrew não encontrado: veja engine/README.md (Console) para gerar .3dsx/.nro"
-fi
+for bin in "$@"; do
+  [ -f "$bin" ] || { echo "não encontrei $bin"; exit 1; }
+  base="$(basename "$bin")"
+  if [[ "$base" == *.* ]]; then out="dist/saphire-recomp.${base##*.}"; else out="dist/saphire-recomp-$base"; fi
+  cat "$bin" dist/saphire-recomp.love > "$out"
+  chmod +x "$out"
+  echo "$out ($(du -h "$out" | cut -f1))"
+done

@@ -1,0 +1,15 @@
+Registra love.audio.newQueueableSource no LÖVE Potion 3.x (lovebrew/lovepotion).
+A função Wrap_Audio::NewQueueableSource já existe, mas não estava na tabela de funções do módulo;
+sem ela o jogo roda sem música. Aplicar com: git apply tools/lovepotion-queueable.patch
+(dentro do repositório do lovepotion).
+
+--- a/source/modules/audio/wrap_audio.cpp
++++ b/source/modules/audio/wrap_audio.cpp
+@@ -182,6 +182,7 @@ static constexpr luaL_Reg functions[] =
+     { "getActiveSourceCount", Wrap_Audio::GetActiveSourceCount },
+     { "getVolume",            Wrap_Audio::GetVolume            },
+     { "newSource",            Wrap_Audio::NewSource            },
++    { "newQueueableSource",   Wrap_Audio::NewQueueableSource   },
+     { "play",                 Wrap_Audio::Play                 },
+     { "pause",                Wrap_Audio::Pause                },
+     { "stop",                 Wrap_Audio::Stop                 },
