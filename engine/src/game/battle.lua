@@ -22,7 +22,8 @@ local function newUnit(side, t)
   }
 end
 
-function Battle.new(data, stageIndex, campaign)
+-- team: unidades do elenco escolhidas na tela de escolha (nil = todo o elenco recrutado)
+function Battle.new(data, stageIndex, campaign, team)
   local st = data.stages[stageIndex]
   local self = setmetatable({
     data = data, prog = data.prog, stageIndex = stageIndex, stage = st, units = {},
@@ -33,7 +34,7 @@ function Battle.new(data, stageIndex, campaign)
     messages = (data.messages or {})[stageIndex] or {}, dialog = nil,
   }, Battle)
   -- Aliados: o elenco recrutado da campanha, nas posições iniciais da fase.
-  for i, r in ipairs(campaign:recruited()) do
+  for i, r in ipairs(team or campaign:recruited()) do
     if i > #st.starts then break end
     local u = newUnit("ally", setmetatable({ x = st.starts[i].x, y = st.starts[i].y }, { __index = r }))
     u.maxhp, u.maxsp, u.exp, u.slot = r.maxhp, r.maxsp, r.exp, r.slot

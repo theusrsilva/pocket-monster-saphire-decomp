@@ -492,4 +492,59 @@ function View.drawWorld(wd, data, campaign)
   love.graphics.setFont(View.font)
 end
 
+-- Escolha do time ("One can attack NN/MM"): elenco na ordem das vagas, A marca, START vai ao botão.
+function View.drawTeam(ts, data)
+  local w, h = love.graphics.getDimensions()
+  love.graphics.clear(0.03, 0.08, 0.25)
+  local types = { "Celerity", "Equilibrium", "Strength", "SuperPower", "Defense" }
+  love.graphics.setFont(View.big)
+  love.graphics.setColor(1, 1, 1)
+  local World = require("src.game.world")
+  local title = ts.stage <= 25 and ("Fase %d - %s"):format(ts.stage, Names.place_name(ts.stage))
+    or ("Palaestra - %s"):format(Names.place_name(ts.stage))
+  love.graphics.print(title, 24, 14)
+  love.graphics.setColor(1, 1, 0.5)
+  love.graphics.printf(("Podem lutar: %02d/%02d"):format(ts:count(), ts.max), 0, 18, w - 24, "right")
+  love.graphics.setFont(View.font)
+  local rowH, top = 34, 60
+  local visible = math.floor((h - top - 110) / rowH)
+  local first = math.max(1, math.min(ts.cursor - math.floor(visible / 2), #ts.list - visible + 1))
+  for i = first, math.min(#ts.list, first + visible - 1) do
+    local u = ts.list[i]
+    local y = top + (i - first) * rowH
+    local sel = (i == ts.cursor and not ts.onButton)
+    panel(24, y, w - 48, rowH - 4)
+    if sel then
+      love.graphics.setColor(1, 1, 0.4, 0.25)
+      love.graphics.rectangle("fill", 26, y + 2, w - 52, rowH - 8, 5, 5)
+    end
+    love.graphics.setShader(View.shader)
+    setPal(data.stages[ts.stage].allyPal)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(View.assets.units, View.quads[u.species % 256], 64, y + 6, 0, 1.25, 1.25)
+    love.graphics.setShader()
+    love.graphics.setColor(ts.picked[i] and { 0.4, 1, 0.5 } or { 0.5, 0.55, 0.7 })
+    love.graphics.print(ts.picked[i] and "[X]" or "[ ]", 34, y + 6)
+    love.graphics.setColor(sel and { 1, 1, 0.5 } or { 1, 1, 1 })
+    love.graphics.print(Names.species_name(u.species), 96, y + 6)
+    love.graphics.setColor(TYPE_COLORS[u.type] or { 1, 1, 1 })
+    love.graphics.print(types[u.type] or "?", 270, y + 6)
+    love.graphics.setColor(0.85, 0.9, 1)
+    love.graphics.print(("Nv %2d   HP %d   SP %d   ATK %d  PRE %d  ESQ %d  MOV %d"):format(u.level, u.maxhp,
+      u.maxsp, u.atk, u.acc, u.eva, u.move), 390, y + 6)
+  end
+  -- botão "attack"
+  local bw, bh = 220, 40
+  local bx, by = (w - bw) / 2, h - bh - 46
+  panel(bx, by, bw, bh)
+  local ok = ts:count() >= 1
+  love.graphics.setColor(ts.onButton and { 1, 1, 0.4 } or (ok and { 1, 1, 1 } or { 0.5, 0.5, 0.6 }))
+  love.graphics.printf((ts.onButton and "> " or "") .. "Lutar!", bx, by + 11, bw, "center")
+  love.graphics.setFont(View.small)
+  love.graphics.setColor(1, 1, 1, 0.75)
+  love.graphics.printf("Cima/baixo: escolher   Z/Enter: marcar   Esc: ir para Lutar   X: voltar ao mapa   " ..
+    "(as marcadas entram na ordem da lista)", 0, h - 18, w - 10, "right")
+  love.graphics.setFont(View.font)
+end
+
 return View

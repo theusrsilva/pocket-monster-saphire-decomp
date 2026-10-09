@@ -338,6 +338,21 @@ grafo. Rotina de movimento: `$09:$69D8`. Grafo em **`$09:$6B7D`**, 24 bytes por 
 `$C510`+, que nenhuma trava usa), mostra a mensagem `$21` só se fase < `$1A`, e volta ao mapa
 (`[$C007] = 0`). A fase 25 termina o jogo (`$18:$4D43`).
 
+## Escolha do time ("One can attack NN/MM")
+
+Ao entrar numa fase (`$10:$4000`) o jogo monta a lista (`$10:$42C8`) com o elenco recrutado
+(`$AA00 + vaga*64`, byte `+$1D`) **na ordem das vagas**, 4 por página (`[$C0DD]` = última página).
+
+* **Máximo** `[$C0DE]` = número de recrutados, limitado a **10** (as 10 posições iniciais de cada
+  fase). Fase 1 com os 6 iniciais: "00/06".
+* **A** (`$01:$75C4`) liga/desliga a unidade sob o cursor (byte +5 da entrada; `$31` = travada, não
+  muda). Não liga além do máximo (`[$C0DF]` = marcadas).
+* **START** leva o cursor ao botão "attack"; **A** nele só começa com pelo menos 1 unidade marcada
+  (com 0 o jogo fica na tela).
+* As marcadas ocupam as posições iniciais (`$10:$450E`) **na ordem das vagas**, não na ordem em que
+  foram marcadas. Conferido no PyBoy: marcando BoBo e depois Piku, o Piku fica na posição 1 (x 26,
+  y 7) e o BoBo na 2; marcando Piku e Littlecrocodile, este fica na posição 2.
+
 ## Emulação para pesquisa
 
 `tools/run_headless.py` + `tools/play.py` rodam a ROM no **PyBoy** sem janela

@@ -177,6 +177,30 @@ function T.run(data)
   for _, u in ipairs(ev) do okType = okType and u.type == pk.type; hasPk = hasPk or u == pk end
   check("BabyAlliance: só quem tem a insígnia do tipo pode evoluir", #ev >= 1 and okType and hasPk)
 
+
+  -- 12) Escolha do time ($10:$42C8, $01:$75C4), conferido no PyBoy na fase 1 (6 recrutados -> 00/06)
+  local TeamSelect = require("src.game.teamselect")
+  local ct = Campaign.new(data)
+  local ts = TeamSelect.new(data, ct, 1)
+  check("time: máximo = recrutados (até 10)", ts.max == 6 and ts:count() == 0)
+  ts:start()
+  check("time: botão sem ninguém marcado não começa", ts:confirm() == nil)
+  ts.onButton = false
+  ts.cursor = 2; ts:confirm()                      -- marca o BoBo primeiro
+  ts.cursor = 1; ts:confirm()                      -- depois o Piku
+  ts:start()
+  local team = ts:confirm()
+  check("time: ordem das vagas, não da marcação", team and #team == 2 and team[1].slot == 0 and team[2] == ts.list[2])
+  for i = 1, 20 do ct:recruit(i - 1) end
+  local big = TeamSelect.new(data, ct, 1)
+  for i = 1, 12 do big:toggle(i) end
+  check("time: no máximo 10 com elenco cheio", big.max == 10 and big:count() == 10)
+  local Battle = require("src.game.battle")
+  local bt = Battle.new(data, 1, ct, team)
+  local allies = bt:alive("ally")
+  check("time: luta usa só as escolhidas nas posições iniciais", #allies == 2
+    and allies[1].x == data.stages[1].starts[1].x and allies[1].y == data.stages[1].starts[1].y)
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

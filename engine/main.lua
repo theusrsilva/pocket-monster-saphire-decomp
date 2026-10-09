@@ -18,7 +18,8 @@ local View = require("src.ui.view")
 local Names = require("src.game.names")
 local Campaign = require("src.game.campaign")
 local World = require("src.game.world")
-local campaign, world
+local TeamSelect = require("src.game.teamselect")
+local campaign, world, teamsel
 
 -- Preferências do jogador (pasta de dados do LÖVE)
 local function loadOptions()
@@ -71,7 +72,10 @@ local enterStage
 
 local function openWorld()
   world = World.new(data, campaign)
-  world.onEnter = function(s) enterStage(s) end
+  world.onEnter = function(s)
+    teamsel = TeamSelect.new(data, campaign, s)
+    state = "team"
+  end
   state = "world"
 end
 
@@ -94,8 +98,8 @@ local function readFile(path)
   return b
 end
 
-function enterStage(i)
-  battle = Battle.new(data, i, campaign)
+function enterStage(i, team)
+  battle = Battle.new(data, i, campaign, team)
   if opts["cheat-move"] then                  -- só para testes: aliados andam muito
     for _, u in ipairs(battle.units) do if u.side == "ally" then u.move = 60 end end
   end
@@ -215,7 +219,7 @@ function love.update(dt)
     world:update(dt)
   end
   if #script > 0 or scriptWait > 0 or opts.shot then
-    if state == "battle" or state == "world" then runScriptStep() end
+    if state == "battle" or state == "world" or state == "team" then runScriptStep() end
   end
 end
 
@@ -253,6 +257,16 @@ function love.keypressed(key)
       if k == "up" then wd:move(World.UP) elseif k == "down" then wd:move(World.DOWN)
       elseif k == "left" then wd:move(World.LEFT) elseif k == "right" then wd:move(World.RIGHT)
       elseif k == "a" then wd:confirm() end
+    end
+  elseif state == "team" then
+    local ts = teamsel
+    if k == "up" then ts:move(-1) elseif k == "down" then ts:move(1)
+    elseif k == "start" then ts:start()
+    elseif k == "b" then
+      if ts.onButton then ts.onButton = false else state = "world" end
+    elseif k == "a" then
+      local team = ts:confirm()
+      if team then enterStage(ts.stage, team) end
     end
   elseif state == "battle" then
     local b = battle
@@ -314,6 +328,8 @@ function love.draw()
     View.drawBattle(battle)
   elseif state == "world" then
     View.drawWorld(world, data, campaign)
+  elseif state == "team" then
+    View.drawTeam(teamsel, data)
   else
     love.graphics.clear(0.04, 0.06, 0.16)
     love.graphics.setColor(1, 1, 1)

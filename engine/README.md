@@ -30,7 +30,9 @@ direito voltam · Esc encerra o turno · N alterna nomes oficiais/originais.
   lugar, cada direção pode exigir uma fase vencida, fases vencidas não reabrem e as fases 9, 11, 16,
   19, 24 e 25 pedem o item-chave (com a fala condicional do original). Cidades com Palaestra (treino,
   repetível), Prefeito e Morador; Instituto do Doutor (dicas) e BabyAlliance (evolução com as insígnias)
-- Batalha por turnos: os 6 Pokémon iniciais nas posições da fase, contra os inimigos da fase
+- **Escolha do time** antes da luta, com a regra do original: até `min(recrutados, 10)` Pokémon,
+  marcados com Z e confirmados em "Lutar" (Esc); entram nas posições iniciais na ordem do elenco
+- Batalha por turnos: o time escolhido nas posições da fase, contra os inimigos da fase
 - **Alcance de movimento idêntico ao original** (custo por espécie e terreno; coberto por teste)
 - **Combate com as fórmulas do jogo original**: acerto, dano com vantagem de tipo, contra-ataque e EXP
 - Prévia de ataque com dano, chance de acerto e contra-ataque (o original não mostrava)
@@ -51,7 +53,7 @@ direito voltam · Esc encerra o turno · N alterna nomes oficiais/originais.
 
 ## Ainda não
 
-Loja, escolha do time antes da luta, tradução das falas, som, paletas dos retratos e a IA original.
+Loja, tradução das falas, som, paletas dos retratos e a IA original.
 
 ## Estrutura
 
@@ -63,6 +65,7 @@ src/game/combat.lua       acerto, dano, golpes, cura, contra-ataque e EXP (regra
 src/game/progress.lua     nível, ganho de status, bônus e evolução (regra do original)
 src/game/campaign.lua     elenco, inventário, progresso e nó do mapa salvos (equivale à SRAM)
 src/game/world.lua        mapa-múndi: grafo, travas, cidades, Instituto, BabyAlliance
+src/game/teamselect.lua   escolha do time antes da luta
 src/game/messages.lua     falas: resolve os desvios condicionais (comando E2)
 src/game/items.lua        itens e efeitos
 src/game/names.lua        nomes transcritos (oficiais/originais)
