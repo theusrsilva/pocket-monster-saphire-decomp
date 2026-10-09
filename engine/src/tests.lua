@@ -16,7 +16,7 @@ local function check(name, cond, detail)
   end
 end
 
-function T.run(data)
+function T.run(data, romBytes)
   -- 1) Espécie 0 (Piku) igual à RAM do jogo ($C900)
   local piku = data.species[1]
   check("piku stats", piku.species == 1 and piku.hp == 80 and piku.sp == 50 and piku.atk == 30
@@ -362,6 +362,53 @@ function T.run(data)
   Combat.random = sr2
   OptionsT.set("ai", savedAi)
   check("IA melhorada derruba o alvo que pode derrubar", weakA.hp == 0)
+
+
+  -- 20) Conversor de ROM (src/romhack): falas em PT, acentos, cura limitada, checksum
+  if romBytes then
+    local Dialogs = require("src.romhack.dialogs")
+    local Patcher = require("src.romhack.patcher")
+    local Buffer = require("src.romhack.buffer")
+    local w = Dialogs.wrap(Dialogs.encode("Você ganhou Pão de mel!"), 12)
+    local str = string.char(unpack(w))
+    check("quebra por palavra na caixa de 12 colunas", str == "VOCf GANHOU PdO DE MEL!", str)
+    local out = Patcher.build(romBytes, {})
+    local R = Buffer.new(out)
+    local sum = 0
+    for i = 1, #out, 4096 do
+      for _, v in ipairs({ out:byte(i, math.min(i + 4095, #out)) }) do sum = sum + v end
+    end
+    sum = (sum - out:byte(0x14F) - out:byte(0x150)) % 0x10000
+    check("checksum global da ROM convertida", sum == R:u16(0x14E) % 256 * 256 + math.floor(R:u16(0x14E) / 256))
+    -- fase 1, mensagem 18 (script $21): fala do menino que dá o Pão, reapontada para um banco novo
+    local e = Buffer.at(0x5D, R:u16(Buffer.at(0x5D, 0x4000) + 0x21 * 2)) + 18 * 4
+    local bank, addr = R:u8(e + 2), R:u16(e)
+    local txt = {}
+    for i = 0, 40 do
+      local c = R:u8(Buffer.at(bank, addr) + i)
+      if c < 0xE0 then txt[#txt + 1] = string.char(c) end
+    end
+    txt = table.concat(txt)
+    check("fala da fase 1 em português na ROM", bank ~= 0x5D and txt:find("A MAMdE +ACABOU DE ME") ~= nil, txt)
+    -- cura do inimigo: HP += $18:$697B[golpe] limitado ao HP máx (antes passava do máximo)
+    local CPU = require("src.util.sm83")
+    local ram = {}
+    local cpu = CPU.new(function(a)
+      if a < 0x4000 then return R:u8(a) end
+      if a < 0x8000 then return R:u8(Buffer.at(0x18, a)) end
+      return ram[a] or 0
+    end, function(a, v) ram[a] = v end)
+    local function heal(hp, max, add)
+      ram[0xC98E], ram[0xC98F], ram[0xC992], ram[0xC993] = hp % 256, math.floor(hp / 256), max % 256, math.floor(max / 256)
+      cpu.h, cpu.l, cpu.b, cpu.c = math.floor(hp / 256), hp % 256, math.floor(add / 256), add % 256
+      cpu:call(R:u16(Buffer.at(0x18, 0x6969)))
+      return ram[0xC98E] + ram[0xC98F] * 256
+    end
+    local table697B = R:u16(Buffer.at(0x18, 0x697B) + 2 * 2)
+    check("ROM: autocura limitada ao HP máximo", R:u8(Buffer.at(0x18, 0x6968)) == 0xCD and table697B == 300
+      and heal(100, 1000, 300) == 400 and heal(900, 1000, 300) == 1000 and heal(1000, 1000, 150) == 1000
+      and heal(250, 260, 800) == 260)
+  end
 
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0

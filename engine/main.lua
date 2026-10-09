@@ -177,6 +177,7 @@ local function openLauncher(msg)
       local bytes
       if file then file:open("r"); bytes = file:read(); file:close() else bytes = readFile(path) end
       if not bytes then return false, T("Não consegui abrir o arquivo: ") .. path end
+      love.filesystem.write("saphire.gbc", bytes)   -- cópia para gerar a ROM traduzida depois
       fromLauncher = true
       startImport(bytes)
       return true, T("Importando...")
@@ -186,6 +187,28 @@ local function openLauncher(msg)
       openWorld()
     end,
     quit = function() love.event.quit() end,
+    buildRom = function()
+      local src = Options.get("romPath")
+      local bytes = src ~= "" and readFile(src) or nil
+      if not bytes and love.filesystem.getInfo("saphire.gbc") then bytes = love.filesystem.read("saphire.gbc") end
+      if not bytes then return T("Configure a ROM primeiro.") end
+      local Rom = require("src.util.rom")
+      if Rom.new(bytes):sha1() ~= Rom.SHA1 then return T("ROM diferente da esperada (precisa da versão Fixed).") end
+      local ok, out = pcall(require("src.romhack.patcher").build, bytes, { fixHeal = Options.get("fixHeal") })
+      if not ok then return T("Erro: ") .. tostring(out) end
+      local name = "Pocket Monster Saphire (PT-BR).gbc"
+      if src ~= "" then
+        local dest = src:gsub("[^/\\]*$", "") .. name
+        local f = io.open(dest, "wb")
+        if f then
+          f:write(out)
+          f:close()
+          return T("ROM traduzida gerada: ") .. dest
+        end
+      end
+      love.filesystem.write(name, out)
+      return T("ROM traduzida gerada: ") .. love.filesystem.getSaveDirectory() .. "/" .. name
+    end,
   })
   launcher.msg = msg
   state = "launcher"
@@ -298,9 +321,19 @@ function love.load(args)
     love.event.quit(0)
     return
   end
+  if opts["build-rom"] then                  -- gera a ROM convertida sem abrir a tela (fora do git)
+    local bytes = assert(readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc")), "ROM não encontrada")
+    local out, report = require("src.romhack.patcher").build(bytes, {})
+    local f = assert(io.open(opts["build-rom"], "wb"))
+    f:write(out)
+    f:close()
+    print(require("src.util.serialize")(report))
+    love.event.quit(0)
+    return
+  end
   if opts.test ~= nil or hasFlag("--test") then
+    local bytes = readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc"))
     if not data then
-      local bytes = readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc"))
       if not bytes then
         print("ROM não encontrada: use --rom caminho/saphire.gbc")
         love.event.quit(1)
@@ -309,7 +342,7 @@ function love.load(args)
       assert(Importer.run(bytes))
       data = Importer.load()
     end
-    local ok = require("src.tests").run(data)
+    local ok = require("src.tests").run(data, bytes)
     love.event.quit(ok and 0 or 1)
     return
   end

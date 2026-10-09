@@ -436,6 +436,45 @@ Ao entrar numa fase (`$10:$4000`) o jogo monta a lista (`$10:$42C8`) com o elenc
   sintetiza o APU (`engine/src/audio/apu.lua`). Conferido contra o áudio do PyBoy: na abertura,
   86% das notas (janelas de 50 ms) coincidem, já alinhadas no tempo.
 
+## Motor de texto e ROM traduzida (`engine/src/romhack/`)
+
+**Exibição das falas** (`ROM0:$3296` liga `[$C280]` e chama `$39:$4000`):
+
+* `$39:$4000` (Text_Init) escolhe a caixa pelo script: `$39:$407D[script]` → configuração de 8 bytes
+  em `$39:$40ED` = `[VRAM lo, hi, largura, ?, linhas, ?, velocidade, ?]`. Intro (`$20`) = 16 colunas
+  sem retrato (`$9C22`); fases `$21–$39` = 12 colunas ao lado do retrato (`$9C26`), exceto as
+  mensagens `$17–$1B`, forçadas para 16 colunas em `$9C22`; cidades, Instituto e BabyAlliance
+  (`$3A–$41`) = 12 colunas (`$9C86`). Todas com 4 linhas.
+* `$39:$4125` (Text_Char): byte → tile pela tabela `$39:$4226` (128 entradas; `A–Z` = `$C0–$D9`,
+  `a–z` = `$DA–$F3`, `0–9` = `$01–$0A`, `. , : ; ! ? -` em `$F4–$FA`, espaço `$FC`, `'`/`` ` `` = `$FD`)
+  e grava o tile direto no mapa (atributo `$0E`: banco 1 da VRAM, paleta 6). Quebra de linha **só pela
+  coluna** (no meio da palavra); com a caixa cheia espera o botão e rola uma linha (`$39:$41C5`).
+* Fonte: 64 tiles em `$39:$4365`, copiados para o banco 1 da VRAM em `$8C00` (`$39:$42A6`); fundo
+  cor 2, letra cor 0. Ela só é usada pelo motor de texto.
+* Comandos: `E8 xx` grava a velocidade do texto `[$C2B7]` (`ROM0:$36B5`); `EA xx` troca o falante
+  (`ROM0:$370B`). `EE 03` tem 6 bytes (`EE 03 a16 v16`), apesar de a tabela dizer 4.
+* Índice: `$5D:$4000` tem um u16 por script (75 scripts; os vazios apontam para `$4096`), cada um
+  uma lista de entradas `[lo, hi, banco, 00]` (1786 entradas, 680 trechos distintos alcançáveis).
+
+**Bancos livres:** o jogo só usa bancos com o bit 1 desligado; todos os outros (`$02, $03, $06, $07,
+… $42, $43 …`) são zerados. O fim do banco 0 (`$3F6B–$3FFF`) também é zerado (último código em
+`$3F6A`).
+
+**Conversão** (`Patcher.build`, botão "Gerar ROM traduzida" ou `love engine --build-rom saída.gbc`):
+
+1. Falas: cada trecho alcançável pelo índice é regravado nos bancos livres a partir de `$42`
+   (um grupo ligado por desvios `E2` fica no mesmo banco, porque os ponteiros do `E2` são do
+   banco atual) e o índice é reapontado. Páginas traduzidas (`translation_pt.lua`) vão em
+   MAIÚSCULAS e quebradas por palavra para a largura da caixa (espaços até o fim da linha); os
+   comandos antes do texto da página continuam antes, os demais (EE) vão depois. O texto não traduzido
+   é copiado em maiúsculas. Ocupa ~22 KB.
+2. Acentos: como nada mais usa minúsculas, os glifos `a–m` viram `Á À Â Ã É Ê Í Ó Ô Õ Ú Ç Ü`,
+   desenhados a partir da maiúscula da própria fonte (corpo em 5 linhas + acento em 2; Ç com cedilha
+   na linha 8; Í com serifas, senão parecia "1").
+3. Autocura do inimigo (`$18:$6968`): `ld de,$C98E / call $2B12` vira `call $3F80`, rotina nova
+   que soma a cura e limita a `[$C992]` (HP máx da cópia da unidade em `$C980`).
+4. Checksum global recalculado (`$14E–$14F`); o cabeçalho não muda.
+
 ## Emulação para pesquisa
 
 `tools/run_headless.py` + `tools/play.py` rodam a ROM no **PyBoy** sem janela

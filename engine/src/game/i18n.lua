@@ -128,6 +128,9 @@ local EN = {
   ["Não consegui abrir o arquivo: "] = "Could not open the file: ",
   ["Importando..."] = "Importing...",
   ["ROM importada! Escolha Jogar."] = "ROM imported! Choose Play.",
+  ["Configure a ROM primeiro."] = "Set up the ROM first.",
+  ["ROM diferente da esperada (precisa da versão Fixed)."] = "Unexpected ROM (the Fixed version is required).",
+  ["ROM traduzida gerada: "] = "Translated ROM written: ",
 }
 
 function I18n.T(s)

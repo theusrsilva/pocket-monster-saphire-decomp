@@ -22,6 +22,7 @@ xvfb-run -a love engine --stage 2 --script "wait20 z right*3 z" --shot out/x.png
 #   --cheat-move 1 (movimento alto)   --cheat-win 1 (vence a fase ao entrar)
 #   --cleared N / --keys N / --node N / --new-save 1 (campanha de teste, save_test.lua)
 #   --launcher 1 (abre a tela de configuração mesmo com --script; cuidado: grava options.lua)
+#   --build-rom out/x.gbc (gera a ROM traduzida; o .gbc gerado também não entra no git)
 #   --dual 1 (layout de duas telas do 3DS)   --noshader 1   --render-music out --ids "16"
 ```
 

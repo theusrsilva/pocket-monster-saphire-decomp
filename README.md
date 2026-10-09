@@ -39,6 +39,9 @@ correção de bugs e melhorias de usabilidade.
 - [x] Tradução de todas as falas da campanha para o português (tecla N alterna PT/original)
 - [x] Tela de configuração no PC: ROM, idioma PT/EN (inclusive a interface), nomes, prévia, IA original/melhorada, correções
 - [x] IA original dos inimigos (`$01:$6B95`), conferida contra o jogo
+- [x] Conversor de ROM (tela de configuração): gera uma ROM de GBC/GBA com as falas em português
+  (acentos na fonte do jogo) e a autocura do inimigo corrigida
+- [ ] Conversor de ROM: nomes e palavras da interface que são imagens (golpes, lugares, menus)
 
 Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).
 
@@ -54,7 +57,9 @@ Cada tag `v*` (por exemplo `git tag v0.1.0 && git push origin v0.1.0`) dispara
   `tools/lovepotion-queueable.patch` e funde o jogo; se esse passo falhar, o release sai sem ele;
 - notas do release a partir dos commits desde a tag anterior (`tools/release_notes.sh`).
 
-Nenhum arquivo contém a ROM: o jogador escolhe a própria ROM na tela de configuração.
+Nenhum arquivo contém a ROM: o jogador escolhe a própria ROM na tela de configuração. Para jogar
+no Game Boy Color/Advance (emulador ou flashcart), a mesma tela tem **Gerar ROM traduzida**, que
+cria `Pocket Monster Saphire (PT-BR).gbc` ao lado da ROM original.
 "Run workflow" na aba Actions faz o build sem publicar.
 
 ## Jogar o protótipo
