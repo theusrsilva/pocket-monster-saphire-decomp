@@ -61,8 +61,9 @@ de robôs da própria Sintax (o cabeçalho ainda diz `ROBOT WAR v3.0`).
 | 40, 41, 4C | UI de batalha/menus: números, HP/SP/EXP, palavras **pré-renderizadas** ("Attack", "Skill", "Goods", "State", "Load", "Save"…) |
 | 74, 79, 7C | nomes de golpes, de lugares e de itens **como imagem** |
 | 75, F5 | mais retratos/arte |
-| 90–B1 | frames de animação de batalha: tiles **deduplicados**, montados por tabelas de metasprite (ainda não localizadas) |
-| C0–F1 | dados de fase: tilesets do mapa (prédios, árvores, terreno) |
+| 90–B1 | frames de animação de batalha: tiles **deduplicados**, montados por tabelas de metasprite (provável índice em `$04:$4000`, entradas `[lo, hi, banco, 00]` apontando para os bancos 05/0C/0D/20/21/28/29) |
+| C0–F1, 64–6D | dados de fase: mapa, metatiles, tiles e paletas (ver **Fases**) |
+| FD | sprites 16×16 das unidades no mapa: `$FD:$4000 + espécie*64`, tiles TL TR BL BR |
 | **F4** | **retratos dos Pokémon, 4×4 tiles, row-major, sem compressão** ✅ |
 | F9 | nomes dos Pokémon pré-renderizados (fundo cinza) |
 | FC | sobra de outro jogo (BOOMERANG, GRENADE, MEDI-KIT, PAUSED…) |
@@ -103,6 +104,66 @@ Depois do registro 19 começa outra tabela (valores 02/03/63, provavelmente terr
 | `$DE00–$DF7F` | elenco recrutado: até 24 registros de 16 bytes `[?, ?, nível, 0, espécie, tipo, SP u16, HP u16, …]` (os 2 primeiros bytes crescem de forma irregular: ponteiro/offset ainda não identificado) |
 | `$DF80–$DFDF` | time escalado para a luta: registros de 16 bytes `[nível, 0, espécie, tipo, SP u16, HP u16, …]` |
 | `$C2B0/$C2B1` | script e mensagem atuais do sistema de texto |
+| `$C007` | **número da fase atual** (0 = mapa-múndi, 1–25 campanha, 26–31 Palaestras) |
+| `$C300–$C33F` | cópia do cabeçalho da fase atual |
+
+## SRAM (32 KiB, só o banco 0 é usado)
+
+| Endereço | Conteúdo |
+|---|---|
+| `$AA00–$B1FF` | **elenco do jogador**: 20 vagas × 64 bytes (uma por espécie recrutável) |
+| `$B200–$B9FF` | **inimigos da fase**: 20 vagas × 64 bytes |
+| `$BDC0–$BFFF` | paletas pré-calculadas para fade |
+
+Registro de unidade (64 bytes, SRAM): `+0` ativo, `+2` nível, `+5` espécie, `+6` tipo,
+`+7` y (px u16), `+9` x (px u16), `+11` slot gráfico, `+12` SP, `+14` HP, `+16` SP máx,
+`+18` HP máx, `+20` ATK, `+22` DEF, `+24` SPD (u16 cada), `+26` MOV, `+27` forte contra,
+`+28` fraco contra, `+29` inicial, `+34/+35` alcance, `+36..` até 4 golpes de 5 bytes
+`[id, poder, custo SP, alcance mín, alcance máx]` (hipótese para os 3 últimos).
+
+## Fases
+
+32 fases: **0** = mapa-múndi, **1–25** = campanha, **26–31** = os 6 Palaestras.
+Extratores: `tools/render_stage.py` (só o mapa) e `tools/extract_stages.py` (JSON + mapa anotado
+com inimigos e posições iniciais).
+
+**Cabeçalho** em `$7D:$4000 + fase*64`, copiado para `$C300`. Entradas `[banco, 00, ptr u16]`:
+
+| Off | Conteúdo |
+|---|---|
+| +00 | paletas de BG (64 bytes, 8 × 4 cores BGR555) |
+| +04 | paletas de OBJ (todas as fases usam `$7D:$4854`) |
+| +08/+0C/+10 | blocos de tiles `[destino u16][tamanho u16] + dados` (passando de $9800 volta para $8800) |
+| +14..+20 | tilemaps extras para $9800/$9C00 (nulos nas fases) |
+| +24 | **mapa**: ids de metatile u16, (+38)/2 colunas × (+3A) linhas, célula 16×16 |
+| +28 | **metatiles**: 8 bytes = tiles TL TR BL BR + 4 atributos CGB |
+| +2C | 4 bytes por metatile (provável tipo de terreno/custo de movimento) |
+| +30 | 32 bytes, ainda não identificado |
+| +34/+36 | scroll máximo X/Y (u16) |
+| +38/+3A/+3C | bytes por linha, linhas, tamanho do mapa |
+
+LCDC = `$E7`: fundo com endereçamento com sinal (tile 0 em `$9000`).
+
+**Inimigos:** `$30:$40E6` tem 32 ponteiros u16 (banco $30), um por fase. Cada lista tem registros
+de **24 bytes**, terminada quando o nível é `$FF` (máximo 20). Copiados para a SRAM `$B200`.
+
+| Off | Campo |
+|---|---|
+| +0 | nível |
+| +1 | espécie (inclui ids só de inimigo, ex.: $38, $3C, $3F) |
+| +2 | tipo |
+| +3/+5 | y / x em px (u16; ÷16 = célula) |
+| +7 | slot gráfico (grupos do mesmo tipo de inimigo compartilham o slot) |
+| +8/+10 | SP / HP (u16) |
+| +12/+13/+14 | ATK / DEF / SPD |
+| +15 | MOV |
+| +16/+17 | forte / fraco contra |
+| +18/+19 | alcance mín / máx |
+| +20..+23 | golpe `[id, poder, custo, ?]` (0 = sem golpe) |
+
+**Posições iniciais dos aliados:** `$10:$450E` tem 32 ponteiros u16 (banco $10), com registros de
+6 bytes `[00 00, y u16, x u16]`, 10 por fase, terminados por `$FFFF`. Conferido: a vaga 1 da fase 26
+é `(6,5)`, exatamente onde o piku aparece na SRAM ao entrar na luta.
 
 ## Emulação para pesquisa
 
@@ -114,9 +175,10 @@ escolher unidades com A/↓ → START.
 
 ## Próximos passos
 
-1. ~~Stats das espécies recrutáveis~~ ✅. Falta: inimigos de cada fase, golpes (ids em +16/+17), itens.
+1. ~~Stats das espécies~~ ✅ ~~Inimigos e posições por fase~~ ✅. Falta: tabela de golpes (nome/efeito),
+   itens, eventos de cada fase (casas, baús, falas: provavelmente ligados ao script `$5D`).
 2. Achar as tabelas de metasprite dos frames de batalha (90–B1): seguir no debugger a rotina que
    escreve na OAM ($FE00 / DMA) durante uma luta.
-3. Formato dos mapas de fase (C0–F1): metatiles + mapa + lista de unidades/baús/casas.
-4. Paletas CGB: localizar escritas em `rBCPS/rBCPD` ($FF68/$FF69) e `rOCPS/rOCPD`.
+3. ~~Formato dos mapas~~ ✅. Falta: confirmar a tabela de terreno (+2C) e a paleta de cada sprite de unidade.
+4. ~~Paletas de BG das fases~~ ✅ (rotinas `ROM0:$2C56`/`$2C42`). Falta: paletas da UI e dos retratos.
 5. Fórmulas: dano, contra-ataque, alcance de movimento, XP. Breakpoints no Emulicious/SameBoy.

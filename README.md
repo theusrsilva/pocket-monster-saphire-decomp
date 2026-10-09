@@ -18,10 +18,12 @@ correção de bugs e melhorias de usabilidade.
 - [x] Tabela das 20 espécies recrutáveis (`tools/extract_species.py`)
 - [x] Jogo rodando headless (PyBoy) com controle por script e dump de RAM
 - [x] Mapa parcial da WRAM (unidades, status, buffers do mapa)
-- [ ] Golpes, itens, inimigos
+- [x] Inimigos de cada fase (stats completos)
+- [ ] Golpes (nomes/efeitos), itens, eventos das fases
 - [ ] Metasprites das animações de batalha
-- [ ] Formato dos mapas de fase e unidades
-- [ ] Paletas CGB
+- [x] Formato das fases: 32 mapas renderizados da ROM, inimigos e posições iniciais (`tools/extract_stages.py`)
+- [x] Mapa da SRAM (elenco e inimigos, 64 bytes por unidade)
+- [x] Paletas CGB das fases
 - [ ] Fórmulas de batalha / IA
 - [ ] Motor em LÖVE2D
 
@@ -33,6 +35,9 @@ Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).
 ./tools/setup.sh                  # baixa mgbdis + RGBDS, gera disasm/ e confere o round-trip
 python3 tools/extract_text.py rom/saphire.gbc out/script.json out/script.txt
 python3 tools/dump_tiles.py   rom/saphire.gbc out/tiles
+python3 tools/extract_species.py rom/saphire.gbc out/species.json
+python3 tools/render_stage.py  rom/saphire.gbc all out/stages
+python3 tools/extract_stages.py rom/saphire.gbc out/stages.json out/stages
 python3 tools/probe_layout.py rom/saphire.gbc <offset_hex> <ntiles> out/probe.png
 ```
 
