@@ -11,3 +11,4 @@ tools/rgbds.tar.xz
 __pycache__/
 *.pyc
 dist/
+build-cache/

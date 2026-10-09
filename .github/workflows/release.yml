@@ -1,0 +1,107 @@
+# Release: ao criar uma tag v* (ex.: git tag v0.1.0 && git push --tags), gera os executáveis de
+# Windows, Linux, macOS e 3DS, escreve as notas a partir dos commits desde a tag anterior e publica
+# tudo no release da tag. Nada da ROM entra nos arquivos.
+# "Run workflow" (workflow_dispatch) faz o mesmo build sem publicar (os arquivos ficam nos artifacts).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  LOVEPOTION_COMMIT: 906511d4e05b47015da5bf85ad554fe6542b1c81   # lovebrew/lovepotion fixado
+
+jobs:
+  desktop:
+    name: Windows, Linux e macOS
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: v
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME}"; else v="dev-${GITHUB_SHA::7}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - name: Dependências
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zip unzip libfuse2 lua5.1
+      - name: Sintaxe do Lua
+        run: find engine -name '*.lua' -print0 | xargs -0 -n1 luac5.1 -p
+      - name: Executáveis
+        run: tools/build_desktop.sh "${{ steps.v.outputs.version }}"
+      - name: Notas do release
+        run: |
+          ref="${GITHUB_REF_NAME}"; [ "${GITHUB_REF_TYPE}" = "tag" ] || ref=HEAD
+          tools/release_notes.sh "$ref" > dist/NOTAS.md
+          cat dist/NOTAS.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop
+          path: |
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.love
+            dist/NOTAS.md
+
+  n3ds:
+    name: Nintendo 3DS (LÖVE Potion)
+    needs: desktop
+    runs-on: ubuntu-latest
+    continue-on-error: true          # se o LÖVE Potion não compilar, o release sai sem o 3DS
+    container:
+      image: devkitpro/devkitarm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop
+          path: dist
+      - name: LÖVE Potion com o patch da música
+        run: |
+          git clone https://github.com/lovebrew/lovepotion lovepotion
+          cd lovepotion
+          git checkout "$LOVEPOTION_COMMIT"
+          git apply ../tools/lovepotion-queueable.patch
+          catnip -T 3DS -DLIBRARY_LOADER='linktime' -DUSE_CURL_BACKEND=ON
+      - name: Fundir o jogo no .3dsx
+        run: |
+          bin=$(find lovepotion/build -name '*.3dsx' | head -1)
+          test -n "$bin"
+          mkdir -p out3ds
+          cat "$bin" dist/saphire-recomp.love > "out3ds/SaphireRecomp-${{ needs.desktop.outputs.version }}-3ds.3dsx"
+          ls -la out3ds
+      - uses: actions/upload-artifact@v4
+        with:
+          name: n3ds
+          path: out3ds/*.3dsx
+
+  release:
+    name: Publicar
+    needs: [desktop, n3ds]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop
+          path: dist
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: n3ds
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Saphire Recomp ${{ github.ref_name }}
+          body_path: dist/NOTAS.md
+          files: |
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.3dsx
+            dist/*.love

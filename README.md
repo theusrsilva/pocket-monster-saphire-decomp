@@ -42,6 +42,21 @@ correção de bugs e melhorias de usabilidade.
 
 Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).
 
+## Downloads e releases
+
+Cada tag `v*` (por exemplo `git tag v0.1.0 && git push origin v0.1.0`) dispara
+`.github/workflows/release.yml`, que gera e publica no release:
+
+- Windows (`.zip` com `SaphireRecomp.exe`), Linux (`.AppImage`), macOS (`.app` em `.zip`, sem
+  assinatura) e `saphire-recomp.love`: `tools/build_desktop.sh`, que funde o jogo nos binários
+  oficiais do LÖVE 11.5;
+- Nintendo 3DS (`.3dsx`): compila o `lovebrew/lovepotion` (commit fixado) com
+  `tools/lovepotion-queueable.patch` e funde o jogo; se esse passo falhar, o release sai sem ele;
+- notas do release a partir dos commits desde a tag anterior (`tools/release_notes.sh`).
+
+Nenhum arquivo contém a ROM: o jogador escolhe a própria ROM na tela de configuração.
+"Run workflow" na aba Actions faz o build sem publicar.
+
 ## Jogar o protótipo
 
 Precisa do [LÖVE 11.x](https://love2d.org). Coloque a ROM em `rom/saphire.gbc` e rode `love engine`
