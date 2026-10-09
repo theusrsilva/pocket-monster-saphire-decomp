@@ -377,7 +377,11 @@ function T.run(data, romBytes)
     check("ROM: nomes em imagem redesenhados (golpes, espécies, lugares, itens, ginásios)",
       #rep.images.falhas == 0 and rep.images.golpes == 88 and rep.images["espécies"] == 75
       and rep.images.lugares == 33, table.concat(rep.images.falhas, "; "))
-    check("ROM: palavras dos menus redesenhadas (batalha, mapa, time, cidades)", rep.menus and #rep.menus == #require("src.romhack.menus").SCREENS)
+    check("ROM: palavras dos menus redesenhadas (batalha, mapa, time, cidades)", rep.menus and #rep.menus == (function()
+      local g, n = {}, 0
+      for _, sc in ipairs(require("src.romhack.menus").SCREENS) do if not g[sc.group] then g[sc.group] = true; n = n + 1 end end
+      return n
+    end)())
     check("ROM: título (NOVO JOGO/RECORDES, CARREGAR/SAIR) redesenhado", rep.title == 4)
     local lay = require("src.romhack.images").layout("Canção de Ninar", 56, 16)
     check("nome longo vai em duas linhas de versalete", lay and #lay == 2 and lay[1].font == "small")
