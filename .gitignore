@@ -1,0 +1,10 @@
+# nada derivado da ROM entra no repositorio
+rom/
+out/
+disasm/
+tools/mgbdis/
+tools/rgbds/
+tools/rgbds.tar.xz
+*.gb
+*.gbc
+*.sav
