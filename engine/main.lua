@@ -181,12 +181,12 @@ function love.keypressed(key)
       if k == "a" then state = "select" end
       return
     end
-    if b.phase ~= "player" then return end
-    if b.mode == "menu" then
+    if b.mode == "menu" or b.mode == "bonus" then
       if k == "up" then b:menuMove(-1) elseif k == "down" then b:menuMove(1)
       elseif k == "a" then b:confirm() elseif k == "b" then b:cancel() end
       return
     end
+    if b.phase ~= "player" then return end
     if k == "up" then b:moveCursor(0, -1)
     elseif k == "down" then b:moveCursor(0, 1)
     elseif k == "left" then b:moveCursor(-1, 0)
@@ -203,7 +203,7 @@ function love.mousepressed(mx, my, button)
   local b = battle
   if b.result then state = "select" return end
   if button == 2 then b:cancel() return end
-  if b.mode == "menu" then b:confirm() return end
+  if b.mode == "menu" or b.mode == "bonus" then b:confirm() return end
   local x, y = View.cellAt(b, mx, my)
   if b.mode == "target" then
     for i, t in ipairs(b.targets) do

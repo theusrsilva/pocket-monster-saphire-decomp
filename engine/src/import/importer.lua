@@ -7,7 +7,7 @@ local serialize = require("src.util.serialize")
 local at = Rom.at
 local Importer = {}
 
-Importer.CACHE_VERSION = 2
+Importer.CACHE_VERSION = 3
 local NSTAGES = 32
 local NSPECIES_TABLE = 20     -- espécies recrutáveis ($09:$4000, 20 bytes)
 local NCOST_ROWS = 76         -- linhas da tabela de custo ($09:$4190, 33 bytes)
@@ -111,7 +111,7 @@ local function importStage(rom, s)
         atk = rom:u8(o + 12), acc = rom:u8(o + 13), eva = rom:u8(o + 14), move = rom:u8(o + 15),
         strong = rom:u8(o + 16), weak = rom:u8(o + 17),
         rmin = rom:u8(o + 18), rmax = rom:u8(o + 19),
-        skill = rom:u8(o + 20) ~= 0 and { rom:u8(o + 20), rom:u8(o + 21), rom:u8(o + 22), rom:u8(o + 23) } or nil,
+        skill = rom:u8(o + 20) ~= 0 and rom:u8(o + 20) or nil,
       }
       o = o + 24
     end
@@ -159,6 +159,38 @@ local function importCosts(rom)
     rows[s] = r
   end
   return rows
+end
+
+-- Progressão (nível, evolução) e golpes. Tabelas indexadas pelo id da espécie (0..$37).
+local function importProgression(rom)
+  local P = { maxLevel = {}, gains = {}, growth = {}, final = {}, evoBonus = {}, learn = {} }
+  for s = 0, 0x37 do
+    P.maxLevel[s] = rom:u8(at(0x1D, 0x5814) + s)                 -- nível máximo da forma
+    local g = at(0x01, 0x6935) + s * 5                           -- [HP+, SP+, chance ATK/PRE/ESQ]
+    P.gains[s] = { rom:u8(g), rom:u8(g + 1), rom:u8(g + 2), rom:u8(g + 3), rom:u8(g + 4) }
+    P.growth[s] = rom:u8(at(0x01, 0x6A71) + s)                   -- estágio da evolução (1..3)
+    P.final[s] = rom:u8(at(0x01, 0x56FF) + s) ~= 0               -- forma final (não evolui)
+    local e = at(0x19, 0x5C14) + s * 6                           -- bônus ao evoluir para s
+    P.evoBonus[s] = { sp = rom:u8(e), hp = rom:u8(e + 1), atk = rom:u8(e + 2), acc = rom:u8(e + 3),
+      eva = rom:u8(e + 4), move = rom:u8(e + 5) }
+    P.learn[s] = rom:u8(at(0x19, 0x5EDA) + s)                    -- golpe aprendido ao evoluir para s
+  end
+  -- ganho sorteado de ATK/PRE/ESQ por estágio: tabela[estágio][rand & 3]
+  P.gainValues, P.bonusChoice = {}, {}
+  for c = 0, 3 do
+    P.gainValues[c] = {}
+    for i = 0, 3 do P.gainValues[c][i + 1] = rom:u8(at(0x01, 0x6A4D) + c * 4 + i) end
+    P.bonusChoice[c] = {}                                        -- bônus escolhido: HP, SP, ATK, PRE, ESQ
+    for i = 0, 4 do P.bonusChoice[c][i + 1] = rom:u8(at(0x01, 0x6A5D) + c * 5 + i) end
+  end
+  -- golpes ($09:$4D5B, 6 bytes): [cura?, poder u16, custo SP, alcance mín, alcance máx]
+  P.skills = {}
+  for id = 1, 0x57 do
+    local o = at(0x09, 0x4D5B) + id * 6
+    P.skills[id] = { heal = rom:u8(o) == 1, power = rom:u16(o + 1), cost = rom:u8(o + 3),
+      rmin = rom:u8(o + 4), rmax = rom:u8(o + 5) }
+  end
+  return P
 end
 
 -- Sprites 16x16 das unidades no mapa ($FD:$4000 + espécie*64), salvos como imagem indexada:
@@ -221,6 +253,7 @@ function Importer.run(bytes, progress)
   progress("espécies")
   data.species = importSpecies(rom)
   data.costs = importCosts(rom)
+  data.prog = importProgression(rom)
   progress("sprites")
   importUnitSprites(rom):encode("png", "generated/units.png")
   importPortraits(rom):encode("png", "generated/portraits.png")

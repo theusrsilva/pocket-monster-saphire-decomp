@@ -194,6 +194,42 @@ O bloco do atacante é copiado para `$C900` e o do defensor para `$C980`, no for
 
 O contra-ataque usa as mesmas contas com os papéis trocados (`$CD45`/`$CD03`).
 
+## Nível e evolução
+
+**Espécies em linhas de 3 ids** (ex.: `$01→$02→$03` é a linha do Piku; algumas linhas têm 2 formas).
+Os 20 registros de `$09:$4000` são os 20 Pokémon recrutáveis na forma e no nível em que entram no time.
+
+| Tabela | Conteúdo |
+|---|---|
+| `$1D:$5814` [espécie] | nível máximo da forma (20 / 40 / 99). No máximo, a EXP zera até evoluir |
+| `$01:$6935` [espécie] × 5 | `[HP+, SP+, chance ATK, chance PRE, chance ESQ]` por nível |
+| `$01:$6A71` [espécie] | estágio da evolução (1–3) = classe de crescimento |
+| `$01:$6A4D` [estágio] × 4 | ganho sorteado: `valor[rand & 3]` (estágio 1: 0,1,2,1; 2: 0,2,3,2; 3: 0,3,4,3) |
+| `$01:$6A5D` [estágio] × 5 | **bônus escolhido pelo jogador** após subir: HP, SP, ATK, PRE ou ESQ (estágio 1: 3/2/1/1/1) |
+| `$01:$56FF` [espécie] | 1 = forma final |
+| `$19:$5C14` [espécie nova] × 6 | bônus ao evoluir: `[SP+, HP+, ATK+, PRE+, ESQ+, MOV+]` |
+| `$19:$5EDA` [espécie nova] | golpe aprendido ao evoluir (só nas formas finais) |
+| `$01:$56C7` [espécie] | vaga do elenco (0–19) dessa linha |
+
+**Subir de nível** (`$1D:$5620`): com EXP ≥ 100 e abaixo do máximo da forma, nível +1 e EXP −100.
+HP e SP sobem o valor fixo. ATK, PRE e ESQ sobem só se o sorteio 0–99 ficar abaixo da chance, e aí
+o ganho é `valor[sorteio & 3]`. Depois o jogador escolhe um bônus extra (`$01:$5370`) e **HP/SP são
+restaurados ao máximo**.
+
+**Evoluir** (`$01:$5630` → `$19:$5B52`/`$5F82`): consome uma pedra de evolução do inventário
+(`$C4EC + índice`), a espécie vira `espécie+1`, os status ganham o bônus da nova forma, HP/SP
+enchem e o golpe da forma é aprendido no primeiro espaço livre. O código não exige nível máximo.
+
+**RNG** (`ROM0:$0D7A`): `[$C035] = ([$C035] + 1 + ([$C037] & $3F)) mod 100`, ou seja, 0–99.
+
+## Golpes (`$09:$4D5B`, 6 bytes por id, ids $01–$57)
+
+`[tipo, poder u16, custo SP, alcance mín, alcance máx]`. Tipo 1 = **cura** (ids $01–$0B, recupera
+"poder" de HP: 150 a 1000); tipo 0 = ataque (dano = ATK + poder). Na unidade, cada golpe ocupa 5 bytes
+`[id, poder, custo, mín, máx]` a partir de `+$24` (até 4), recalculados por `$09:$4D3C`.
+Nos inimigos o golpe é só o id (byte +20 do registro). 352 dos 593 inimigos têm um golpe.
+Inimigos com **MOV 0** não se movem (os chefes de cada fase).
+
 ## Desenho das unidades
 
 As unidades **não são sprites**: viram tiles do BG. Os 4 tiles da espécie (`$FD:$4000 + espécie*64`)
@@ -216,5 +252,6 @@ escolher unidades com A/↓ → START.
    escreve na OAM ($FE00 / DMA) durante uma luta.
 3. ~~Formato dos mapas~~ ✅. Falta: confirmar a tabela de terreno (+2C) e a paleta de cada sprite de unidade.
 4. ~~Paletas de BG das fases~~ ✅ (rotinas `ROM0:$2C56`/`$2C42`). Falta: paletas da UI e dos retratos.
-5. ~~Fórmulas de dano, acerto, EXP e movimento~~ ✅. Falta: regra exata do contra-ataque, subida de
-   nível (limite de EXP e ganho de status), evolução, IA original dos inimigos, efeitos dos golpes.
+5. ~~Fórmulas de dano, acerto, EXP, movimento, nível, evolução e golpes~~ ✅. Falta: regra exata do
+   contra-ataque (e se o defensor pode contra-atacar com golpe), IA original, nomes dos golpes (imagens
+   nos bancos $74/$79), itens e loja.

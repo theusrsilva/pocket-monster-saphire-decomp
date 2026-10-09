@@ -56,6 +56,40 @@ function T.run(data)
   check("exp derrubando nível maior", Combat.exp(a, d, true) == 32)
   check("exp acertando nível menor", Combat.exp(d, a, false) == 1)
 
+  -- 5) Progressão (tabelas $1D:$5814, $01:$6935, $01:$6A4D, $01:$6A5D, $19:$5C14, $19:$5EDA)
+  local Progress = require("src.game.progress")
+  local P = data.prog
+  check("nível máximo por forma", P.maxLevel[1] == 20 and P.maxLevel[2] == 40 and P.maxLevel[3] == 99)
+  check("ganho do piku", P.gains[1][1] == 8 and P.gains[1][2] == 5 and P.gains[1][3] == 60)
+  local saved = Progress.random
+  Progress.random = function() return 1 end           -- 1 < limiar, índice 1 -> ganho da tabela
+  local u = { side = "ally", species = 1, level = 1, exp = 90, hp = 10, maxhp = 80, sp = 0, maxsp = 50,
+    atk = 30, acc = 20, eva = 25, move = 9, skills = {} }
+  local ups = Progress.gainExp(u, 16, P)
+  check("subir de nível", #ups == 1 and u.level == 2 and u.exp == 6 and u.maxhp == 88 and u.maxsp == 55
+    and u.atk == 31 and u.acc == 21 and u.eva == 26 and u.hp == 88 and u.sp == 55,
+    ("nv %d exp %d hp %d/%d sp %d atk %d"):format(u.level, u.exp, u.hp, u.maxhp, u.maxsp, u.atk))
+  Progress.random = saved
+  local opts = Progress.bonusOptions(P, u)
+  check("bônus de nível (estágio 1)", opts[1].amount == 3 and opts[2].amount == 2 and opts[3].amount == 1)
+  u.level = 20
+  Progress.gainExp(u, 50, P)
+  check("nível máximo zera EXP", u.exp == 0 and u.level == 20)
+  u.maxhp, u.maxsp, u.atk, u.acc, u.eva = 80, 50, 30, 20, 25
+  local learned = Progress.evolve(u, P)
+  check("evolução 1->2", u.species == 2 and u.maxhp == 130 and u.maxsp == 100 and u.atk == 50
+    and u.acc == 35 and u.eva == 50 and u.move == 11 and learned == nil)
+  learned = Progress.evolve(u, P)
+  check("evolução 2->3 aprende golpe $4A", u.species == 3 and learned == 0x4A and u.skills[1] == 0x4A)
+  check("forma final não evolui", not Progress.canEvolve(u, P))
+
+  -- 6) Golpes ($09:$4D5B)
+  local s1, s0c = P.skills[1], P.skills[0x0C]
+  check("golpe $01 é cura", s1.heal and s1.power == 150 and s1.cost == 30 and s1.rmax == 2)
+  check("golpe $0C", not s0c.heal and s0c.power == 60 and s0c.cost == 30 and s0c.rmin == 1 and s0c.rmax == 2)
+  local n = { atk = 30, type = 1, strong = 2, weak = 5 }
+  check("dano com golpe = ATK + poder", Combat.damage(n, { type = 3 }, 60) == 90)
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

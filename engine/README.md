@@ -27,12 +27,15 @@ direito voltam · Esc encerra o turno.
 - **Combate com as fórmulas do jogo original**: acerto, dano com vantagem de tipo, contra-ataque e EXP
 - Prévia de ataque com dano, chance de acerto e contra-ataque (o original não mostrava)
 - Desfazer movimento antes de agir, mostrar o alcance de qualquer unidade, suporte a mouse
-- IA inimiga simples: ataca o alvo mais vulnerável ao seu alcance, senão avança
+- **Subida de nível, ganho de status e bônus escolhido**, com as tabelas do original
+- **Evolução** com os bônus e o golpe aprendido de cada forma (pedras: 1 de cada tipo por batalha, provisório)
+- **Golpes especiais e de cura** (tabela de golpes do original), também usados pelos inimigos
+- Chefes com MOV 0 ficam parados
+- IA inimiga simples: escolhe entre ataque e golpe o que mais tira HP, cura aliados, senão avança
 
 ## Ainda não
 
-Golpes especiais, itens, subida de nível e evolução, eventos e falas das fases, escolha do
-time antes da luta, campanha e mapa-múndi, som, nomes reais de todas as espécies e a IA original.
+Itens e loja, eventos e falas das fases, escolha do time antes da luta, nomes dos golpes, campanha e mapa-múndi, som, nomes reais de todas as espécies e a IA original.
 
 ## Estrutura
 
@@ -40,7 +43,8 @@ time antes da luta, campanha e mapa-múndi, som, nomes reais de todas as espéci
 main.lua, conf.lua        ciclo do LÖVE, estados e entrada
 src/import/importer.lua   ROM -> cache (formatos em docs/FINDINGS.md)
 src/game/pathfind.lua     alcance de movimento (regra do original)
-src/game/combat.lua       acerto, dano, contra-ataque e EXP (regra do original)
+src/game/combat.lua       acerto, dano, golpes, cura, contra-ataque e EXP (regra do original)
+src/game/progress.lua     nível, ganho de status, bônus e evolução (regra do original)
 src/game/battle.lua       estado da batalha, turnos e IA
 src/ui/view.lua           desenho do mapa, unidades (shader de paleta) e HUD
 src/tests.lua             testes contra valores observados no jogo original

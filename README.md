@@ -27,7 +27,8 @@ correção de bugs e melhorias de usabilidade.
 - [x] Regra de movimento (custo por espécie × terreno), validada contra o jogo
 - [x] Fórmulas de acerto, dano e EXP tiradas do código original
 - [x] **Protótipo jogável em LÖVE2D** (`engine/`): importador em Lua, batalha por turnos, IA simples
-- [ ] Golpes especiais, itens, subida de nível e evolução
+- [x] Subida de nível, evolução e golpes especiais/cura (tabelas do original, no motor)
+- [ ] Itens e loja, nomes dos golpes
 - [ ] Eventos e falas das fases, campanha, mapa-múndi
 - [ ] IA original dos inimigos
 

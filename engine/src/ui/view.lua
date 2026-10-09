@@ -142,7 +142,7 @@ function View.drawBattle(b)
     local py = oy + (p.y * CELL - camy) * s - p.t * 30
     love.graphics.setColor(0, 0, 0, 1 - p.t)
     love.graphics.printf(p.text, px - 49, py + 1, 100, "center")
-    love.graphics.setColor(1, 1, 0.3, 1 - p.t)
+    if p.heal then love.graphics.setColor(0.4, 1, 0.5, 1 - p.t) else love.graphics.setColor(1, 1, 0.3, 1 - p.t) end
     love.graphics.printf(p.text, px - 50, py, 100, "center")
   end
 
@@ -163,10 +163,11 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   love.graphics.setFont(View.font)
 
   -- turno / fase
-  panel(10, 10, 230, 30)
+  panel(10, 10, 360, 30)
   love.graphics.setColor(1, 1, 1)
-  love.graphics.print(("Fase %d   Turno %d   %s"):format(b.stageIndex, b.turn,
-    b.phase == "player" and "Sua vez" or "Inimigos"), 20, 16)
+  love.graphics.print(("Fase %d   Turno %d   %s   Pedras %d/%d/%d/%d/%d"):format(b.stageIndex, b.turn,
+    b.phase == "player" and "Sua vez" or "Inimigos", b.stones[1], b.stones[2], b.stones[3], b.stones[4],
+    b.stones[5]), 20, 16)
 
   -- unidade sob o cursor
   local u = b:unitAt(b.cursor.x, b.cursor.y) or b.selected
@@ -185,21 +186,27 @@ function View.drawHud(b, s, ox, oy, camx, camy)
       u.atk, u.acc, u.eva, u.move, u.rmin, u.rmax), px + 12, py + 52)
     love.graphics.setFont(View.small)
     love.graphics.setColor(0.8, 0.85, 1)
-    love.graphics.print(("forte contra %s / fraco contra %s"):format(types[u.strong] or "?", types[u.weak] or "?"),
-      px + 12, py + 72)
+    local sk = {}
+    for _, id in ipairs(u.skills or {}) do sk[#sk + 1] = ("#%02X"):format(id) end
+    love.graphics.print(("forte: %s  fraco: %s%s"):format(types[u.strong] or "?", types[u.weak] or "?",
+      #sk > 0 and ("  golpes: " .. table.concat(sk, " ")) or ""), px + 12, py + 72)
     love.graphics.setFont(View.font)
   end
 
   -- previsão de ataque
   if b.mode == "target" then
-    local a, t = b.selected, b.targets[b.targetIndex]
-    local dmg = Combat.damage(a, t)
-    local counter = (t.hp - dmg > 0 and Combat.inRange(t, a.x, a.y))
+    local a, t, sk = b.selected, b.targets[b.targetIndex], b.action
+    local dmg = sk and sk.heal and -math.min(sk.power, t.maxhp - t.hp) or Combat.damage(a, t, sk and sk.power)
+    local counter = not (sk and sk.heal) and (t.hp - dmg > 0 and Combat.inRange(t, a.x, a.y))
     panel(w - 300, h - 102, 290, 92)
     love.graphics.setColor(1, 1, 1)
     love.graphics.print(("%s -> %s"):format(a.name, t.name), w - 288, h - 94)
-    love.graphics.print(("Dano %d (HP %d -> %d)  Acerto %d%%"):format(dmg, t.hp, math.max(0, t.hp - dmg),
-      Combat.hitChance(a, t)), w - 288, h - 72)
+    if sk and sk.heal then
+      love.graphics.print(("Cura %d (HP %d -> %d)"):format(-dmg, t.hp, t.hp - dmg), w - 288, h - 72)
+    else
+      love.graphics.print(("Dano %d (HP %d -> %d)  Acerto %d%%"):format(dmg, t.hp, math.max(0, t.hp - dmg),
+        Combat.hitChance(a, t)), w - 288, h - 72)
+    end
     love.graphics.print(counter and ("Contra: %d  Acerto %d%%"):format(Combat.damage(t, a), Combat.hitChance(t, a))
       or "Sem contra-ataque", w - 288, h - 50)
     love.graphics.setFont(View.small)
@@ -208,16 +215,29 @@ function View.drawHud(b, s, ox, oy, camx, camy)
     love.graphics.setFont(View.font)
   end
 
-  -- menu de ação, ao lado da unidade
-  if b.mode == "menu" then
+  -- menus (ação, golpes, bônus de nível)
+  if b.menu and (b.mode == "menu" or b.mode == "bonus") then
     local m = b.menu
-    local mx = ox + (b.selected.x * CELL - camx + 20) * s
-    local my = oy + (b.selected.y * CELL - camy) * s
-    mx = math.min(mx, w - 140)
-    panel(mx, my, 120, 12 + #m.items * 24)
+    local mw = m.wide and 330 or 140
+    local mh = 12 + #m.items * 24 + (m.title and 26 or 0)
+    local mx, my
+    if m.center or not b.selected then
+      mx, my = (w - mw) / 2, (h - mh) / 2
+    else
+      mx = ox + (b.selected.x * CELL - camx + 20) * s
+      my = oy + (b.selected.y * CELL - camy) * s
+    end
+    mx, my = math.max(10, math.min(mx, w - mw - 10)), math.max(50, math.min(my, h - mh - 30))
+    panel(mx, my, mw, mh)
+    local ty = my + 6
+    if m.title then
+      love.graphics.setColor(0.7, 0.85, 1)
+      love.graphics.print(m.title, mx + 10, ty)
+      ty = ty + 26
+    end
     for i, it in ipairs(m.items) do
       love.graphics.setColor(i == m.index and { 1, 1, 0.4 } or { 1, 1, 1 })
-      love.graphics.print((i == m.index and "> " or "  ") .. it.label, mx + 10, my + 6 + (i - 1) * 24)
+      love.graphics.print((i == m.index and "> " or "  ") .. it.label, mx + 10, ty + (i - 1) * 24)
     end
   end
 

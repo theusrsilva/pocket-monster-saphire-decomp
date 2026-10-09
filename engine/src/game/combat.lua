@@ -59,24 +59,40 @@ function Combat.inRange(att, tx, ty, fromX, fromY)
   return d >= att.rmin and d <= att.rmax
 end
 
-local function strike(att, def, ev, counter)
+local function strike(att, def, ev, counter, skill)
   local hit = Combat.rollHit(att, def)
-  local dmg = hit and Combat.damage(att, def) or 0
+  local dmg = hit and Combat.damage(att, def, skill and skill.power) or 0
   def.hp = math.max(0, def.hp - dmg)
   local gained = hit and Combat.exp(att, def, def.hp == 0) or 0
   att.exp = (att.exp or 0) + gained
   ev[#ev + 1] = { who = att, target = def, dmg = dmg, hit = hit, mult = Combat.multiplier(att, def),
-    counter = counter, exp = gained }
+    counter = counter, exp = gained, skill = skill and skill.id }
 end
 
--- Resolve um ataque com contra-ataque. Retorna a lista de eventos para a UI.
-function Combat.attack(att, def)
+-- Alcance de uma ação (ataque normal ou golpe).
+function Combat.actionRange(unit, skill)
+  if skill then return skill.rmin, skill.rmax end
+  return unit.rmin, unit.rmax
+end
+
+-- Resolve um ataque (normal ou golpe especial, que gasta SP e soma o poder ao ATK) com
+-- contra-ataque normal do defensor. Retorna a lista de eventos para a UI.
+function Combat.attack(att, def, skill)
   local ev = {}
-  strike(att, def, ev, false)
+  if skill then att.sp = att.sp - skill.cost end
+  strike(att, def, ev, false, skill)
   if def.hp > 0 and Combat.inRange(def, att.x, att.y) then
     strike(def, att, ev, true)
   end
   return ev
+end
+
+-- Golpe de cura (ids $01-$0B): recupera "poder" de HP do alvo aliado.
+function Combat.heal(user, target, skill)
+  user.sp = user.sp - skill.cost
+  local before = target.hp
+  target.hp = math.min(target.maxhp, target.hp + skill.power)
+  return { { who = user, target = target, heal = target.hp - before, skill = skill.id } }
 end
 
 return Combat
