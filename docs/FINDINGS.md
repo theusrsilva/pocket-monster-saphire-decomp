@@ -41,7 +41,9 @@ de robôs da própria Sintax (o cabeçalho ainda diz `ROBOT WAR v3.0`).
 | E1 | 9 | ? (comando longo, provavelmente movimento/cena) |
 | E5, EB | 3 | ? |
 | EA xx | 2 | troca falante/retrato (xx = id do personagem) |
-| EE 01 lo hi | 4 | dá item: seta flag em `$hilo` (ex.: `$C4E6` = Life Stone) |
+| EE 01 lo hi | 4 | dá item: +1 em `$hilo` (`$C4E0 + id`, ex.: `$C4E6` = Life Stone) |
+| EE 02 lo hi | 4 | recruta: liga `$hilo` = `$AA00 + vaga*64 + $1D` |
+| EE 03 lo hi v16 | 6 | item-chave: grava `v16` em `$hilo` (`$C4F1+`) |
 | F0–FE | 1 | handler genérico $3A11 (provavelmente pausa/espera) |
 | FF | 1 | fim da mensagem |
 
@@ -272,6 +274,18 @@ enchem e o golpe da forma é aprendido no primeiro espaço livre. O código não
 Nos inimigos o golpe é só o id (byte +20 do registro). 352 dos 593 inimigos têm um golpe.
 Inimigos com **MOV 0** não se movem (os chefes de cada fase).
 
+## Eventos e falas das fases
+
+* O script de uma fase de campanha `s` (1–25) é o **`s + $20`** no índice de `$5D:$4000`.
+* Ao terminar o movimento numa casa de terreno com id **15–32** (3º byte da tabela +2C da fase), o
+  jogo mostra a mensagem de **mesmo índice** desse script:
+  * **15**: centro de cura ("Please let me help you to cure"), pode repetir;
+  * **18/19/20/28**: casas (falas, às vezes um item); **23/24/25**: baús (`EE 01`).
+* **Mensagem 33** (`$C2B1 = $21`) é a da vitória: recompensa (insígnia) e os Pokémon que entram no
+  time (`EE 02`). Ex.: fase 2 dá a Strength badge e recruta as vagas 10 e 6.
+* Vencer a fase liga `$C4F7 + fase − 1`. A fase 25 termina o jogo (`$18:$4D43`).
+* Retratos dos falantes (`EA xx`): tabela de texto-em-imagem `$7C:$4108`, 4×4 tiles cada.
+
 ## Desenho das unidades
 
 As unidades **não são sprites**: viram tiles do BG. Os 4 tiles da espécie (`$FD:$4000 + espécie*64`)
@@ -288,8 +302,8 @@ escolher unidades com A/↓ → START.
 
 ## Próximos passos
 
-1. ~~Stats das espécies~~ ✅ ~~Inimigos e posições por fase~~ ✅. Falta: tabela de golpes (nome/efeito),
-   itens, eventos de cada fase (casas, baús, falas: provavelmente ligados ao script `$5D`).
+1. ~~Stats das espécies~~ ✅ ~~Inimigos e posições por fase~~ ✅. ~~Golpes, itens, eventos e falas~~ ✅.
+   Falta: loja e o mapa-múndi (fase 0, nomes dos lugares em `$7C:$4000`).
 2. Achar as tabelas de metasprite dos frames de batalha (90–B1): seguir no debugger a rotina que
    escreve na OAM ($FE00 / DMA) durante uma luta.
 3. ~~Formato dos mapas~~ ✅. Falta: confirmar a tabela de terreno (+2C) e a paleta de cada sprite de unidade.

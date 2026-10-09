@@ -21,26 +21,23 @@ local function newUnit(side, t)
   }
 end
 
-function Battle.new(data, stageIndex)
+function Battle.new(data, stageIndex, campaign)
   local st = data.stages[stageIndex]
   local self = setmetatable({
     data = data, prog = data.prog, stageIndex = stageIndex, stage = st, units = {},
     phase = "player", turn = 1, mode = "cursor",
     cursor = { x = 0, y = 0 }, selected = nil, reach = nil, prev = nil,
     menu = nil, popups = {}, queue = {}, timer = 0, result = nil, log = {}, pending = {},
-    -- PROVISÓRIO: enquanto os eventos das fases (casas, baús) não existem, cada batalha começa
-    -- com um inventário de teste. No original os itens vêm do script ({GIVE $C4xx}).
-    inventory = { [0x00] = 2, [0x01] = 1, [0x04] = 1, [0x08] = 1,
-      [0x0C] = 1, [0x0D] = 1, [0x0E] = 1, [0x0F] = 1, [0x10] = 1 },
+    campaign = campaign, inventory = campaign.inventory,
+    messages = (data.messages or {})[stageIndex] or {}, dialog = nil,
   }, Battle)
-  local i = 0
-  for _, sp in ipairs(data.species) do
-    if sp.starter and i < #st.starts then
-      i = i + 1
-      local u = newUnit("ally", setmetatable({ x = st.starts[i].x, y = st.starts[i].y }, { __index = sp }))
-      for _, id in ipairs(sp.skills) do if id ~= 0 then u.skills[#u.skills + 1] = id end end
-      self.units[#self.units + 1] = u
-    end
+  -- Aliados: o elenco recrutado da campanha, nas posições iniciais da fase.
+  for i, r in ipairs(campaign:recruited()) do
+    if i > #st.starts then break end
+    local u = newUnit("ally", setmetatable({ x = st.starts[i].x, y = st.starts[i].y }, { __index = r }))
+    u.maxhp, u.maxsp, u.exp, u.slot = r.maxhp, r.maxsp, r.exp, r.slot
+    for _, id in ipairs(r.skills) do u.skills[#u.skills + 1] = id end
+    self.units[#self.units + 1] = u
   end
   for _, e in ipairs(st.enemies) do
     local u = newUnit("enemy", e)
@@ -137,7 +134,7 @@ function Battle:moveCursor(dx, dy)
 end
 
 function Battle:confirm()
-  if self.result then return end
+  if self.result or self.mode == "dialog" then return end
   if self.mode == "bonus" or self.mode == "menu" then
     self.menu.items[self.menu.index].action()
     return
@@ -147,7 +144,7 @@ function Battle:confirm()
   if self.mode == "cursor" then
     local u = self:unitAt(c.x, c.y)
     if u and u.side == "ally" and not u.acted then
-      self.selected = u
+      self.selected, self.noUndo = u, false
       self.preview, self.previewReach = nil, nil
       self.reach, self.prev = self:computeReach(u)
       self.stops = self:stopCells(u, self.reach)
@@ -163,7 +160,7 @@ function Battle:confirm()
       self.origin = { x = u.x, y = u.y }
       u.x, u.y = c.x, c.y
       self.reach = nil
-      self:openMenu(u)
+      if not self:triggerEvent(u) then self:openMenu(u) end
     end
   elseif self.mode == "target" then
     local u, t, s = self.selected, self.targets[self.targetIndex], self.action
@@ -173,6 +170,62 @@ function Battle:confirm()
       for _, ev in ipairs(Combat.attack(u, t, s)) do self:announce(ev) end
     end
     self:finishUnit(u)
+  end
+end
+
+---------------------------------------------------------------- eventos e diálogos
+
+-- Casas, baús e centro de cura: o id do terreno (15..32) é o número da mensagem no script
+-- da fase (fase + $20). A mensagem 15 é sempre a cura; as outras só acontecem uma vez.
+function Battle:triggerEvent(u)
+  local st = self.stage
+  local t = st.terrain[u.y * st.cols + u.x + 1]
+  if t < 15 or t > 32 then return false end
+  local msg = self.messages[t]
+  if not msg then return false end
+  local heal = (t == 15)
+  if not heal and self.campaign:eventSeen(self.stageIndex, t) then return false end
+  if heal then
+    u.hp, u.sp = u.maxhp, u.maxsp
+    self:say(u.name .. " foi curado")
+  else
+    self.campaign:markEvent(self.stageIndex, t)
+  end
+  self.eventUnit = u
+  self.noUndo = true                          -- depois de um evento não dá para desfazer o movimento
+  self:showMessage(msg, function() self:openMenu(u) end)
+  return true
+end
+
+-- Aplica os efeitos do script (itens, recrutamento, itens-chave) e abre a caixa de diálogo.
+function Battle:showMessage(msg, onClose)
+  for _, ef in ipairs(msg.effects) do
+    if ef.item then
+      self.inventory[ef.item] = (self.inventory[ef.item] or 0) + 1
+      self:say("Recebeu " .. Items.name(ef.item, Names.mode))
+    elseif ef.recruit then
+      local r = self.campaign:recruit(ef.recruit)
+      if r then self:say(nameOf(r.species) .. " entrou no time!") end
+    elseif ef.key then
+      self.campaign.keyItems[ef.key] = ef.value
+    end
+  end
+  if #msg.pages == 0 then if onClose then onClose() end return end
+  self.dialog = { pages = msg.pages, index = 1, line = 1, onClose = onClose, prevMode = self.mode }
+  self.mode = "dialog"
+end
+
+function Battle:advanceDialog(linesShown, totalLines)
+  local d = self.dialog
+  if d.line + linesShown <= totalLines then
+    d.line = d.line + linesShown
+    return
+  end
+  d.index, d.line = d.index + 1, 1
+  if d.index > #d.pages then
+    self.dialog = nil
+    self.mode = "cursor"
+    if d.onClose then d.onClose() end
   end
 end
 
@@ -258,6 +311,7 @@ function Battle:cancel()
     self.mode, self.selected, self.reach = "cursor", nil, nil
   elseif self.mode == "menu" then
     if self.menu.parent then self:openMenu(self.menu.parent) return end
+    if self.noUndo then return end
     local u = self.selected
     u.x, u.y = self.origin.x, self.origin.y
     self.cursor.x, self.cursor.y = u.x, u.y
@@ -289,7 +343,7 @@ function Battle:finishUnit(u)
 end
 
 function Battle:afterAction()
-  if self.result or #self.pending > 0 or self.phase ~= "player" then return end
+  if self.result or self.ending or #self.pending > 0 or self.phase ~= "player" then return end
   for _, a in ipairs(self:alive("ally")) do if not a.acted then return end end
   self:endPlayerTurn()
 end
@@ -353,7 +407,9 @@ function Battle:openBonusIfPending()
       self:say(("%s: %s +%d"):format(u.name, Progress.LABELS[opt.stat], opt.amount))
       table.remove(self.pending, 1)
       self.menu, self.mode = nil, "cursor"
-      if #self.pending > 0 then self:openBonusIfPending() else self:afterAction() end
+      if #self.pending > 0 then self:openBonusIfPending()
+      elseif self.victoryAfterBonus then self.victoryAfterBonus = false; self:checkEnd()
+      else self:afterAction() end
     end }
   end
   self.bonusUnit = u
@@ -363,8 +419,30 @@ function Battle:openBonusIfPending()
 end
 
 function Battle:checkEnd()
-  if #self:alive("enemy") == 0 then self.result = "vitória"
-  elseif #self:alive("ally") == 0 then self.result = "derrota" end
+  if self.result or self.ending then return end
+  if #self:alive("enemy") == 0 and (#self.pending > 0 or self.mode == "bonus") then
+    self.victoryAfterBonus = true                 -- termina de escolher os bônus antes
+    return
+  end
+  if #self:alive("enemy") == 0 then
+    self.ending = true
+    self.campaign:storeUnits(self.units)
+    self.campaign.cleared[self.stageIndex] = true
+    local finish = function()
+      self.result = "vitória"
+      self.campaign:save()
+    end
+    -- mensagem 33: recompensa e quem entra no time ($C2B1 = $21 no fim da fase)
+    local msg = self.messages[33]
+    if msg then
+      self.queue = {}
+      self:showMessage(msg, finish)
+    else
+      finish()
+    end
+  elseif #self:alive("ally") == 0 then
+    self.result = "derrota"
+  end
 end
 
 ---------------------------------------------------------------- IA inimiga
@@ -428,7 +506,7 @@ function Battle:update(dt)
     p.t = p.t + dt
     if p.t > 1.2 then table.remove(self.popups, i) end
   end
-  if self.phase == "enemy" and not self.result and self.mode ~= "bonus" then
+  if self.phase == "enemy" and not self.result and self.mode ~= "bonus" and self.mode ~= "dialog" then
     self.timer = self.timer - dt
     if self.timer <= 0 then
       local e = table.remove(self.queue, 1)

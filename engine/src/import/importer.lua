@@ -7,7 +7,7 @@ local serialize = require("src.util.serialize")
 local at = Rom.at
 local Importer = {}
 
-Importer.CACHE_VERSION = 4
+Importer.CACHE_VERSION = 5
 local NSTAGES = 32
 local NSPECIES_TABLE = 20     -- espécies recrutáveis ($09:$4000, 20 bytes)
 local NCOST_ROWS = 76         -- linhas da tabela de custo ($09:$4190, 33 bytes)
@@ -242,6 +242,104 @@ local function importPortraits(rom)
   return img
 end
 
+-- Retratos dos falantes dos diálogos ($7C:$4108, tabela [banco,00,ptr], 4x4 tiles), indexados.
+local NSPEAKERS = 0x30
+local function importSpeakers(rom)
+  local img = love.image.newImageData(32 * 8, 32 * 6)
+  for p = 0, NSPEAKERS - 1 do
+    local e = at(0x7C, 0x4108) + p * 4
+    local bank, addr = rom:u8(e), rom:u16(e + 2)
+    if addr >= 0x4000 and addr < 0x8000 then
+      local base = at(bank, addr)
+      local ox, oy = (p % 8) * 32, math.floor(p / 8) * 32
+      for t = 0, 15 do
+        for y = 0, 7 do
+          local o = base + t * 16 + y * 2
+          local lo, hi = rom:u8(o), rom:u8(o + 1)
+          for x = 0, 7 do
+            local bit = 7 - x
+            local c = (math.floor(lo / 2 ^ bit) % 2) + 2 * (math.floor(hi / 2 ^ bit) % 2)
+            img:setPixel(ox + (t % 4) * 8 + x, oy + math.floor(t / 4) * 8 + y, c / 3, 0, 0, 1)
+          end
+        end
+      end
+    end
+  end
+  return img
+end
+
+-- Script de falas: índice $5D:$4000 (u16 por script) -> entradas [lo, hi, banco, 00] por mensagem.
+-- Bytes < $E0 são texto; >= $E0 são comandos com tamanho na tabela ROM0:$3427.
+--   EA xx       muda o falante (retrato xx de $7C:$4108)
+--   EE 01 a16   soma 1 no byte a16  (itens: $C4E0 + id)
+--   EE 02 a16   liga o byte a16     (recrutamento: $AA00 + vaga*64 + $1D)
+--   EE 03 a16 v16  grava v16 em a16 (itens-chave: $C4F1+)
+local function decodeMessage(rom, o, cmdLen)
+  local pages, cur = {}, { text = {} }
+  local effects = {}
+  local function flush()
+    local t = table.concat(cur.text):gsub("^%s+", ""):gsub("%s+$", "")
+    if t ~= "" then pages[#pages + 1] = { speaker = cur.speaker, text = t } end
+    cur.text = {}
+  end
+  local guard = 0
+  while guard < 3000 do
+    guard = guard + 1
+    local c = rom:u8(o)
+    if c == 0xFF then break end
+    if c < 0xE0 then
+      if c >= 32 and c < 127 then
+        local ch = string.char(c)
+        cur.text[#cur.text + 1] = ch == "`" and "'" or ch
+      elseif c == 0xA1 then
+        cur.text[#cur.text + 1] = "~"
+      end
+      o = o + 1
+    else
+      local n = math.max(cmdLen[c] or 1, 1)
+      if c == 0xEA then
+        flush()
+        cur.speaker = rom:u8(o + 1)
+      elseif c == 0xEE then
+        local kind, addr = rom:u8(o + 1), rom:u16(o + 2)
+        if kind == 1 and addr >= 0xC4E0 and addr <= 0xC4F0 then
+          effects[#effects + 1] = { item = addr - 0xC4E0, page = #pages + 1 }
+        elseif kind == 2 and addr >= 0xAA00 and addr < 0xB200 and (addr - 0xAA1D) % 64 == 0 then
+          effects[#effects + 1] = { recruit = (addr - 0xAA1D) / 64, page = #pages + 1 }
+        elseif kind == 3 then
+          effects[#effects + 1] = { key = addr - 0xC4F1, value = rom:u16(o + 4), page = #pages + 1 }
+          n = 6
+        end
+      end
+      o = o + n
+    end
+  end
+  flush()
+  return { pages = pages, effects = effects }
+end
+
+local function importMessages(rom)
+  local cmdLen = {}
+  for i = 0, 31 do cmdLen[0xE0 + i] = rom:u8(0x3427 + i * 4 + 2) end
+  local out = {}
+  for stage = 1, 25 do                         -- fases de campanha; script = fase + $20
+    local script = stage + 0x20
+    local p = rom:u16(at(0x5D, 0x4000) + script * 2)
+    local msgs = {}
+    for idx = 0, 40 do
+      local e = at(0x5D, p) + idx * 4
+      local lo, hi, bank = rom:u8(e), rom:u8(e + 1), rom:u8(e + 2)
+      local addr = lo + hi * 256
+      if addr >= 0x4000 and addr < 0x8000 and (bank == 0x5D or bank == 0x70) then
+        local m = decodeMessage(rom, at(bank, addr), cmdLen)
+        if #m.pages > 0 or #m.effects > 0 then msgs[idx] = m end
+      end
+    end
+    out[stage] = msgs
+  end
+  return out
+end
+
 -- Executa a importação. progress(msg) é chamado entre etapas. Retorna true ou nil, erro.
 function Importer.run(bytes, progress)
   progress = progress or function() end
@@ -259,6 +357,9 @@ function Importer.run(bytes, progress)
   data.species = importSpecies(rom)
   data.costs = importCosts(rom)
   data.prog = importProgression(rom)
+  progress("falas")
+  data.messages = importMessages(rom)
+  importSpeakers(rom):encode("png", "generated/speakers.png")
   progress("sprites")
   importUnitSprites(rom):encode("png", "generated/units.png")
   importPortraits(rom):encode("png", "generated/portraits.png")

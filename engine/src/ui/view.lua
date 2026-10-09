@@ -36,6 +36,12 @@ function View.init(assets)
       View.portraitQuads[p] = love.graphics.newQuad((p % 8) * 32, math.floor(p / 8) * 32, 32, 32, 256, 320)
     end
   end
+  View.speakerQuads = {}
+  if assets.speakers then
+    for p = 0, 0x2F do
+      View.speakerQuads[p] = love.graphics.newQuad((p % 8) * 32, math.floor(p / 8) * 32, 32, 32, 256, 192)
+    end
+  end
   View.quads = {}
   for s = 0, 255 do
     View.quads[s] = love.graphics.newQuad((s % 16) * 16, math.floor(s / 16) * 16, 16, 16, 256, 256)
@@ -176,6 +182,11 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   love.graphics.print(("Fase %d   Turno %d   %s"):format(b.stageIndex, b.turn,
     b.phase == "player" and "Sua vez" or "Inimigos"), 20, 16)
 
+  if b.mode == "dialog" and b.dialog then
+    View.drawDialog(b, w, h)
+    return
+  end
+
   -- unidade sob o cursor
   local u = b:unitAt(b.cursor.x, b.cursor.y) or b.selected
   if u then
@@ -288,6 +299,41 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   end
 end
 
+-- Caixa de diálogo: retrato do falante (comando EA do script) e texto em páginas de 3 linhas.
+function View.drawDialog(b, w, h)
+  local d = b.dialog
+  local page = d.pages[d.index]
+  local bh = 120
+  local bx, by, bw = 20, h - bh - 24, w - 40
+  panel(bx, by, bw, bh)
+  local tx = bx + 16
+  if page.speaker and View.speakerQuads[page.speaker] then
+    love.graphics.setShader(View.shader)
+    setPal(View.GRAY)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(View.assets.speakers, View.speakerQuads[page.speaker], bx + 14, by + 14, 0, 2.875, 2.875)
+    love.graphics.setShader()
+    tx = bx + 124
+  end
+  love.graphics.setFont(View.font)
+  local _, lines = View.font:getWrap(page.text, bw - (tx - bx) - 20)
+  local shown = 4
+  b.dialogLayout = { shown = shown, total = #lines }
+  love.graphics.setColor(1, 1, 1)
+  for i = 0, shown - 1 do
+    local line = lines[d.line + i]
+    if line then love.graphics.print(line, tx, by + 14 + i * 24) end
+  end
+  local more = (d.line + shown <= #lines) or d.index < #d.pages
+  love.graphics.setColor(1, 1, 0.5, 0.6 + 0.4 * math.sin(love.timer.getTime() * 6))
+  local ix, iy = bx + bw - 24, by + bh - 22
+  if more then
+    love.graphics.polygon("fill", ix, iy, ix + 12, iy, ix + 6, iy + 8)
+  else
+    love.graphics.rectangle("fill", ix + 2, iy, 8, 8)
+  end
+end
+
 -- Converte posição do mouse em casa do mapa.
 function View.cellAt(b, mx, my)
   local s, ox, oy = View.layout()
@@ -297,7 +343,7 @@ function View.cellAt(b, mx, my)
   return x, y
 end
 
-function View.drawStageSelect(sel, data)
+function View.drawStageSelect(sel, data, campaign)
   local w, h = love.graphics.getDimensions()
   love.graphics.clear(0.04, 0.06, 0.16)
   love.graphics.setFont(View.big)
@@ -310,9 +356,10 @@ function View.drawStageSelect(sel, data)
   local first = math.max(1, math.min(sel - 8, 31 - 17))
   for i = first, math.min(31, first + 17) do
     local st = data.stages[i]
-    love.graphics.setColor(i == sel and { 1, 1, 0.4 } or { 0.85, 0.9, 1 })
-    love.graphics.print(("%s Fase %2d  %s  (%d inimigos)"):format(i == sel and ">" or " ", i,
-      names[i] or "Campanha", #st.enemies), 20, listY + (i - first) * lineH)
+    local done = campaign and campaign.cleared[i]
+    love.graphics.setColor(i == sel and { 1, 1, 0.4 } or (done and { 0.55, 0.9, 0.6 } or { 0.85, 0.9, 1 }))
+    love.graphics.print(("%s Fase %2d  %s  (%d inimigos)%s"):format(i == sel and ">" or " ", i,
+      names[i] or "Campanha", #st.enemies, done and "  vencida" or ""), 20, listY + (i - first) * lineH)
   end
   local img = View.assets.stages[sel]
   local maxw, maxh = w - 480, h - 100
@@ -331,7 +378,16 @@ function View.drawStageSelect(sel, data)
   end
   love.graphics.setColor(1, 1, 1, 0.75)
   love.graphics.setFont(View.small)
-  love.graphics.print("Cima/baixo: escolher   Enter/Z: jogar", 20, h - 24)
+  if campaign then
+    local team = {}
+    for _, r in ipairs(campaign:recruited()) do
+      team[#team + 1] = ("%s Nv%d"):format(Names.species_name(r.species), r.level)
+    end
+    love.graphics.setColor(0.8, 0.9, 1)
+    love.graphics.printf("Time: " .. table.concat(team, ", "), 450, h - 70, w - 470)
+  end
+  love.graphics.setColor(1, 1, 1, 0.75)
+  love.graphics.print("Cima/baixo: escolher   Enter/Z: jogar   Delete: novo jogo", 20, h - 24)
   love.graphics.setFont(View.font)
 end
 

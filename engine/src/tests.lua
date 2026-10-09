@@ -112,6 +112,29 @@ function T.run(data)
   check("pedra da vida: HP máx +10", w.maxhp == 90 and w.hp == 90)
   check("insígnia do tipo certo evolui", Items.usable(0x0C, w, P) and not Items.usable(0x0D, w, P))
 
+  -- 9) Falas das fases (índice em $5D:$4000, script = fase + $20)
+  local M = data.messages
+  local heal = M[1][15]
+  check("fase 1: centro de cura com a enfermeira", heal and heal.pages[1].speaker == 0x0A
+    and heal.pages[1].text:find("CURE") ~= nil)
+  local chest = M[1][23]
+  check("fase 1: baú dá doce", chest and chest.effects[1] and chest.effects[1].item == 0x00)
+  local clear = M[2][33]
+  local rec = {}
+  for _, e in ipairs(clear and clear.effects or {}) do if e.recruit then rec[#rec + 1] = e.recruit end end
+  check("fase 2: vitória dá insígnia e recruta vagas 10 e 6", clear and clear.effects[1].item == 0x0E
+    and rec[1] == 10 and rec[2] == 6 and #clear.pages == 3)
+
+  -- 10) Campanha: elenco inicial, recrutamento e serialização (tabelas esparsas)
+  local Campaign = require("src.game.campaign")
+  local c = Campaign.new(data)
+  check("elenco inicial = 6 iniciais", #c:recruited() == 6)
+  c:recruit(10)
+  c.cleared[2] = true
+  local back = loadstring(require("src.util.serialize")(c))()
+  check("save ida e volta", back.roster[10].recruited == true and back.cleared[2] == true
+    and back.cleared[1] == nil and back.roster[0].species == c.roster[0].species)
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

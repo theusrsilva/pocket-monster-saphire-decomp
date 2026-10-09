@@ -6,10 +6,14 @@
 --   love engine --stage 26                    vai direto para uma fase
 --   love engine --script "right z wait10"     injeta entradas (teclas/waitN)
 --   love engine --shot saida.png              salva um screenshot ao fim do script e sai
+--   love engine --cheat-move 1                (testes) aliados com movimento alto
+--   love engine --cheat-win 1                 (testes) vence a fase ao entrar
 local Importer = require("src.import.importer")
 local Battle = require("src.game.battle")
 local View = require("src.ui.view")
 local Names = require("src.game.names")
+local Campaign = require("src.game.campaign")
+local campaign
 
 -- Preferências do jogador (pasta de dados do LÖVE)
 local function loadOptions()
@@ -53,6 +57,8 @@ local function loadAssets()
   end
   assets.units = love.graphics.newImage("generated/units.png")
   assets.portraits = love.graphics.newImage("generated/portraits.png")
+  assets.speakers = love.graphics.newImage("generated/speakers.png")
+  campaign = Campaign.load(data)
   View.init(assets)
 end
 
@@ -76,9 +82,16 @@ local function readFile(path)
 end
 
 local function enterStage(i)
-  battle = Battle.new(data, i)
+  battle = Battle.new(data, i, campaign)
+  if opts["cheat-move"] then                  -- só para testes: aliados andam muito
+    for _, u in ipairs(battle.units) do if u.side == "ally" then u.move = 60 end end
+  end
   battle:say("Sua vez. Selecione um Pokémon.")
   state = "battle"
+  if opts["cheat-win"] then                   -- só para testes: vence a fase na hora
+    for _, u in ipairs(battle.units) do if u.side == "enemy" then u.hp = 0 end end
+    battle:checkEnd()
+  end
 end
 
 ---------------------------------------------------------------- script de teste
@@ -113,6 +126,13 @@ function love.load(args)
   love.graphics.setDefaultFilter("nearest", "nearest")
   loadOptions()
   parseArgs(args or {})
+  if opts.script or opts.shot then
+    -- em execução automática, um erro encerra o processo em vez de parar na tela de erro
+    function love.errorhandler(msg)
+      io.stderr:write(debug.traceback("Erro: " .. tostring(msg), 3) .. "\n")
+      os.exit(1)
+    end
+  end
   if opts.script then
     for tok in opts.script:gmatch("%S+") do
       local k, rep = tok:match("^(.-)%*(%d+)$")
@@ -191,6 +211,11 @@ function love.keypressed(key)
     return
   end
   if state == "select" then
+    if key == "delete" then
+      campaign = Campaign.new(data)
+      campaign:save()
+      return
+    end
     if k == "up" then sel = (sel - 2) % 31 + 1
     elseif k == "down" then sel = sel % 31 + 1
     elseif k == "a" then enterStage(sel) end
@@ -198,6 +223,13 @@ function love.keypressed(key)
     local b = battle
     if b.result then
       if k == "a" then state = "select" end
+      return
+    end
+    if b.mode == "dialog" then
+      if k == "a" or k == "b" then
+        local l = b.dialogLayout or { shown = 3, total = 1 }
+        b:advanceDialog(l.shown, l.total)
+      end
       return
     end
     if b.mode == "menu" or b.mode == "bonus" then
@@ -221,6 +253,11 @@ function love.mousepressed(mx, my, button)
   if state ~= "battle" or not battle.cam then return end
   local b = battle
   if b.result then state = "select" return end
+  if b.mode == "dialog" then
+    local l = b.dialogLayout or { shown = 3, total = 1 }
+    b:advanceDialog(l.shown, l.total)
+    return
+  end
   if button == 2 then b:cancel() return end
   if b.mode == "menu" or b.mode == "bonus" then b:confirm() return end
   local x, y = View.cellAt(b, mx, my)
@@ -241,7 +278,7 @@ function love.draw()
   if state == "battle" then
     View.drawBattle(battle)
   elseif state == "select" then
-    View.drawStageSelect(sel, data)
+    View.drawStageSelect(sel, data, campaign)
   else
     love.graphics.clear(0.04, 0.06, 0.16)
     love.graphics.setColor(1, 1, 1)

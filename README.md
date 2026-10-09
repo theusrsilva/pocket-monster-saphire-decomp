@@ -19,7 +19,7 @@ correção de bugs e melhorias de usabilidade.
 - [x] Jogo rodando headless (PyBoy) com controle por script e dump de RAM
 - [x] Mapa parcial da WRAM (unidades, status, buffers do mapa)
 - [x] Inimigos de cada fase (stats completos)
-- [ ] Golpes (nomes/efeitos), itens, eventos das fases
+- [x] Golpes (nomes/efeitos), itens, eventos das fases
 - [ ] Metasprites das animações de batalha
 - [x] Formato das fases: 32 mapas renderizados da ROM, inimigos e posições iniciais (`tools/extract_stages.py`)
 - [x] Mapa da SRAM (elenco e inimigos, 64 bytes por unidade)
@@ -31,7 +31,8 @@ correção de bugs e melhorias de usabilidade.
 - [x] Nomes das espécies e dos golpes (transcritos das imagens), com nomes oficiais e tradução PT
 - [x] Itens e seus efeitos (inventário `$C4E0`), insígnias = pedras de evolução
 - [ ] Loja
-- [ ] Eventos e falas das fases, campanha, mapa-múndi
+- [x] Eventos e falas das fases (casas, baús, centro de cura), recompensas e recrutamento, campanha salva
+- [ ] Mapa-múndi e escolha do time antes da luta
 - [ ] IA original dos inimigos
 
 Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).

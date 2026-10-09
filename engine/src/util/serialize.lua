@@ -7,7 +7,9 @@ local function ser(v, out, indent)
     out[#out + 1] = string.format("%q", v)
   elseif t == "table" then
     out[#out + 1] = "{"
-    local n = #v
+    -- parte de array só até o primeiro buraco (# é indefinido em tabelas esparsas)
+    local n = 0
+    while v[n + 1] ~= nil do n = n + 1 end
     for i = 1, n do
       ser(v[i], out, indent)
       out[#out + 1] = ","
