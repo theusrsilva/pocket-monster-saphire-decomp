@@ -473,7 +473,14 @@ Ao entrar numa fase (`$10:$4000`) o jogo monta a lista (`$10:$42C8`) com o elenc
    na linha 8; Í com serifas, senão parecia "1").
 3. Autocura do inimigo (`$18:$6968`): `ld de,$C98E / call $2B12` vira `call $3F80`, rotina nova
    que soma a cura e limita a `[$C992]` (HP máx da cópia da unidade em `$C980`).
-4. Checksum global recalculado (`$14E–$14F`); o cabeçalho não muda.
+4. Nomes em imagem (tabela da seção "Texto em imagem"): golpes (`$79`), espécies (`$F9`, nome
+   oficial), lugares (`$7C:$4000`), itens-chave (`$7C:$40A8`, id da imagem = item + 1), ginásios
+   (`$7C:$40C4`) e objetivo da fase (`$7C:$40DC`, 18×2 tiles; os 2 primeiros são o ícone e ficam) são
+   redesenhados no mesmo lugar com a fonte própria do projeto (`src/romhack/pixelfont.lua`), nas
+   cores da imagem original (fundo = cor mais comum, letra = a segunda). Ordem de tentativa: uma linha
+   na fonte normal (7 px), duas linhas em versalete de 5 px, uma linha em versalete, depois sem
+   espaço entre letras; "Onda Eletromagnética" vira "Onda Eletromag.".
+5. Checksum global recalculado (`$14E–$14F`); o cabeçalho não muda.
 
 ## Emulação para pesquisa
 

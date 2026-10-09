@@ -23,8 +23,9 @@ No PC o jogo abre numa tela de configuração (como o launcher do Gen1Recomp), q
 - **Jogar** / **Gerar ROM traduzida** / **Sair**.
 
 **Gerar ROM traduzida** cria, a partir da ROM configurada, `Pocket Monster Saphire (PT-BR).gbc` na
-mesma pasta (ou na pasta de dados): falas em português com acentos e, se a opção estiver ligada, a
-autocura do inimigo corrigida. Roda em qualquer emulador de GBC/GBA ou flashcart. Detalhes em
+mesma pasta (ou na pasta de dados): falas em português com acentos, nomes de golpes, espécies,
+lugares e itens-chave redesenhados em português e, se a opção estiver ligada, a autocura do inimigo
+corrigida. Roda em qualquer emulador de GBC/GBA ou flashcart. Detalhes em
 `docs/FINDINGS.md` ("Motor de texto e ROM traduzida"). Sem a tela: `love engine --build-rom saída.gbc`.
 
 As opções ficam em `options.lua` na pasta de dados (`src/game/options.lua`).
@@ -148,6 +149,8 @@ src/util/bit.lua          operações de bits (LuaJIT ou Lua puro)
 src/romhack/patcher.lua   conversor de ROM (ROM traduzida para GBC/GBA)
 src/romhack/dialogs.lua   falas em PT na ROM: reapontamento, quebra por palavra, acentos
 src/romhack/buffer.lua    cópia editável da ROM + checksum
+src/romhack/images.lua    nomes em imagem redesenhados em PT
+src/romhack/pixelfont.lua fontes de pixel próprias (normal e versalete)
 src/game/items.lua        itens e efeitos
 src/game/names.lua        nomes transcritos (oficiais/originais)
 src/game/battle.lua       estado da batalha, eventos, turnos e IA do original

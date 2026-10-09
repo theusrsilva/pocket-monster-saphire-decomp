@@ -372,8 +372,13 @@ function T.run(data, romBytes)
     local w = Dialogs.wrap(Dialogs.encode("Você ganhou Pão de mel!"), 12)
     local str = string.char(unpack(w))
     check("quebra por palavra na caixa de 12 colunas", str == "VOCf GANHOU PdO DE MEL!", str)
-    local out = Patcher.build(romBytes, {})
+    local out, rep = Patcher.build(romBytes, {})
     local R = Buffer.new(out)
+    check("ROM: nomes em imagem redesenhados (golpes, espécies, lugares, itens, ginásios)",
+      #rep.images.falhas == 0 and rep.images.golpes == 88 and rep.images["espécies"] == 75
+      and rep.images.lugares == 33, table.concat(rep.images.falhas, "; "))
+    local lay = require("src.romhack.images").layout("Canção de Ninar", 56, 16)
+    check("nome longo vai em duas linhas de versalete", lay and #lay == 2 and lay[1].font == "small")
     local sum = 0
     for i = 1, #out, 4096 do
       for _, v in ipairs({ out:byte(i, math.min(i + 4095, #out)) }) do sum = sum + v end

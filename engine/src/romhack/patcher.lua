@@ -63,8 +63,7 @@ function Patcher.build(bytes, opts)
     Dialogs.font(rom)
     report.dialogs = Dialogs.apply(rom, PT, takeBanks(4))
     if opts.images ~= false then
-      local ok, Images = pcall(require, "src.romhack.images")
-      if ok then report.images = Images.apply(rom, takeBanks(2)) end
+      report.images = require("src.romhack.images").apply(rom)
     end
   end
   if opts.fixHeal ~= false then

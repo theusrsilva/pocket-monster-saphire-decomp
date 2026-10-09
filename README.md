@@ -40,8 +40,9 @@ correção de bugs e melhorias de usabilidade.
 - [x] Tela de configuração no PC: ROM, idioma PT/EN (inclusive a interface), nomes, prévia, IA original/melhorada, correções
 - [x] IA original dos inimigos (`$01:$6B95`), conferida contra o jogo
 - [x] Conversor de ROM (tela de configuração): gera uma ROM de GBC/GBA com as falas em português
-  (acentos na fonte do jogo) e a autocura do inimigo corrigida
-- [ ] Conversor de ROM: nomes e palavras da interface que são imagens (golpes, lugares, menus)
+  (acentos na fonte do jogo), nomes de golpes/espécies/lugares/itens redesenhados e a autocura do
+  inimigo corrigida
+- [ ] Conversor de ROM: palavras dos menus (Attack/Skill/Goods, Save/Load...) e nomes de itens
 
 Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).
 
