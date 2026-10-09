@@ -7,6 +7,7 @@ local Names = require("src.game.names")
 local Messages = require("src.game.messages")
 local Progress = require("src.game.progress")
 local Items = require("src.game.items")
+local Sound = require("src.audio.sound")
 
 local World = {}
 World.__index = World
@@ -36,7 +37,13 @@ function World.new(data, campaign)
   if not self.world.nodes[campaign.node or 0] then campaign.node = 0x20 end
   if campaign.introSeen == false then             -- jogo novo: a introdução da história (script $20)
     campaign.introSeen = true
-    self:showMessages(0, { 1, 2, 3, 4, 5 }, nil, function() campaign:save() end)
+    self.intro = true
+    Sound.music(Sound.INTRO)
+    self:showMessages(0, { 1, 2, 3, 4, 5 }, nil, function()
+      self.intro = false
+      campaign:save()
+      Sound.stageMusic_(0)
+    end)
   end
   return self
 end
@@ -138,15 +145,17 @@ end
 function World:openMenu(title, items)
   self.menu = { title = title, items = items, index = 1 }
   self.mode = "menu"
+  Sound.music(Sound.TEAM)          -- menus das cidades usam a música $0D, como no original
 end
 
 function World:closeMenu()
   self.menu, self.mode = nil, "map"
+  Sound.stageMusic_(0)
 end
 
 function World:menuMove(d)
   local m = self.menu
-  if m then m.index = (m.index - 1 + d) % #m.items + 1 end
+  if m then m.index = (m.index - 1 + d) % #m.items + 1; Sound.sfx(Sound.CURSOR) end
 end
 
 function World:confirm()

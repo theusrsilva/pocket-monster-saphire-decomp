@@ -5,6 +5,7 @@ local Progress = require("src.game.progress")
 local Names = require("src.game.names")
 local Items = require("src.game.items")
 local Messages = require("src.game.messages")
+local Sound = require("src.audio.sound")
 local nameOf = Names.species_name
 
 local Battle = {}
@@ -348,6 +349,7 @@ function Battle:menuMove(d)
   if self.menu then
     local m = self.menu
     m.index = (m.index - 1 + d) % #m.items + 1
+    Sound.sfx(Sound.CURSOR)
   end
 end
 
@@ -449,6 +451,7 @@ function Battle:checkEnd()
     self.ending = true
     self.campaign:storeUnits(self.units)
     self.campaign.cleared[self.stageIndex] = true
+    Sound.music(self.stageIndex == 25 and Sound.ENDING or Sound.VICTORY)
     local finish = function()
       self.result = "vitória"
       self.campaign:save()

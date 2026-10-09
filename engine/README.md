@@ -17,7 +17,7 @@ love engine --stage 2 --script "wait20 z" --shot out.png   # entradas automátic
 ```
 
 Controles: setas/WASD movem o cursor · Z/Enter/Espaço ou clique confirmam · X/Backspace ou botão
-direito voltam · Esc encerra o turno · N alterna entre **PT** (falas traduzidas, nomes oficiais) e
+direito voltam · Esc encerra o turno · M liga/desliga o som · N alterna entre **PT** (falas traduzidas, nomes oficiais) e
 **original** (falas e nomes como no jogo).
 
 `src/game/names.lua` e `src/game/translation_pt.lua` são os únicos arquivos com conteúdo do jogo: os
@@ -63,7 +63,7 @@ despeja as falas originais (fora do git), com a chave `banco:endereço` de cada 
 
 ## Ainda não
 
-Som e música; metasprites das animações de batalha.
+Animações de batalha (metasprites).
 
 ## Estrutura
 
@@ -78,6 +78,10 @@ src/game/world.lua        mapa-múndi: grafo, travas, cidades, Instituto, BabyAl
 src/game/teamselect.lua   escolha do time antes da luta
 src/game/messages.lua     falas: resolve os desvios condicionais (comando E2) e escolhe PT/original
 src/game/translation_pt.lua  tradução das falas (chave = banco:endereço do trecho na ROM)
+src/util/sm83.lua         interpretador da CPU do Game Boy (roda o driver de som original)
+src/audio/apu.lua         síntese do APU (2 pulsos, onda, ruído)
+src/audio/sound.lua       som em tempo real (QueueableSource)
+src/import/music.lua      máquina mínima do driver + exportação em WAV (--render-music)
 src/game/items.lua        itens e efeitos
 src/game/names.lua        nomes transcritos (oficiais/originais)
 src/game/battle.lua       estado da batalha, eventos, turnos e IA do original

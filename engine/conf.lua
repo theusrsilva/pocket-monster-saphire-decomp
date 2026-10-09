@@ -7,7 +7,5 @@ function love.conf(t)
   t.window.resizable = true
   t.window.minwidth = 320
   t.window.minheight = 180
-  t.modules.audio = false
-  t.modules.sound = false
   t.modules.physics = false
 end

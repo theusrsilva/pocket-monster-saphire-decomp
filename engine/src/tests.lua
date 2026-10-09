@@ -319,6 +319,24 @@ function T.run(data)
   check("paleta dos retratos", pp and pp[1][1] == 1 and pp[2][1] == 1 and math.abs(pp[2][2] - 22 / 31) < 1e-6
     and pp[2][3] == 0 and math.abs(pp[4][1] - 8 / 31) < 1e-6)
 
+
+  -- 18) Som: o driver original ($2C) roda a partir do cache (bancos $00 e $2C) e toca a música
+  --     da abertura ($0B, a mesma que o jogo toca no quadro 86 no PyBoy)
+  local SoundT = require("src.audio.sound")
+  local MusicT = require("src.import.music")
+  local bin = love.filesystem.read("generated/sound.bin")
+  local okSnd, mm = pcall(MusicT.machine, SoundT.shim(bin or ""), 22050)
+  local L, R = {}, {}
+  if okSnd then
+    mm.mem[0xFFF7] = 0x0B
+    for _ = 1, 240 do MusicT.frame(mm); mm.apu:render(369, L, R) end
+  end
+  local peak = 0
+  for i = 1, #L do peak = math.max(peak, math.abs(L[i])) end
+  check("som: driver original ao vivo toca a abertura", okSnd and mm.writes > 50 and peak > 0.05,
+    okSnd and ("%d escritas, pico %.2f"):format(mm.writes, peak) or tostring(mm))
+  check("música de cada fase ($00:$2C85)", data.music.stage[0] == 0x16 and data.music.stage[1] == 0x17)
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

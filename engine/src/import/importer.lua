@@ -7,7 +7,7 @@ local serialize = require("src.util.serialize")
 local at = Rom.at
 local Importer = {}
 
-Importer.CACHE_VERSION = 10
+Importer.CACHE_VERSION = 11
 local NSTAGES = 32
 local NSPECIES_TABLE = 20     -- espécies recrutáveis ($09:$4000, 20 bytes)
 local NCOST_ROWS = 76         -- linhas da tabela de custo ($09:$4190, 33 bytes)
@@ -427,6 +427,14 @@ function Importer.run(bytes, progress)
   data.messages = importMessages(rom)
   data.world = importWorld(rom)
   data.ai = importAI(rom)
+  -- Som: o driver ($2C) roda ao vivo no motor; o cache guarda os bancos $00 e $2C.
+  -- Música de cada fase: $00:$2C85 + fase ($00:$034B).
+  local banks = {}
+  for o = 0, 0x3FFF do banks[#banks + 1] = string.char(rom:u8(o)) end
+  for o = 0, 0x3FFF do banks[#banks + 1] = string.char(rom:u8(0x2C * 0x4000 + o)) end
+  love.filesystem.write("generated/sound.bin", table.concat(banks))
+  data.music = { stage = {} }
+  for st = 0, NSTAGES - 1 do data.music.stage[st] = rom:u8(0x2C85 + st) end
   importSpeakers(rom):encode("png", "generated/speakers.png")
   progress("sprites")
   importUnitSprites(rom):encode("png", "generated/units.png")

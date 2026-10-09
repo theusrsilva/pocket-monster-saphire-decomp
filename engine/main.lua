@@ -12,6 +12,7 @@
 --   love engine --cleared 5 --keys 2          (testes) fases 1-5 vencidas, itens-chave 0-1
 --   love engine --new-save 1                  (testes) começa do zero
 --   love engine --dump-text out/falas.txt     (tradução) despeja as falas originais (não vai pro git)
+--   love engine --render-music out --ids "16 17" --secs 20   (som) despeja músicas em WAV
 -- Com qualquer opção de teste o progresso vai para save_test.lua, não para o save do jogador.
 local Importer = require("src.import.importer")
 local Battle = require("src.game.battle")
@@ -20,19 +21,21 @@ local Names = require("src.game.names")
 local Campaign = require("src.game.campaign")
 local World = require("src.game.world")
 local TeamSelect = require("src.game.teamselect")
+local Sound = require("src.audio.sound")
 local campaign, world, teamsel
 
 -- Preferências do jogador (pasta de dados do LÖVE)
 local function loadOptions()
   local ok, o = pcall(function() return love.filesystem.load("options.lua")() end)
   if ok and type(o) == "table" and o.names then Names.mode = o.names end
+  if ok and type(o) == "table" and o.sound == false then Sound.enabled = false end
 end
 
 local testRun = false
 
 local function saveOptions()
   if testRun then return end                   -- execuções de teste não mudam as preferências
-  love.filesystem.write("options.lua", ("return { names = %q }"):format(Names.mode))
+  love.filesystem.write("options.lua", ("return { names = %q, sound = %s }"):format(Names.mode, tostring(Sound.enabled)))
 end
 
 local state = "boot"
@@ -70,6 +73,7 @@ local function loadAssets()
   assets.speakers = love.graphics.newImage("generated/speakers.png")
   campaign = Campaign.load(data)
   View.init(assets)
+  if not testRun and not opts.mute then Sound.init(data.music and data.music.stage) end
 end
 
 local enterStage
@@ -78,8 +82,10 @@ local function openWorld()
   world = World.new(data, campaign)
   world.onEnter = function(s)
     teamsel = TeamSelect.new(data, campaign, s)
+    Sound.music(Sound.TEAM)
     state = "team"
   end
+  if not world.intro then Sound.stageMusic_(0) end
   state = "world"
 end
 
@@ -104,6 +110,7 @@ end
 
 function enterStage(i, team)
   battle = Battle.new(data, i, campaign, team)
+  Sound.stageMusic_(i)
   if opts["cheat-move"] then                  -- só para testes: aliados andam muito
     for _, u in ipairs(battle.units) do if u.side == "ally" then u.move = 60 end end
   end
@@ -167,6 +174,61 @@ function love.load(args)
     if opts["new-save"] then love.filesystem.remove(Campaign.FILE) end
   end
   data = Importer.load()
+  if opts["render-music"] then               -- desenvolvimento: despeja as músicas em WAV (fora do git)
+    local Rom = require("src.util.rom")
+    local Music = require("src.import.music")
+    local rom = Rom.new(assert(readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc"))))
+    local ids = {}
+    for id in (opts.ids or "1"):gmatch("%x+") do ids[#ids + 1] = tonumber(id, 16) end
+    if opts.bankscan then
+      local used = {}
+      for id = 1, 0x1F do
+        local m = Music.machine(rom, 22050)
+        local rd = m.cpu.read
+        m.cpu.read = function(a) if a >= 0x4000 and a < 0x8000 then used[m.bank] = true end return rd(a) end
+        m.mem[0xFFF7] = id
+        for _ = 1, 3000 do Music.frame(m) end
+        local s2 = Music.machine(rom, 22050)
+        local rd2 = s2.cpu.read
+        s2.cpu.read = function(a) if a >= 0x4000 and a < 0x8000 then used[s2.bank] = true end return rd2(a) end
+        s2.mem[0xFFF8] = id
+        for _ = 1, 300 do Music.frame(s2) end
+      end
+      local list = {}
+      for b in pairs(used) do list[#list + 1] = ("%02X"):format(b) end
+      print("bancos: " .. table.concat(list, " "))
+      love.event.quit(0)
+      return
+    end
+    if opts.ramscan then
+      local m = Music.machine(rom, 22050)
+      local snap = {}
+      for a = 0xC000, 0xFFFF do snap[a] = m.mem[a] end
+      m.mem[0xFFF7] = ids[1]
+      local changed = {}
+      for _ = 1, 3000 do
+        Music.frame(m)
+        for a = 0xC000, 0xFFFF do if m.mem[a] ~= snap[a] then changed[a] = true; snap[a] = m.mem[a] end end
+      end
+      local list = {}
+      for a = 0xC000, 0xFFFF do if changed[a] then list[#list + 1] = ("%04X"):format(a) end end
+      print(table.concat(list, " "))
+      love.event.quit(0)
+      return
+    end
+    for _, id in ipairs(ids) do
+      local t0 = love.timer.getTime()
+      local L, R, info = Music.render(rom, id, tonumber(opts.secs or "20"), 22050, opts.sfx ~= nil)
+      if not L then print(("música %02X: erro %s"):format(id, R)) else
+        local f = assert(io.open(("%s/%s_%02X.wav"):format(opts["render-music"], opts.sfx and "sfx" or "music", id), "wb"))
+        f:write(Music.wav(L, R, 22050)); f:close()
+        print(("%02X: %.1fs, loop em %s, %d escritas, %.1fs para gerar"):format(id, #L / 22050,
+          info.loopStart and ("%.1fs"):format(info.loopStart / 22050) or "-", info.writes, love.timer.getTime() - t0))
+      end
+    end
+    love.event.quit(0)
+    return
+  end
   if opts["dump-text"] then                  -- desenvolvimento: texto original para traduzir (fora do git)
     if not data then
       assert(Importer.run(assert(readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc")))))
@@ -219,6 +281,7 @@ function love.filedropped(file)
 end
 
 function love.update(dt)
+  Sound.update()
   if quitSoon then
     quitSoon = quitSoon - 1
     if quitSoon <= 0 then love.event.quit() end
@@ -255,6 +318,11 @@ local KEY = {
 
 function love.keypressed(key)
   local k = KEY[key] or key
+  if key == "m" then
+    Sound.toggle()
+    saveOptions()
+    return
+  end
   if key == "n" then
     Names.cycle()
     saveOptions()
@@ -287,7 +355,7 @@ function love.keypressed(key)
     if k == "up" then ts:move(-1) elseif k == "down" then ts:move(1)
     elseif k == "start" then ts:start()
     elseif k == "b" then
-      if ts.onButton then ts.onButton = false else state = "world" end
+      if ts.onButton then ts.onButton = false else state = "world"; Sound.stageMusic_(0) end
     elseif k == "a" then
       local team = ts:confirm()
       if team then enterStage(ts.stage, team) end

@@ -418,6 +418,24 @@ Ao entrar numa fase (`$10:$4000`) o jogo monta a lista (`$10:$42C8`) com o elenc
   foram marcadas. Conferido no PyBoy: marcando BoBo e depois Piku, o Piku fica na posição 1 (x 26,
   y 7) e o BoBo na 2; marcando Piku e Littlecrocodile, este fica na posição 2.
 
+## Som e música (banco `$2C`)
+
+* **Driver** no banco `$2C`: inicialização `$2C:$4000`; atualização `$2C:$406C`, chamada uma vez por
+  quadro pelo VBlank via `$00:$2CE2`. Estado em `$C380–$C3FF`. Só lê o próprio banco (e o banco 0).
+* **Música**: `$00:$2CB9` grava o número em `[$FFF7]`; o driver o consome no quadro seguinte.
+  Números `$01–$1F` são músicas (`$4566`); `$20+` são comandos (`$21` = silêncio).
+* **Efeito sonoro**: `$00:$2CB5` grava em `[$FFF8]` (`$4609`). O jogo só usa o `$1B` (cursor dos
+  menus, `$01:$59E3` e vizinhos); comandos dos scripts de animação (`$00:$2284`/`$228D`) também tocam
+  música/efeito com um byte embutido.
+* **Quem toca o quê**: música de cada fase em `$00:$2C85 + fase` (fase 0 = mapa-múndi `$16`, fase 1
+  = `$17`…); abertura `$0B` (quadro 86, depois de `$09`); escolha do time e menus das cidades `$0D`;
+  animação de ataque `$06` (toca uma vez, ~16 s); vitória `$14`; final `$15`.
+* Um ciclo de música termina quando o estado `$C380–$C3FF` se repete: `$0B` repete a cada 34,3 s,
+  `$16` a cada 42,9 s, `$14` tem 8,6 s de introdução e depois repete.
+* O motor **roda esse driver ao vivo** num interpretador SM83 (`engine/src/util/sm83.lua`) e
+  sintetiza o APU (`engine/src/audio/apu.lua`). Conferido contra o áudio do PyBoy: na abertura,
+  86% das notas (janelas de 50 ms) coincidem, já alinhadas no tempo.
+
 ## Emulação para pesquisa
 
 `tools/run_headless.py` + `tools/play.py` rodam a ROM no **PyBoy** sem janela
@@ -438,4 +456,4 @@ escolher unidades com A/↓ → START.
    (`ff7f df02 3a01 2804`, branco/amarelo/laranja/marrom), a mesma para todas as espécies.
 5. ~~Fórmulas de dano, acerto, EXP, movimento, nível, evolução e golpes~~ ✅ ~~IA original~~ ✅.
    ~~Regra exata do contra-ataque~~ ✅.
-6. O banco `$2C` é o driver de som (registradores NRxx; tabela de ondas em `$2C:$476E`).
+6. ~~Som~~ ✅ (driver `$2C` rodando ao vivo no motor).
