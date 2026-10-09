@@ -242,6 +242,49 @@ function T.run(data)
   NamesT.mode = mt
   check("tecla N alterna fala PT/original", ptHeal.pages[1].text:find("cuidar") ~= nil and enHeal.pages[1].text:find("CURE") ~= nil)
 
+
+  -- 15) IA original ($01:$6B95), conferida no PyBoy na fase 1: Piku (vaga 0) em (26,11) e BoBo
+  --     (vaga 2) em (26,6), fim do turno -> o inimigo 11 vai de (21,13) para (22,11) e o 9 de
+  --     (21,12) para (23,12) (anel de raio 4 em volta do Piku); os outros ficam parados.
+  local ca = Campaign.new(data)
+  local ba = Battle.new(data, 1, ca, { ca.roster[0], ca.roster[2] })
+  local before = {}
+  for _, u in ipairs(ba.units) do
+    if u.side == "ally" then
+      if u.slot == 0 then u.x, u.y = 26, 11 else u.x, u.y = 26, 6 end
+    else before[u.enemySlot] = { u.x, u.y } end
+  end
+  ba:endPlayerTurn()
+  for _, e in ipairs(ba.queue) do ba:enemyAct(e) end
+  local moved, okRest = {}, true
+  for _, u in ipairs(ba.units) do
+    if u.side == "enemy" then
+      if u.enemySlot == 11 or u.enemySlot == 9 then moved[u.enemySlot] = { u.x, u.y }
+      elseif u.x ~= before[u.enemySlot][1] or u.y ~= before[u.enemySlot][2] then okRest = false end
+    end
+  end
+  check("IA: inimigos 11 e 9 se aproximam como no original", moved[11] and moved[11][1] == 22 and moved[11][2] == 11
+    and moved[9] and moved[9][1] == 23 and moved[9][2] == 12 and okRest,
+    ("11=(%s) 9=(%s)"):format(moved[11] and table.concat(moved[11], ",") or "-", moved[9] and table.concat(moved[9], ",") or "-"))
+  -- ataque de quem está colado e chefe (vaga 0) parado
+  local cb = Campaign.new(data)
+  local bb = Battle.new(data, 1, cb, { cb.roster[0] })
+  local hero = bb:alive("ally")[1]
+  local boss
+  for _, u in ipairs(bb.units) do if u.enemySlot == 0 then boss = u end end
+  hero.x, hero.y = boss.x + 1, boss.y
+  hero.level = 99                                   -- sem subir de nível no contra-ataque
+  local savedRandom = Combat.random
+  Combat.random = function() return 99 end
+  local hp0 = hero.hp
+  local bx, by = boss.x, boss.y
+  bb:enemyAct(boss)
+  Combat.random = savedRandom
+  check("IA: chefe ataca quem está colado e não anda", hero.hp < hp0 and boss.x == bx and boss.y == by,
+    ("hp %d->%d boss %d,%d hero %d,%d skill %s"):format(hp0, hero.hp, boss.x, boss.y, hero.x, hero.y, tostring(boss.skills[1])))
+  check("IA: anel de raio 1 = cima, direita, esquerda, baixo", data.ai.rings[1][1].dy == -1 and data.ai.rings[1][2].dx == 1
+    and data.ai.rings[1][3].dx == -1 and data.ai.rings[1][4].dy == 1)
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

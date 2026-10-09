@@ -224,6 +224,42 @@ O bloco do atacante é copiado para `$C900` e o do defensor para `$C980`, no for
 
 O contra-ataque usa as mesmas contas com os papéis trocados (`$CD45`/`$CD03`).
 
+## IA dos inimigos (`$01:$6B95`)
+
+O turno inimigo percorre os registros da SRAM **da última vaga para a primeira** (`$B6C0` → `$B200`,
+só os ativos com o bit 0 de `+1` ligado). Mapa de ocupação `$A000` (32×32): aliados = `$81 + vaga`,
+inimigos = `$A1 + vaga`; `$A400` é uma cópia só com os aliados (valores ≥ `$A1` zerados) ou, depois do
+cálculo de alcance, as casas alcançáveis. Para cada inimigo (copiado para `$C980`):
+
+1. Grava `[$C9BE] = [$C9BF] = 1`: **a busca de alvo usa sempre raio 1**, qualquer que seja o alcance
+   de ataque da unidade (os Super Power também chegam colados).
+2. **Cura**: se o 1º golpe (`+$24`) é de cura (`$01–$0B`) e `HP ≤ HP máx >> 1`, chama `$18:$6934`:
+   com SP ≥ custo (`+$26`), SP −= custo e **HP += `$18:$697B[golpe]`** (150, 300, 400, 800, 150, 300,
+   600, 700, 700, 800, 1000) **sem limitar ao HP máximo** (bug do original; o motor limita). Com ou
+   sem SP, o turno desse inimigo acaba aí.
+3. **Alvo colado** (`$09:$4F74` em volta da própria posição, raio 1, ordem **cima, direita,
+   esquerda, baixo**): ataca o primeiro aliado achado, sem andar.
+4. A **vaga 0** (`$B200`, o chefe) nunca anda.
+5. **Andar e atacar**: alcance com MOV limitado a 16 (`$0EB8` → BFS `$09:$583E`, mesma tabela de
+   custo; só casas com id ≥ `$A1` em `$A000` bloqueiam, então **o inimigo atravessa os aliados**, mas
+   não para em cima deles). `$01:$7133` percorre os aliados vivos **na ordem das vagas do elenco** e,
+   em volta de cada um (raio 1), procura a primeira casa alcançável e vazia. Achando, anda até lá e
+   procura de novo o aliado colado (cima, direita, esquerda, baixo) para atacar.
+6. **Aproximar**: senão, repete o passo 5 com **raio 4** (`[$C016] = 1` soma 3 ao raio) e só anda,
+   sem atacar. Sem casa possível, fica parado.
+
+O ataque é sempre o normal (`$01:$6AA9` zera `$CD00/$CD01`), com contra-ataque; os golpes de ataque
+dos inimigos nunca são usados.
+
+**Listas de casas por raio** (`$09:$5088`, ponteiros u16 no banco `$09`): registros de 6 bytes
+`[dx px s16, dy px s16, distância, 0]`, do anel mais distante para o mais próximo, cada anel numa ordem
+fixa (`(−d,0) (0,d) (0,−d) (d,0) (−1,d−1) (1,−(d−1)) …`); `$EE` separa os anéis ≥ 2 do anel 1 (a busca
+só passa dele se o alcance mínimo for 1) e `$FF` termina.
+
+Conferido no PyBoy, fase 1: com o Piku (vaga 0) em (26,11) e o BoBo (vaga 2) em (26,6), ao fim do
+turno o inimigo 11 vai de (21,13) para (22,11) e o 9 de (21,12) para (23,12) (primeiras casas do raio
+4 em volta do Piku que eles alcançam); todos os outros ficam parados porque não alcançam nenhuma.
+
 ## Itens (inventário em `$C4E0 + id`, 1 byte por item; efeitos em `$01:$4ECB`)
 
 | id | Item | Efeito |
@@ -392,6 +428,6 @@ escolher unidades com A/↓ → START.
    escreve na OAM ($FE00 / DMA) durante uma luta.
 3. ~~Formato dos mapas~~ ✅. Falta: confirmar a tabela de terreno (+2C) e a paleta de cada sprite de unidade.
 4. ~~Paletas de BG das fases~~ ✅ (rotinas `ROM0:$2C56`/`$2C42`). Falta: paletas da UI e dos retratos.
-5. ~~Fórmulas de dano, acerto, EXP, movimento, nível, evolução e golpes~~ ✅. Falta: regra exata do
-   contra-ataque (e se o defensor pode contra-atacar com golpe), IA original, nomes dos golpes (imagens
-   nos bancos $74/$79), itens e loja.
+5. ~~Fórmulas de dano, acerto, EXP, movimento, nível, evolução e golpes~~ ✅ ~~IA original~~ ✅.
+   Falta: regra exata do contra-ataque (e se o defensor pode contra-atacar com golpe).
+6. O banco `$2C` é o driver de som (registradores NRxx; tabela de ondas em `$2C:$476E`).

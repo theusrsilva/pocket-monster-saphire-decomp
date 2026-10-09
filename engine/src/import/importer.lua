@@ -7,7 +7,7 @@ local serialize = require("src.util.serialize")
 local at = Rom.at
 local Importer = {}
 
-Importer.CACHE_VERSION = 8
+Importer.CACHE_VERSION = 9
 local NSTAGES = 32
 local NSPECIES_TABLE = 20     -- espécies recrutáveis ($09:$4000, 20 bytes)
 local NCOST_ROWS = 76         -- linhas da tabela de custo ($09:$4190, 33 bytes)
@@ -379,6 +379,32 @@ local function importWorld(rom)
   return W
 end
 
+-- IA inimiga: listas de casas em volta de um ponto, uma por raio ($09:$5088 -> ponteiros u16 no
+-- banco $09; registros de 6 bytes [dx px s16, dy px s16, distância, 0]; $EE = fim do raio >= 2
+-- (só continua se o alcance mínimo for 1), $FF = fim). A ordem é do anel mais distante para o
+-- mais próximo e, em cada anel, a ordem fixa da tabela. Cura do inimigo: $18:$697B (u16 por golpe).
+local function importAI(rom)
+  local function s16(v) return v >= 0x8000 and v - 0x10000 or v end
+  local A = { rings = {}, heal = {} }
+  for r = 0, 8 do
+    local o = at(0x09, rom:u16(at(0x09, 0x5088) + r * 2))
+    local list = {}
+    for _ = 1, 400 do
+      local b = rom:u8(o)
+      if b == 0xFF then break end
+      if b == 0xEE then
+        list[#list + 1] = { stop = true }
+      else
+        list[#list + 1] = { dx = s16(rom:u16(o)) / 16, dy = s16(rom:u16(o + 2)) / 16 }
+      end
+      o = o + 6
+    end
+    A.rings[r] = list
+  end
+  for id = 0, 0x0B do A.heal[id] = rom:u16(at(0x18, 0x697B) + id * 2) end
+  return A
+end
+
 -- Executa a importação. progress(msg) é chamado entre etapas. Retorna true ou nil, erro.
 function Importer.run(bytes, progress)
   progress = progress or function() end
@@ -399,6 +425,7 @@ function Importer.run(bytes, progress)
   progress("falas")
   data.messages = importMessages(rom)
   data.world = importWorld(rom)
+  data.ai = importAI(rom)
   importSpeakers(rom):encode("png", "generated/speakers.png")
   progress("sprites")
   importUnitSprites(rom):encode("png", "generated/units.png")

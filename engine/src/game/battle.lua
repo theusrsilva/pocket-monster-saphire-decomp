@@ -41,8 +41,9 @@ function Battle.new(data, stageIndex, campaign, team)
     for _, id in ipairs(r.skills) do u.skills[#u.skills + 1] = id end
     self.units[#self.units + 1] = u
   end
-  for _, e in ipairs(st.enemies) do
+  for i, e in ipairs(st.enemies) do
     local u = newUnit("enemy", e)
+    u.enemySlot = i - 1                       -- vaga em $B200 + vaga*64 (a vaga 0 é o chefe)
     if e.skill then u.skills[1] = e.skill end
     self.units[#self.units + 1] = u
   end
@@ -369,7 +370,10 @@ function Battle:endPlayerTurn()
   self.mode, self.selected, self.reach, self.menu = "cursor", nil, nil, nil
   self.phase = "enemy"
   self:say(("Turno %d: inimigos"):format(self.turn))
-  self.queue = self:alive("enemy")
+  -- o original percorre os inimigos da última vaga para a primeira ($B6C0 -> $B200)
+  self.queue = {}
+  local enemies = self:alive("enemy")
+  for i = #enemies, 1, -1 do self.queue[#self.queue + 1] = enemies[i] end
   self.timer = 0.4
 end
 
@@ -463,54 +467,90 @@ end
 
 ---------------------------------------------------------------- IA inimiga
 
--- IA (provisória, a original ainda não foi extraída): considera ataque normal e golpes de cada
--- casa alcançável e escolhe o que mais tira HP do alvo mais fraco; cura aliados feridos; se não
--- dá para agir, anda na direção do aliado mais próximo. MOV 0 (chefes) nunca anda.
+-- IA do jogo original ($01:$6B95). Os inimigos agem da última vaga para a primeira. Para cada um:
+--  1. Se o 1º golpe é de cura ($01-$0B) e HP <= HP máx/2: cura a si mesmo se tiver SP (soma
+--     $18:$697B[golpe]); com ou sem SP, o turno dele acaba aí.
+--  2. Procura um aliado colado (anel de raio 1, na ordem cima, direita, esquerda, baixo) e ataca.
+--     O raio da busca é sempre 1 ([$C9BE] = [$C9BF] = 1), qualquer que seja o alcance da unidade.
+--  3. A vaga 0 (o chefe) nunca anda.
+--  4. Calcula o alcance (MOV até 16; só outros inimigos bloqueiam a passagem, ids >= $A1 em $A000).
+--     Para cada aliado vivo, na ordem das vagas do elenco, procura em volta dele (raio 1) uma casa
+--     alcançável e vazia ($01:$7133 + $09:$4F74); achando, anda até lá e ataca o primeiro aliado
+--     colado (de novo na ordem cima, direita, esquerda, baixo).
+--  5. Senão, repete o passo 4 com o raio 4 (anéis do mais distante para o mais próximo, $09:$5088)
+--     e só se aproxima, sem atacar. Sem casa possível, fica parado.
+-- O ataque é sempre o normal ($01:$6AA9 zera o golpe), com contra-ataque.
+
+function Battle:aiRing(r)
+  return (self.data.ai and self.data.ai.rings[r]) or {}
+end
+
+-- Primeiro aliado (vivo) colado a (x, y) na ordem do anel de raio 1.
+function Battle:aiAdjacentAlly(x, y)
+  for _, off in ipairs(self:aiRing(1)) do
+    if not off.stop then
+      local u = self:unitAt(x + off.dx, y + off.dy)
+      if u and u.side == "ally" then return u end
+    end
+  end
+end
+
+-- Casa de destino: em volta de cada aliado (ordem das vagas), a primeira casa alcançável e vazia.
+function Battle:aiDestination(stops, radius)
+  local st, cols = self.stage, self.stage.cols
+  local allies = self:alive("ally")
+  table.sort(allies, function(a, b) return (a.slot or 0) < (b.slot or 0) end)
+  for _, a in ipairs(allies) do
+    for _, off in ipairs(self:aiRing(radius)) do
+      if not off.stop then
+        local x, y = a.x + off.dx, a.y + off.dy
+        if x >= 0 and y >= 0 and x < cols and y < st.rows and st.terrain[y * cols + x + 1] ~= 0
+          and not self:unitAt(x, y) and stops[y * cols + x] then
+          return x, y
+        end
+      end
+    end
+  end
+end
+
 function Battle:enemyAct(e)
-  local cols = self.stage.cols
-  local stops
-  if e.move > 0 then stops = self:stopCells(e, self:computeReach(e))
-  else stops = { [e.y * cols + e.x] = true } end
-  local best
-  local options = { false }
-  for _, id in ipairs(e.skills) do
-    local s = self:skill(id)
-    if s and e.sp >= s.cost then options[#options + 1] = s end
+  local function attack(t)
+    for _, ev in ipairs(Combat.attack(e, t, nil)) do self:announce(ev) end
   end
-  for k in pairs(stops) do
-    local x, y = k % cols, math.floor(k / cols)
-    for _, s in ipairs(options) do
-      local skill = s or nil
-      for _, t in ipairs(self:targetsFrom(e, x, y, skill)) do
-        local score
-        if skill and skill.heal then
-          score = (t.maxhp - t.hp < skill.power / 2) and nil or -(t.maxhp - t.hp) * 0.5
-        else
-          local dmg = Combat.damage(e, t, skill and skill.power) * Combat.hitChance(e, t) / 100
-          score = t.hp - dmg * 2 - (dmg >= t.hp and 1000 or 0)
-        end
-        if score and (best == nil or score < best.score) then
-          best = { score = score, k = k, t = t, skill = skill }
-        end
-      end
+  -- 1. cura
+  local s1 = e.skills[1] and self:skill(e.skills[1])
+  if s1 and s1.heal and e.hp <= math.floor(e.maxhp / 2) then
+    if e.sp >= s1.cost then
+      e.sp = e.sp - s1.cost
+      local amount = (self.data.ai and self.data.ai.heal[s1.id]) or s1.power
+      local before = e.hp
+      e.hp = math.min(e.maxhp, e.hp + amount)    -- o original não limita ao HP máx. (bug); aqui limita
+      self:announce({ who = e, target = e, heal = e.hp - before, skill = s1.id })
     end
+    self.cursor.x, self.cursor.y = e.x, e.y
+    self:checkEnd()
+    return
   end
-  if best then
-    e.x, e.y = best.k % cols, math.floor(best.k / cols)
-    local evs = (best.skill and best.skill.heal) and Combat.heal(e, best.t, best.skill)
-      or Combat.attack(e, best.t, best.skill)
-    for _, ev in ipairs(evs) do self:announce(ev) end
-  elseif e.move > 0 then
-    local allies = self:alive("ally")
-    local bk, bd
-    for k in pairs(stops) do
-      local x, y = k % cols, math.floor(k / cols)
-      for _, a in ipairs(allies) do
-        local d = Path.dist(x, y, a.x, a.y)
-        if bd == nil or d < bd then bk, bd = k, d end
-      end
+  -- 2. aliado colado: ataca sem andar
+  local t = self:aiAdjacentAlly(e.x, e.y)
+  if t then
+    attack(t)
+  elseif e.enemySlot ~= 0 and e.move > 0 then
+    -- 3/4/5. anda
+    local walker = { species = e.species, x = e.x, y = e.y, move = math.min(e.move, 16) }
+    local reach = Path.reach(self.stage, self.data.costs, walker, function(x, y)
+      local o = self:unitAt(x, y)
+      return o ~= nil and o.side == "enemy" and o ~= e
+    end)
+    local x, y = self:aiDestination(reach, 1)
+    if x then
+      e.x, e.y = x, y
+      t = self:aiAdjacentAlly(x, y)
+      if t then attack(t) end
+    else
+      x, y = self:aiDestination(reach, 4)
+      if x then e.x, e.y = x, y end
     end
-    if bk then e.x, e.y = bk % cols, math.floor(bk / cols) end
   end
   self.cursor.x, self.cursor.y = e.x, e.y
   self:checkEnd()

@@ -35,7 +35,7 @@ correção de bugs e melhorias de usabilidade.
 - [x] Mapa-múndi: grafo de nós do original, travas por fase vencida e por item-chave, cidades, Instituto e BabyAlliance (evolução)
 - [x] Escolha do time antes da luta (máximo = recrutados até 10, ordem das vagas)
 - [x] Tradução de todas as falas da campanha para o português (tecla N alterna PT/original)
-- [ ] IA original dos inimigos
+- [x] IA original dos inimigos (`$01:$6B95`), conferida contra o jogo
 
 Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).
 

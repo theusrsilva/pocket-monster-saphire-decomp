@@ -55,11 +55,13 @@ despeja as falas originais (fora do git), com a chave `banco:endereço` de cada 
 - **Campanha**: o time começa com os 6 iniciais; a vitória mostra a recompensa da fase e recruta os
   novos Pokémon; elenco, níveis, inventário e fases vencidas ficam salvos (`save.lua`; Delete na
   mapa-múndi recomeça)
-- IA inimiga simples: escolhe entre ataque e golpe o que mais tira HP, cura aliados, senão avança
+- **IA inimiga do original** (`$01:$6B95`): da última vaga para a primeira, cada inimigo se cura se
+  estiver com metade do HP, ataca quem está colado, anda até colar no primeiro aliado (na ordem do
+  elenco) que consegue alcançar ou se aproxima até 4 casas; o chefe (vaga 0) não anda
 
 ## Ainda não
 
-Tradução das falas, som, paletas dos retratos e a IA original.
+Som, paletas dos retratos e a regra exata do contra-ataque.
 
 ## Estrutura
 
@@ -76,7 +78,7 @@ src/game/messages.lua     falas: resolve os desvios condicionais (comando E2) e 
 src/game/translation_pt.lua  tradução das falas (chave = banco:endereço do trecho na ROM)
 src/game/items.lua        itens e efeitos
 src/game/names.lua        nomes transcritos (oficiais/originais)
-src/game/battle.lua       estado da batalha, eventos, turnos e IA
+src/game/battle.lua       estado da batalha, eventos, turnos e IA do original
 src/ui/view.lua           desenho do mapa, unidades (shader de paleta) e HUD
 src/tests.lua             testes contra valores observados no jogo original
 ```
