@@ -17,10 +17,13 @@ love engine --stage 2 --script "wait20 z" --shot out.png   # entradas automátic
 ```
 
 Controles: setas/WASD movem o cursor · Z/Enter/Espaço ou clique confirmam · X/Backspace ou botão
-direito voltam · Esc encerra o turno · N alterna nomes oficiais/originais.
+direito voltam · Esc encerra o turno · N alterna entre **PT** (falas traduzidas, nomes oficiais) e
+**original** (falas e nomes como no jogo).
 
-`src/game/names.lua` é o único arquivo com conteúdo do jogo: os nomes transcritos das imagens
-(necessários para a tradução).
+`src/game/names.lua` e `src/game/translation_pt.lua` são os únicos arquivos com conteúdo do jogo: os
+nomes transcritos das imagens e a tradução das falas. O texto original em inglês não fica no
+repositório; ele é lido da ROM. Para revisar a tradução, `love engine --dump-text out/falas.txt`
+despeja as falas originais (fora do git), com a chave `banco:endereço` de cada trecho.
 
 ## O que já funciona (protótipo)
 
@@ -42,8 +45,9 @@ direito voltam · Esc encerra o turno · N alterna nomes oficiais/originais.
   na BabyAlliance, com os bônus e o golpe aprendido de cada forma
 - **Golpes especiais e de cura** (tabela de golpes do original), também usados pelos inimigos
 - Chefes com MOV 0 ficam parados
-- **Nomes**: oficiais (com golpes em português) ou os originais do jogo, alternando com a tecla N
-  (a escolha fica salva); retrato da unidade no painel
+- **Nomes e falas**: em português (nomes oficiais, golpes, tipos, itens e lugares traduzidos e
+  **todas as falas da campanha traduzidas**, inclusive a introdução) ou como no jogo original,
+  alternando com a tecla N (a escolha fica salva); retrato da unidade no painel
 - **Eventos das fases**: casas, baús e centro de cura disparam as falas originais, com o retrato de
   quem fala; itens dos baús vão para o inventário; casas e baús valem uma vez por entrada na fase e
   três casas especiais (fases 8, 18 e 21) ensinam um golpe a certas espécies
@@ -68,7 +72,8 @@ src/game/progress.lua     nível, ganho de status, bônus e evolução (regra do
 src/game/campaign.lua     elenco, inventário, progresso e nó do mapa salvos (equivale à SRAM)
 src/game/world.lua        mapa-múndi: grafo, travas, cidades, Instituto, BabyAlliance
 src/game/teamselect.lua   escolha do time antes da luta
-src/game/messages.lua     falas: resolve os desvios condicionais (comando E2)
+src/game/messages.lua     falas: resolve os desvios condicionais (comando E2) e escolhe PT/original
+src/game/translation_pt.lua  tradução das falas (chave = banco:endereço do trecho na ROM)
 src/game/items.lua        itens e efeitos
 src/game/names.lua        nomes transcritos (oficiais/originais)
 src/game/battle.lua       estado da batalha, eventos, turnos e IA

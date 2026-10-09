@@ -7,7 +7,7 @@ local serialize = require("src.util.serialize")
 local at = Rom.at
 local Importer = {}
 
-Importer.CACHE_VERSION = 6
+Importer.CACHE_VERSION = 8
 local NSTAGES = 32
 local NSPECIES_TABLE = 20     -- espécies recrutáveis ($09:$4000, 20 bytes)
 local NCOST_ROWS = 76         -- linhas da tabela de custo ($09:$4190, 33 bytes)
@@ -281,7 +281,7 @@ local function decodeMessage(rom, bank, addr, cmdLen, speaker, depth)
   local o = at(bank, addr)
   local pages, cur = {}, { text = {}, speaker = speaker }
   local effects = {}
-  local out = { pages = pages, effects = effects }
+  local out = { pages = pages, effects = effects, key = ("%02X:%04X"):format(bank, addr) }
   local function flush()
     local t = table.concat(cur.text):gsub("^%s+", ""):gsub("%s+$", "")
     if t ~= "" then pages[#pages + 1] = { speaker = cur.speaker, text = t } end
@@ -332,16 +332,16 @@ local function decodeMessage(rom, bank, addr, cmdLen, speaker, depth)
 end
 
 -- Mensagens por nó do mapa-múndi: script = nó + $20 (fases 1-25, cidades 26-31 = $3A-$3F,
--- Instituto 32 = $40, BabyAlliance 33 = $41).
+-- Instituto 32 = $40, BabyAlliance 33 = $41). O "nó 0" é o script $20: a introdução da história.
 local function importMessages(rom)
   local cmdLen = {}
   for i = 0, 31 do cmdLen[0xE0 + i] = rom:u8(0x3427 + i * 4 + 2) end
   local out = {}
-  for node = 1, 33 do
+  for node = 0, 33 do
     local script = node + 0x20
     local p = rom:u16(at(0x5D, 0x4000) + script * 2)
     local msgs = {}
-    for idx = 0, node <= 25 and 40 or 12 do
+    for idx = 0, (node >= 1 and node <= 25) and 40 or 12 do
       local e = at(0x5D, p) + idx * 4
       local lo, hi, bank = rom:u8(e), rom:u8(e + 1), rom:u8(e + 2)
       local addr = lo + hi * 256

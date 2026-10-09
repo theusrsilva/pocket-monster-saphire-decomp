@@ -34,6 +34,10 @@ function World.new(data, campaign)
     log = {}, anim = nil,
   }, World)
   if not self.world.nodes[campaign.node or 0] then campaign.node = 0x20 end
+  if campaign.introSeen == false then             -- jogo novo: a introdução da história (script $20)
+    campaign.introSeen = true
+    self:showMessages(0, { 1, 2, 3, 4, 5 }, nil, function() campaign:save() end)
+  end
   return self
 end
 
@@ -182,7 +186,7 @@ function World:activate()
     local sp = self.world.townSpeakers[node] or {}
     local stage = node                       -- Palaestra: c007 = terreno - $20
     self:openMenu(Names.place_name(node), {
-      { label = "Palaestra" .. (self.campaign.cleared[stage] and "  (vencido)" or ""),
+      { label = (Names.mode == "oficial" and "Ginásio" or "Palaestra") .. (self.campaign.cleared[stage] and "  (vencido)" or ""),
         action = function() self:closeMenu(); self:enterStage(stage) end },
       { label = "Prefeito", action = function() self:showMessages(node, { 0 }, sp[1]) end },
       { label = "Morador", action = function() self:showMessages(node, { 1 }, sp[2]) end },

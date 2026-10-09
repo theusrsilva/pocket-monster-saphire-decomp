@@ -222,6 +222,15 @@ Names.keyItems = {
   [5] = { en = "Rainbow feather", pt = "Pena Arco-Íris" },
 }
 
+-- Tipos (Celerity, Equilibrium, Strength, Super Power, Defense; ciclo 1>2>3>4>5>1)
+Names.types = {
+  { en = "Celerity", pt = "Agilidade" },
+  { en = "Equilibrium", pt = "Equilíbrio" },
+  { en = "Strength", pt = "Força" },
+  { en = "SuperPower", pt = "Superpoder" },
+  { en = "Defense", pt = "Defesa" },
+}
+
 -- Modo de nomes: "oficial" (nomes oficiais + golpes em PT) ou "original" (como no jogo).
 Names.mode = "oficial"
 Names.MODES = { "oficial", "original" }
@@ -248,6 +257,12 @@ end
 function Names.key_item_name(id)
   local n = Names.keyItems[id]
   if not n then return ("Item-chave #%d"):format(id) end
+  return Names.mode == "oficial" and n.pt or n.en
+end
+
+function Names.type_name(t)
+  local n = Names.types[t]
+  if not n then return "?" end
   return Names.mode == "oficial" and n.pt or n.en
 end
 

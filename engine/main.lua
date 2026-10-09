@@ -11,6 +11,7 @@
 --   love engine --cheat-win 1                 (testes) vence a fase ao entrar
 --   love engine --cleared 5 --keys 2          (testes) fases 1-5 vencidas, itens-chave 0-1
 --   love engine --new-save 1                  (testes) começa do zero
+--   love engine --dump-text out/falas.txt     (tradução) despeja as falas originais (não vai pro git)
 -- Com qualquer opção de teste o progresso vai para save_test.lua, não para o save do jogador.
 local Importer = require("src.import.importer")
 local Battle = require("src.game.battle")
@@ -27,7 +28,10 @@ local function loadOptions()
   if ok and type(o) == "table" and o.names then Names.mode = o.names end
 end
 
+local testRun = false
+
 local function saveOptions()
+  if testRun then return end                   -- execuções de teste não mudam as preferências
   love.filesystem.write("options.lua", ("return { names = %q }"):format(Names.mode))
 end
 
@@ -159,9 +163,29 @@ function love.load(args)
   -- execuções de teste não mexem no save do jogador
   if opts["cheat-move"] or opts["cheat-win"] or opts.cleared or opts.keys or opts["new-save"] then
     Campaign.FILE = "save_test.lua"
+    testRun = true
     if opts["new-save"] then love.filesystem.remove(Campaign.FILE) end
   end
   data = Importer.load()
+  if opts["dump-text"] then                  -- desenvolvimento: texto original para traduzir (fora do git)
+    if not data then
+      assert(Importer.run(assert(readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc")))))
+      data = Importer.load()
+    end
+    local f = assert(io.open(opts["dump-text"], "w"))
+    for _, seg in ipairs(require("src.game.messages").segments(data)) do
+      f:write(("## %s  (%s)\n"):format(seg.key, seg.where))
+      for i, p in ipairs(seg.pages) do f:write(("%d [%s] %s\n"):format(i, p.speaker and ("%02X"):format(p.speaker) or "--", p.text)) end
+      for _, e in ipairs(seg.effects or {}) do
+        if e.item then f:write(("  > item %02X %s (pág %d)\n"):format(e.item, require("src.game.items").list[e.item].pt, e.page)) end
+        if e.recruit then f:write(("  > entra vaga %d: %s (pág %d)\n"):format(e.recruit, Names.species_name(data.species[e.recruit + 1].species), e.page)) end
+        if e.key then f:write(("  > item-chave %d (pág %d)\n"):format(e.key, e.page)) end
+      end
+    end
+    f:close()
+    love.event.quit(0)
+    return
+  end
   if opts.test ~= nil or hasFlag("--test") then
     if not data then
       local bytes = readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc"))

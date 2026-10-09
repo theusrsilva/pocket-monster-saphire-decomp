@@ -25,7 +25,7 @@ end
 function Campaign.new(data)
   local self = setmetatable({
     version = Campaign.VERSION, roster = {}, inventory = {}, keyItems = {}, cleared = {},
-    node = Campaign.START_NODE,
+    node = Campaign.START_NODE, introSeen = false,
   }, Campaign)
   for i, sp in ipairs(data.species) do
     local u = unitFromRecord(sp)

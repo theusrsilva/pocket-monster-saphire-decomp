@@ -34,6 +34,7 @@ correção de bugs e melhorias de usabilidade.
 - [x] Eventos e falas das fases (casas, baús, centro de cura), recompensas e recrutamento, campanha salva
 - [x] Mapa-múndi: grafo de nós do original, travas por fase vencida e por item-chave, cidades, Instituto e BabyAlliance (evolução)
 - [x] Escolha do time antes da luta (máximo = recrutados até 10, ordem das vagas)
+- [x] Tradução de todas as falas da campanha para o português (tecla N alterna PT/original)
 - [ ] IA original dos inimigos
 
 Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).

@@ -173,7 +173,7 @@ end
 
 function View.drawHud(b, s, ox, oy, camx, camy)
   local w, h = love.graphics.getDimensions()
-  local types = { "Celerity", "Equilibrium", "Strength", "SuperPower", "Defense" }
+  local types = setmetatable({}, { __index = function(_, t) return Names.type_name(t) end })
   love.graphics.setFont(View.font)
 
   -- turno / fase
@@ -283,7 +283,7 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   -- ajuda de controles
   love.graphics.setFont(View.small)
   love.graphics.setColor(1, 1, 1, 0.75)
-  local help = ("Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: nomes (%s)"):format(Names.mode)
+  local help = ("Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: nomes e falas (%s)"):format(Names.mode == "oficial" and "PT" or "original")
   love.graphics.printf(help, 0, h - 16, w - 10, "right")
   love.graphics.setFont(View.font)
 
@@ -458,8 +458,9 @@ function View.drawWorld(wd, data, campaign)
         (campaign.keyItems[k] or 0) ~= 0 and " (tem)" or "")
     end
   elseif kind == "town" then
-    info = "Cidade: Palaestra (treino, pode repetir), Prefeito e Morador"
-      .. (campaign.cleared[n] and "  -  Palaestra vencido" or "")
+    local g = Names.mode == "oficial" and "Ginásio" or "Palaestra"
+    info = ("Cidade: %s (treino, pode repetir), Prefeito e Morador"):format(g)
+      .. (campaign.cleared[n] and ("  -  %s vencido"):format(g) or "")
   elseif kind == "institute" then
     info = "Instituto do Doutor: vantagens de tipo e dicas"
   else
@@ -487,7 +488,7 @@ function View.drawWorld(wd, data, campaign)
   end
   love.graphics.setFont(View.small)
   love.graphics.setColor(1, 1, 1, 0.75)
-  love.graphics.printf(("Setas: andar   Z/Enter: entrar   X: voltar   N: nomes (%s)   Delete: novo jogo"):format(Names.mode),
+  love.graphics.printf(("Setas: andar   Z/Enter: entrar   X: voltar   N: nomes e falas (%s)   Delete: novo jogo"):format(Names.mode == "oficial" and "PT" or "original"),
     0, h - 18, w - 10, "right")
   love.graphics.setFont(View.font)
 end
@@ -496,12 +497,12 @@ end
 function View.drawTeam(ts, data)
   local w, h = love.graphics.getDimensions()
   love.graphics.clear(0.03, 0.08, 0.25)
-  local types = { "Celerity", "Equilibrium", "Strength", "SuperPower", "Defense" }
+  local types = setmetatable({}, { __index = function(_, t) return Names.type_name(t) end })
   love.graphics.setFont(View.big)
   love.graphics.setColor(1, 1, 1)
   local World = require("src.game.world")
   local title = ts.stage <= 25 and ("Fase %d - %s"):format(ts.stage, Names.place_name(ts.stage))
-    or ("Palaestra - %s"):format(Names.place_name(ts.stage))
+    or ("%s - %s"):format(Names.mode == "oficial" and "Ginásio" or "Palaestra", Names.place_name(ts.stage))
   love.graphics.print(title, 24, 14)
   love.graphics.setColor(1, 1, 0.5)
   love.graphics.printf(("Podem lutar: %02d/%02d"):format(ts:count(), ts.max), 0, 18, w - 24, "right")

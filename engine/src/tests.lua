@@ -147,6 +147,8 @@ function T.run(data)
   check("mapa: nó = terreno - $20", data.stages[0].terrain[22 * 32 + 5 + 1] == 0x21
     and W.nodes[1].x == 5 and W.nodes[1].y == 22)
   local cw = Campaign.new(data)
+  local wIntro = World.new(data, cw)
+  check("jogo novo mostra a introdução (script $20)", wIntro.mode == "dialog" and #wIntro.dialog.pages == 5)
   local wd = World.new(data, cw)
   check("mapa: jogo novo começa no Instituto", cw.node == 32)
   wd:move(World.UP); wd:move(World.UP)
@@ -159,9 +161,13 @@ function T.run(data)
   -- fala $22 da fase 9: E2 testa $C4F1 (Pedra da Lua) e escolhe o ramo
   local Messages = require("src.game.messages")
   local gate = data.messages[9][0x22]
+  local NamesE = require("src.game.names")
+  local me = NamesE.mode
+  NamesE.mode = "original"
   local without = Messages.resolve(gate, cw)
   cw.keyItems[0] = 1
   local with = Messages.resolve(gate, cw)
+  NamesE.mode = me
   check("fala com desvio E2 (item-chave)", gate.cond and gate.cond.addr == 0xC4F1
     and without.pages[1].text:find("MOONSTONE") ~= nil and with.pages[1].text ~= without.pages[1].text)
   check("peek: fase vencida grava o número da fase", cw:peek(0xC4F7) == 1 and cw:peek(0xC4F8) == 0)
@@ -213,6 +219,28 @@ function T.run(data)
   local b1 = Battle.new(data, 1, Campaign.new(data), {})
   local walker = { side = "ally", species = 1, name = "z", skills = {}, x = 3, y = 6, hp = 1, maxhp = 1 }
   check("terreno 16/17 não dispara evento", b1:triggerEvent(walker) == false)
+
+
+  -- 14) Tradução: todo trecho de fala da campanha tem tradução com o mesmo número de páginas
+  local Msg = require("src.game.messages")
+  local missing, wrong = {}, {}
+  for _, seg in ipairs(Msg.segments(data)) do
+    if #seg.pages > 0 then
+      local t = Msg.PT[seg.key]
+      if not t then missing[#missing + 1] = seg.key
+      elseif #t ~= #seg.pages then wrong[#wrong + 1] = ("%s(%d/%d)"):format(seg.key, #t, #seg.pages) end
+    end
+  end
+  check("tradução cobre todas as falas", #missing == 0 and #wrong == 0,
+    ("faltando {%s} páginas erradas {%s}"):format(table.concat(missing, " "), table.concat(wrong, " ")))
+  local NamesT = require("src.game.names")
+  local mt = NamesT.mode
+  NamesT.mode = "oficial"
+  local ptHeal = Msg.resolve(data.messages[1][15], Campaign.new(data))
+  NamesT.mode = "original"
+  local enHeal = Msg.resolve(data.messages[1][15], Campaign.new(data))
+  NamesT.mode = mt
+  check("tecla N alterna fala PT/original", ptHeal.pages[1].text:find("cuidar") ~= nil and enHeal.pages[1].text:find("CURE") ~= nil)
 
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0

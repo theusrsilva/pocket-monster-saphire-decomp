@@ -54,6 +54,12 @@ de robôs da própria Sintax (o cabeçalho ainda diz `ROBOT WAR v3.0`).
 * Texto em dois bancos: **$5D** (tudo MAIÚSCULO, ~715 referências) e **$70** (caixa mista,
   ~344 referências). Total ≈ 328 mensagens / 20 mil caracteres.
 * Extrator: `tools/extract_text.py`.
+* Scripts por número (`[$C2B0]`): **`$20`** = introdução da história (mensagens 1–5); **`$21`–`$39`** =
+  fases 1–25; **`$3A`–`$3F`** = cidades; **`$40`** = Instituto; **`$41`** = BabyAlliance. As tabelas de
+  ponteiros dos scripts se sobrepõem (a mensagem 35+ de um script é a 0+ do seguinte), por isso as
+  mensagens se repetem entre scripts: a fala da Equipe Rocket é a mensagem 0 da fase 25 e a 35 da 24.
+* Tradução: o motor identifica cada trecho de fala pelo endereço na ROM (`banco:endereço`, e cada ramo
+  de um `E2` é um trecho próprio). São 228 trechos distintos nas falas da campanha.
 
 ## Gráficos (2bpp, sem compressão até agora)
 

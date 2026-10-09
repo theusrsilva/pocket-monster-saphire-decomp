@@ -34,11 +34,11 @@ Items.list = {
   [0x0A] = { en = "Phoenix stone", pt = "Pedra da Fênix", desc = "ESQ +2", use = boost("eva", 2) },
   [0x0B] = { en = "Flight stone", pt = "Pedra do Voo", desc = "MOV +2 (máx. 15)", use = boost("move", 2, 15) },
   -- Badges ($C4EC-$C4F0): pedras de evolução, uma por tipo.
-  [0x0C] = { en = "Celerity badge", pt = "Insígnia Celerity", badge = 1 },
-  [0x0D] = { en = "Equilibrium badge", pt = "Insígnia Equilibrium", badge = 2 },
-  [0x0E] = { en = "Strength badge", pt = "Insígnia Strength", badge = 3 },
-  [0x0F] = { en = "Exceed badge", pt = "Insígnia SuperPower", badge = 4 },
-  [0x10] = { en = "Defense badge", pt = "Insígnia Defense", badge = 5 },
+  [0x0C] = { en = "Celerity badge", pt = "Insígnia da Agilidade", badge = 1 },
+  [0x0D] = { en = "Equilibrium badge", pt = "Insígnia do Equilíbrio", badge = 2 },
+  [0x0E] = { en = "Strength badge", pt = "Insígnia da Força", badge = 3 },
+  [0x0F] = { en = "Exceed badge", pt = "Insígnia do Superpoder", badge = 4 },
+  [0x10] = { en = "Defense badge", pt = "Insígnia da Defesa", badge = 5 },
 }
 
 function Items.name(id, mode)
