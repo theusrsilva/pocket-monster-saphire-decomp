@@ -15,7 +15,10 @@ correção de bugs e melhorias de usabilidade.
 - [x] Codificação do texto + tabela de comandos do script
 - [x] Extrator de texto (`tools/extract_text.py`)
 - [x] Dump de tiles de todos os bancos; retratos (banco F4) decodificados
-- [ ] Stats dos Pokémon, golpes, itens
+- [x] Tabela das 20 espécies recrutáveis (`tools/extract_species.py`)
+- [x] Jogo rodando headless (PyBoy) com controle por script e dump de RAM
+- [x] Mapa parcial da WRAM (unidades, status, buffers do mapa)
+- [ ] Golpes, itens, inimigos
 - [ ] Metasprites das animações de batalha
 - [ ] Formato dos mapas de fase e unidades
 - [ ] Paletas CGB

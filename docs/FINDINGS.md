@@ -70,10 +70,51 @@ de robôs da própria Sintax (o cabeçalho ainda diz `ROBOT WAR v3.0`).
 **Impacto na tradução:** muitos textos de UI, nomes de Pokémon, golpes e lugares são **imagens**,
 não strings. Para traduzir é preciso redesenhar esses tiles (ou, no remake, gerar com fonte).
 
+## Espécies recrutáveis (banco $09:$4000)
+
+20 registros de **20 bytes**, 4 por tipo (bate com "recrute até 20, quatro de cada tipo").
+Extrator: `tools/extract_species.py`. Confirmado contra a RAM do jogo rodando.
+
+| Off | Campo |
+|---|---|
+| +0 | nível da forma (1 = inicial; 5–35 = forma evoluída) |
+| +1 | id gráfico da espécie |
+| +2 | tipo: 1 Celerity, 2 Equilibrium, 3 Strength, 4 Super Power, 5 Defense |
+| +3 | SP (u16) |
+| +5 | HP (u16) |
+| +7/+8/+9 | ATK / DEF / SPD (hipótese para o 3º) |
+| +10 | movimento (9 Celerity, 8 Equilibrium, 6 Strength/SuperPower, 6–7 Defense) |
+| +11 | tipo contra o qual é forte; **ciclo 1>2>3>4>5>1** (igual ao tutorial do jogo) |
+| +12 | tipo contra o qual é fraco |
+| +13 | 1 = já vem no time inicial (6 espécies) |
+| +14/+15 | alcance de ataque mín/máx (Super Power: 2–3 ou 2–4) |
+| +16/+17 | ids de golpes especiais |
+
+Depois do registro 19 começa outra tabela (valores 02/03/63, provavelmente terreno).
+
+## Mapa da WRAM (confirmado rodando o jogo)
+
+| Endereço | Conteúdo |
+|---|---|
+| `$C800–$C83F` | paletas CGB do BG (BGR555) |
+| `$C900–$C91F` | bloco de status da unidade em foco: nível, espécie, HP/HPmax, SP/SPmax, ATK, DEF, SPD, MOV… |
+| `$D000–$D3FF` | buffer 32×32 de **atributos CGB** do mapa de batalha (paleta + flip) |
+| `$D400–$D7FF` | buffer 32×32 de **ids de tile** do mapa de batalha |
+| `$DE00–$DF7F` | elenco recrutado: até 24 registros de 16 bytes `[?, ?, nível, 0, espécie, tipo, SP u16, HP u16, …]` (os 2 primeiros bytes crescem de forma irregular: ponteiro/offset ainda não identificado) |
+| `$DF80–$DFDF` | time escalado para a luta: registros de 16 bytes `[nível, 0, espécie, tipo, SP u16, HP u16, …]` |
+| `$C2B0/$C2B1` | script e mensagem atuais do sistema de texto |
+
+## Emulação para pesquisa
+
+`tools/run_headless.py` + `tools/play.py` rodam a ROM no **PyBoy** sem janela
+(`pip install pyboy`). O `play.py` carrega um save state, aplica uma sequência de botões
+(`"up*2 wait60 a"`), salva o novo state, um screenshot e o dump da WRAM. Rota até a 1ª batalha:
+intro (≈40×A) → menu do Doctor Institute (B×6) → `up` (Ifleaf town) → A → "If leaf Palaestra" →
+escolher unidades com A/↓ → START.
+
 ## Próximos passos
 
-1. Achar as tabelas de stats dos Pokémon (20 recrutáveis + inimigos): procurar sequências
-   repetidas de registros de tamanho fixo perto dos nomes em F9.
+1. ~~Stats das espécies recrutáveis~~ ✅. Falta: inimigos de cada fase, golpes (ids em +16/+17), itens.
 2. Achar as tabelas de metasprite dos frames de batalha (90–B1): seguir no debugger a rotina que
    escreve na OAM ($FE00 / DMA) durante uma luta.
 3. Formato dos mapas de fase (C0–F1): metatiles + mapa + lista de unidades/baús/casas.
