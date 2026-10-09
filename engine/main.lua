@@ -15,6 +15,8 @@
 --   love engine --render-music out --ids "16 17" --secs 20   (som) despeja músicas em WAV
 --   love engine --audio-rate 11025            taxa do som (padrão 22050; 11025 no 3DS)
 -- Com qualquer opção de teste o progresso vai para save_test.lua, não para o save do jogador.
+local I18n = require("src.game.i18n")
+local T = I18n.T
 local Importer = require("src.import.importer")
 local Battle = require("src.game.battle")
 local View = require("src.ui.view")
@@ -29,19 +31,13 @@ local CONSOLE = love._console or love._console_name
 local dual = false
 local campaign, world, teamsel
 
--- Preferências do jogador (pasta de dados do LÖVE)
-local function loadOptions()
-  local ok, o = pcall(function() return love.filesystem.load("options.lua")() end)
-  if ok and type(o) == "table" and o.names then Names.mode = o.names end
-  if ok and type(o) == "table" and o.sound == false then Sound.enabled = false end
-end
+local Options = require("src.game.options")
+local Launcher = require("src.ui.launcher")
+local launcher, fromLauncher
 
 local testRun = false
 
-local function saveOptions()
-  if testRun then return end                   -- execuções de teste não mudam as preferências
-  love.filesystem.write("options.lua", ("return { names = %q, sound = %s }"):format(Names.mode, tostring(Sound.enabled)))
-end
+local function saveOptions() Options.save() end
 
 local state = "boot"
 local data, battle = nil, nil
@@ -69,6 +65,7 @@ local function parseArgs(args)
 end
 
 local function loadAssets()
+  assetsLoaded = true
   local assets = { stages = {} }
   for s = 0, 31 do
     assets.stages[s] = love.graphics.newImage(("generated/stage_%02d.png"):format(s))
@@ -129,7 +126,7 @@ function enterStage(i, team)
   if opts["cheat-move"] then                  -- só para testes: aliados andam muito
     for _, u in ipairs(battle.units) do if u.side == "ally" then u.move = 60 end end
   end
-  battle:say("Sua vez. Selecione um Pokémon.")
+  battle:say(T("Sua vez. Selecione um Pokémon."))
   state = "battle"
   if opts["cheat-win"] then                   -- só para testes: vence a fase na hora
     for _, u in ipairs(battle.units) do if u.side == "enemy" then u.hp = 0 end end
@@ -164,10 +161,41 @@ local function runScriptStep()
   scriptWait = 2
 end
 
+---------------------------------------------------------------- configuração (launcher)
+local fonts
+local assetsLoaded = false
+
+local function openLauncher(msg)
+  fonts = fonts or { font = love.graphics.newFont(15), small = love.graphics.newFont(12), big = love.graphics.newFont(24) }
+  launcher = Launcher.new({
+    hasData = function() return data ~= nil end,
+    romInfo = function()
+      if data then return T("ROM importada; o cache fica em ") .. love.filesystem.getSaveDirectory() end
+      return T("Nenhuma ROM importada ainda. Precisa ser a versão Fixed (SHA-1 9fa7da61...).")
+    end,
+    loadRom = function(path, file)
+      local bytes
+      if file then file:open("r"); bytes = file:read(); file:close() else bytes = readFile(path) end
+      if not bytes then return false, T("Não consegui abrir o arquivo: ") .. path end
+      fromLauncher = true
+      startImport(bytes)
+      return true, T("Importando...")
+    end,
+    play = function()
+      if not assetsLoaded then loadAssets() end
+      openWorld()
+    end,
+    quit = function() love.event.quit() end,
+  })
+  launcher.msg = msg
+  state = "launcher"
+end
+
 ---------------------------------------------------------------- callbacks
 function love.load(args)
   love.graphics.setDefaultFilter("nearest", "nearest")
-  loadOptions()
+  Options.load()
+  Options.apply()
   parseArgs(args or {})
   if opts.script or opts.shot then
     -- em execução automática, um erro encerra o processo em vez de parar na tela de erro
@@ -186,6 +214,7 @@ function love.load(args)
   if opts["cheat-move"] or opts["cheat-win"] or opts.cleared or opts.keys or opts["new-save"] then
     Campaign.FILE = "save_test.lua"
     testRun = true
+    Options.testRun = true
     if opts["new-save"] then love.filesystem.remove(Campaign.FILE) end
   end
   dual = opts.dual ~= nil or CONSOLE == "3DS"
@@ -284,6 +313,16 @@ function love.load(args)
     love.event.quit(ok and 0 or 1)
     return
   end
+  if Options.get("fullscreen") and not CONSOLE then pcall(love.window.setFullscreen, true) end
+  local automatic = opts.script or opts.shot or opts.stage or opts.node or testRun
+  if not CONSOLE and (opts.launcher or (not automatic and (Options.get("launcher") or not data))) then
+    openLauncher()
+    if not data and Options.get("romPath") ~= "" then
+      local bytes = readFile(Options.get("romPath"))
+      if bytes then fromLauncher = true; startImport(bytes) end
+    end
+    return
+  end
   if data then
     loadAssets()
     if opts.cleared then for i = 1, tonumber(opts.cleared) do campaign.cleared[i] = true end end
@@ -298,7 +337,12 @@ function love.load(args)
   end
 end
 
+function love.textinput(t)
+  if state == "launcher" then launcher:textinput(t) end
+end
+
 function love.filedropped(file)
+  if state == "launcher" then launcher:filedropped(file) return end
   file:open("r")
   local bytes = file:read()
   file:close()
@@ -315,14 +359,21 @@ function love.update(dt)
     local ok, res, err = coroutine.resume(importCo)
     if not ok then
       importErr, state = tostring(res), "needrom"
+      if fromLauncher then fromLauncher = false; openLauncher(T("Erro: ") .. importErr) end
     elseif coroutine.status(importCo) == "dead" then
       if res then
         data = Importer.load()
-        loadAssets()
-        openWorld()
-        if opts.stage then enterStage(tonumber(opts.stage)) end
+        if fromLauncher then
+          fromLauncher = false
+          openLauncher(T("ROM importada! Escolha Jogar."))
+        else
+          loadAssets()
+          openWorld()
+          if opts.stage then enterStage(tonumber(opts.stage)) end
+        end
       else
         importErr, state = err, "needrom"
+        if fromLauncher then fromLauncher = false; openLauncher(T("Erro: ") .. tostring(err)) end
       end
     end
   elseif state == "battle" then
@@ -331,7 +382,7 @@ function love.update(dt)
     world:update(dt)
   end
   if #script > 0 or scriptWait > 0 or opts.shot then
-    if state == "battle" or state == "world" or state == "team" then runScriptStep() end
+    if state == "battle" or state == "world" or state == "team" or state == "launcher" then runScriptStep() end
   end
 end
 
@@ -343,13 +394,17 @@ local KEY = {
 
 function love.keypressed(key)
   local k = KEY[key] or key
+  if state == "launcher" then launcher:keypressed(key) return end
+  if key == "f1" and not CONSOLE and (state == "world" or state == "team") then openLauncher() return end
   if key == "m" then
-    Sound.toggle()
+    Options.set("sound", not Options.get("sound"))
+    Options.apply()
     saveOptions()
     return
   end
   if key == "n" then
-    Names.cycle()
+    Options.set("lang", Options.get("lang") == "pt" and "en" or "pt")
+    Options.apply()
     saveOptions()
     if battle then battle:refreshNames() end
     return
@@ -449,11 +504,11 @@ local function drawMessage(w, h)
   love.graphics.setColor(1, 1, 1)
   local msg
   if state == "importing" then
-    msg = "Importando a ROM... " .. importMsg
+    msg = T("Importando a ROM... ") .. importMsg
   else
-    msg = CONSOLE and "Coloque a ROM (saphire.gbc) na pasta de dados do jogo e reinicie."
-      or "Arraste aqui a sua ROM do Pocket Monster Saphire (versão Fixed, .gbc)."
-    if importErr then msg = msg .. "\n\nErro: " .. importErr end
+    msg = CONSOLE and T("Coloque a ROM (saphire.gbc) na pasta de dados do jogo e reinicie.")
+      or T("Arraste aqui a sua ROM do Pocket Monster Saphire (versão Fixed, .gbc).")
+    if importErr then msg = msg .. T("\n\nErro: ") .. importErr end
   end
   love.graphics.printf(msg, 10, h / 2 - 30, w - 20, "center")
 end
@@ -499,6 +554,7 @@ function love.draw(screen)
     return
   end
   local w, h = love.graphics.getDimensions()
+  if state == "launcher" then launcher:draw(fonts) return end
   if state == "battle" then
     View.drawBattle(battle)
   elseif state == "world" then

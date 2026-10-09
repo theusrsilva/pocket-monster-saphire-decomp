@@ -4,6 +4,7 @@
 --   official = nome oficial do Pokémon (só quando confirmado pelo retrato; igual em PT-BR).
 --              Sem confirmação: $40, $43, $47, $48, $4A
 --   pt       = tradução dos golpes para português
+local I18n = require("src.game.i18n")
 local Names = {}
 
 Names.species = {
@@ -231,7 +232,8 @@ Names.types = {
   { en = "Defense", pt = "Defesa" },
 }
 
--- Modo de nomes: "oficial" (nomes oficiais + golpes em PT) ou "original" (como no jogo).
+-- Nomes das espécies: "oficial" (nomes oficiais) ou "original" (como no jogo).
+-- Golpes, lugares, tipos e itens seguem o idioma (I18n.lang: "pt" ou "en", como no jogo).
 Names.mode = "oficial"
 Names.MODES = { "oficial", "original" }
 
@@ -245,25 +247,25 @@ end
 function Names.skill_name(id)
   local n = Names.skills[id]
   if not n then return ("Golpe #%02X"):format(id) end
-  return Names.mode == "oficial" and n.pt or n.en
+  return I18n.lang == "pt" and n.pt or n.en
 end
 
 function Names.place_name(node)
   local n = Names.places[node]
   if not n then return ("Lugar #%02X"):format(node) end
-  return Names.mode == "oficial" and n.pt or n.en
+  return I18n.lang == "pt" and n.pt or n.en
 end
 
 function Names.key_item_name(id)
   local n = Names.keyItems[id]
   if not n then return ("Item-chave #%d"):format(id) end
-  return Names.mode == "oficial" and n.pt or n.en
+  return I18n.lang == "pt" and n.pt or n.en
 end
 
 function Names.type_name(t)
   local n = Names.types[t]
   if not n then return "?" end
-  return Names.mode == "oficial" and n.pt or n.en
+  return I18n.lang == "pt" and n.pt or n.en
 end
 
 function Names.cycle()

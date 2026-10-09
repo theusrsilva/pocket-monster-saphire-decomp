@@ -3,6 +3,8 @@
 --   entrar      $01:$547D  fase vencida não reabre; fases 9/11/16/19/24/25 pedem item-chave
 --   cidades     $01:$55A8  menu Palaestra / Prefeito / Morador (falas 0 e 1 do script da cidade)
 --   Instituto e BabyAlliance: menus próprios (estados de janela $18 e $19)
+local I18n = require("src.game.i18n")
+local T = I18n.T
 local Names = require("src.game.names")
 local Messages = require("src.game.messages")
 local Progress = require("src.game.progress")
@@ -179,7 +181,7 @@ function World:activate()
   local kind = World.kind(node)
   if kind == "stage" then
     if self.campaign.cleared[node] then
-      self:say(Names.place_name(node) .. ": fase já vencida")
+      self:say(Names.place_name(node) .. T(": fase já vencida"))
       return
     end
     local k = World.KEY_FOR_STAGE[node]
@@ -195,23 +197,23 @@ function World:activate()
     local sp = self.world.townSpeakers[node] or {}
     local stage = node                       -- Palaestra: c007 = terreno - $20
     self:openMenu(Names.place_name(node), {
-      { label = (Names.mode == "oficial" and "Ginásio" or "Palaestra") .. (self.campaign.cleared[stage] and "  (vencido)" or ""),
+      { label = T("Ginásio") .. (self.campaign.cleared[stage] and T("  (vencido)") or ""),
         action = function() self:closeMenu(); self:enterStage(stage) end },
-      { label = "Prefeito", action = function() self:showMessages(node, { 0 }, sp[1]) end },
-      { label = "Morador", action = function() self:showMessages(node, { 1 }, sp[2]) end },
+      { label = T("Prefeito"), action = function() self:showMessages(node, { 0 }, sp[1]) end },
+      { label = T("Morador"), action = function() self:showMessages(node, { 1 }, sp[2]) end },
     })
   elseif kind == "institute" then
     self:openMenu(Names.place_name(node), {
-      { label = "Vantagens de tipo", action = function()
+      { label = T("Vantagens de tipo"), action = function()
         self:showMessages(node, { 8 }, World.INSTITUTE_SPEAKER) end },
-      { label = "Dicas", action = function()
+      { label = T("Dicas"), action = function()
         self:showMessages(node, { 0, 1, 2, 3, 4, 5 }, World.INSTITUTE_SPEAKER) end },
     })
   elseif kind == "alliance" then
     self:openMenu(Names.place_name(node), {
-      { label = "Condições de evolução", action = function()
+      { label = T("Condições de evolução"), action = function()
         self:showMessages(node, { 0, 1, 2, 3 }, World.ALLIANCE_SPEAKER) end },
-      { label = "Evoluir", action = function() self:openEvolveMenu() end },
+      { label = T("Evoluir"), action = function() self:openEvolveMenu() end },
     })
   end
 end
@@ -245,8 +247,8 @@ function World:evolve(u)
   inv[b] = inv[b] - 1
   local old = Names.species_name(u.species)
   local learned = Progress.evolve(u, self.data.prog)
-  self:say(("%s evoluiu para %s!"):format(old, Names.species_name(u.species)))
-  if learned then self:say(("%s aprendeu %s"):format(Names.species_name(u.species), Names.skill_name(learned))) end
+  self:say((T("%s evoluiu para %s!")):format(old, Names.species_name(u.species)))
+  if learned then self:say((T("%s aprendeu %s")):format(Names.species_name(u.species), Names.skill_name(learned))) end
   self.campaign:save()
 end
 
@@ -256,16 +258,16 @@ function World:openEvolveMenu()
     local b = World.badgeFor(u)
     items[#items + 1] = {
       label = ("%s Nv %d -> %s   (%s x%d)"):format(Names.species_name(u.species), u.level,
-        Names.species_name(u.species + 1), Items.name(b, Names.mode), self.campaign.inventory[b]),
+        Names.species_name(u.species + 1), Items.name(b), self.campaign.inventory[b]),
       action = function() self:evolve(u); self:openEvolveMenu() end,
     }
   end
   if #items == 0 then
-    self:say("Ninguém pode evoluir: falta a insígnia do tipo")
+    self:say(T("Ninguém pode evoluir: falta a insígnia do tipo"))
     self:closeMenu()
     return
   end
-  self:openMenu("Evoluir (gasta a insígnia do tipo)", items)
+  self:openMenu(T("Evoluir (gasta a insígnia do tipo)"), items)
   self.menu.wide = true
   self.menu.back = function() self:closeMenu() end
 end

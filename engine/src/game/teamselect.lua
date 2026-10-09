@@ -5,6 +5,8 @@
 --   lutar   START vai para o botão "attack"; A nele só começa com pelo menos uma unidade marcada
 -- Na luta as marcadas ocupam as posições iniciais na ordem das vagas, não na ordem em que foram
 -- marcadas (conferido no PyBoy: BoBo marcado antes do Piku, Piku fica na posição 1).
+local I18n = require("src.game.i18n")
+local T = I18n.T
 local Sound = require("src.audio.sound")
 local TeamSelect = {}
 TeamSelect.__index = TeamSelect

@@ -41,9 +41,13 @@ Items.list = {
   [0x10] = { en = "Defense badge", pt = "Insígnia da Defesa", badge = 5 },
 }
 
-function Items.name(id, mode)
+function Items.name(id)
   local it = Items.list[id]
-  return mode == "original" and it.en or it.pt
+  return require("src.game.i18n").lang == "en" and it.en or it.pt
+end
+
+function Items.desc(id)
+  return require("src.game.i18n").T(Items.list[id].desc or "")
 end
 
 -- O item pode ser usado nesta unidade agora?

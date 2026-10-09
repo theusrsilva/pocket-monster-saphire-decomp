@@ -1,4 +1,6 @@
 -- Estado de uma batalha: unidades, turnos, cursor, menus, progressão e IA inimiga.
+local I18n = require("src.game.i18n")
+local T = I18n.T
 local Path = require("src.game.pathfind")
 local Combat = require("src.game.combat")
 local Progress = require("src.game.progress")
@@ -6,6 +8,7 @@ local Names = require("src.game.names")
 local Items = require("src.game.items")
 local Messages = require("src.game.messages")
 local Sound = require("src.audio.sound")
+local Options = require("src.game.options")
 local nameOf = Names.species_name
 
 local Battle = {}
@@ -205,7 +208,7 @@ function Battle:triggerEvent(u)
   if not heal and self.visited[t] then return false end
   if heal then
     u.hp, u.sp = u.maxhp, u.maxsp
-    self:say(u.name .. " foi curado")
+    self:say(u.name .. T(" foi curado"))
   else
     self.visited[t] = true
   end
@@ -220,8 +223,8 @@ function Battle:learnSpot(u)
   if not spot or not spot.species[u.species] or #u.skills >= 4 then return false end
   for _, id in ipairs(u.skills) do if id == spot.skill then return false end end
   u.skills[#u.skills + 1] = spot.skill
-  self:say(("%s aprendeu %s!"):format(u.name, Names.skill_name(spot.skill)))
-  self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = "GOLPE NOVO", t = 0, heal = true }
+  self:say((T("%s aprendeu %s!")):format(u.name, Names.skill_name(spot.skill)))
+  self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = T("GOLPE NOVO"), t = 0, heal = true }
   return false
 end
 
@@ -231,10 +234,10 @@ function Battle:showMessage(msg, onClose)
   for _, ef in ipairs(msg.effects) do
     if ef.item then
       self.inventory[ef.item] = (self.inventory[ef.item] or 0) + 1
-      self:say("Recebeu " .. Items.name(ef.item, Names.mode))
+      self:say(T("Recebeu ") .. Items.name(ef.item))
     elseif ef.recruit then
       local r = self.campaign:recruit(ef.recruit)
-      if r then self:say(nameOf(r.species) .. " entrou no time!") end
+      if r then self:say(nameOf(r.species) .. T(" entrou no time!")) end
     elseif ef.key then
       self.campaign.keyItems[ef.key] = ef.value
     end
@@ -268,16 +271,16 @@ end
 function Battle:openMenu(u)
   local items = {}
   if #self:targetsFrom(u, u.x, u.y) > 0 then
-    items[#items + 1] = { label = "Atacar", action = function() self:chooseTarget(u, nil) end }
+    items[#items + 1] = { label = T("Atacar"), action = function() self:chooseTarget(u, nil) end }
   end
   local skills = self:usableSkills(u)
   if #skills > 0 then
-    items[#items + 1] = { label = "Golpe", action = function() self:openSkillMenu(u, skills) end }
+    items[#items + 1] = { label = T("Golpe"), action = function() self:openSkillMenu(u, skills) end }
   end
   if #self:usableItems(u) > 0 then
-    items[#items + 1] = { label = "Item", action = function() self:openItemMenu(u) end }
+    items[#items + 1] = { label = T("Item"), action = function() self:openItemMenu(u) end }
   end
-  items[#items + 1] = { label = "Esperar", action = function() self:finishUnit(u) end }
+  items[#items + 1] = { label = T("Esperar"), action = function() self:finishUnit(u) end }
   self.menu = { items = items, index = 1, title = u.name }
   self.mode = "menu"
 end
@@ -289,7 +292,7 @@ function Battle:openSkillMenu(u, skills)
       or ("%s  +%d  %d SP  %d-%d"):format(Names.skill_name(s.id), s.power, s.cost, s.rmin, s.rmax)
     items[#items + 1] = { label = label, action = function() self:chooseTarget(u, s) end }
   end
-  self.menu = { items = items, index = 1, title = "Golpes", parent = u, wide = true, extraWide = true }
+  self.menu = { items = items, index = 1, title = T("Golpes"), parent = u, wide = true, extraWide = true }
 end
 
 function Battle:usableItems(u)
@@ -307,10 +310,10 @@ function Battle:openItemMenu(u)
   for _, id in ipairs(self:usableItems(u)) do
     local it = Items.list[id]
     items[#items + 1] = {
-      label = ("%s x%d  %s"):format(Items.name(id, Names.mode), self.inventory[id], it.desc),
+      label = ("%s x%d  %s"):format(Items.name(id), self.inventory[id], Items.desc(id)),
       action = function() self:useItem(u, id) end }
   end
-  self.menu = { items = items, index = 1, title = "Itens", parent = u, wide = true, extraWide = true }
+  self.menu = { items = items, index = 1, title = T("Itens"), parent = u, wide = true, extraWide = true }
 end
 
 -- As insígnias só são usadas na BabyAlliance ("Role evolve", $01:$5630), fora da luta.
@@ -319,8 +322,8 @@ function Battle:useItem(u, id)
   self.inventory[id] = self.inventory[id] - 1
   local it = Items.list[id]
   it.use(u)
-  self:say(("%s usou %s (%s)"):format(u.name, Items.name(id, Names.mode), it.desc))
-  self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = it.desc, t = 0, heal = true }
+  self:say((T("%s usou %s (%s)")):format(u.name, Items.name(id), Items.desc(id)))
+  self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = Items.desc(id), t = 0, heal = true }
   self:finishUnit(u)
 end
 
@@ -330,7 +333,7 @@ function Battle:cancel()
     self.mode, self.selected, self.reach = "cursor", nil, nil
   elseif self.mode == "menu" then
     if self.menu.parent then self:openMenu(self.menu.parent) return end
-    if self.noUndo then return end
+    if self.noUndo or not Options.get("undo") then return end
     local u = self.selected
     u.x, u.y = self.origin.x, self.origin.y
     self.cursor.x, self.cursor.y = u.x, u.y
@@ -372,7 +375,7 @@ function Battle:endPlayerTurn()
   if self.phase ~= "player" or self.result then return end
   self.mode, self.selected, self.reach, self.menu = "cursor", nil, nil, nil
   self.phase = "enemy"
-  self:say(("Turno %d: inimigos"):format(self.turn))
+  self:say((T("Turno %d: inimigos")):format(self.turn))
   -- o original percorre os inimigos da última vaga para a primeira ($B6C0 -> $B200)
   self.queue = {}
   local enemies = self:alive("enemy")
@@ -383,22 +386,22 @@ end
 ---------------------------------------------------------------- eventos, EXP e nível
 
 function Battle:announce(ev)
-  local who = (ev.counter and "Contra: " or "") .. ev.who.name
+  local who = (ev.counter and T("Contra: ") or "") .. ev.who.name
   local tag = ev.skill and (" [%s]"):format(Names.skill_name(ev.skill)) or ""
   if ev.heal then
-    self:say(("%s cura %d de %s%s"):format(ev.who.name, ev.heal, ev.target.name, tag))
+    self:say((T("%s cura %d de %s%s")):format(ev.who.name, ev.heal, ev.target.name, tag))
     self.popups[#self.popups + 1] = { x = ev.target.x, y = ev.target.y, text = "+" .. ev.heal, t = 0, heal = true }
     return
   end
   if not ev.hit then
-    self:say(("%s errou %s%s"):format(who, ev.target.name, tag))
-    self.popups[#self.popups + 1] = { x = ev.target.x, y = ev.target.y, text = "errou", t = 0 }
+    self:say((T("%s errou %s%s")):format(who, ev.target.name, tag))
+    self.popups[#self.popups + 1] = { x = ev.target.x, y = ev.target.y, text = T("errou"), t = 0 }
     return
   end
-  local adv = ev.mult > 1 and " (forte!)" or (ev.mult < 1 and " (fraco)" or "")
-  self:say(("%s causa %d em %s%s%s"):format(who, ev.dmg, ev.target.name, adv, tag))
+  local adv = ev.mult > 1 and T(" (forte!)") or (ev.mult < 1 and T(" (fraco)") or "")
+  self:say((T("%s causa %d em %s%s%s")):format(who, ev.dmg, ev.target.name, adv, tag))
   self.popups[#self.popups + 1] = { x = ev.target.x, y = ev.target.y, text = tostring(ev.dmg), t = 0 }
-  if ev.target.hp == 0 then self:say(ev.target.name .. " caiu!") end
+  if ev.target.hp == 0 then self:say(ev.target.name .. T(" caiu!")) end
   if ev.who.side == "ally" and ev.exp > 0 then self:grantExp(ev.who, ev.exp) end
 end
 
@@ -406,15 +409,15 @@ function Battle:grantExp(u, amount)
   -- Combat.strike já somou em u.exp; desfaz e passa pela regra de progressão.
   u.exp = u.exp - amount
   local ups = Progress.gainExp(u, amount, self.prog)
-  self:say(("%s ganhou %d EXP"):format(u.name, amount))
+  self:say((T("%s ganhou %d EXP")):format(u.name, amount))
   for _, d in ipairs(ups) do
-    self:say(("%s subiu para o nível %d! HP+%d SP+%d ATK+%d PRE+%d ESQ+%d"):format(
+    self:say((T("%s subiu para o nível %d! HP+%d SP+%d ATK+%d PRE+%d ESQ+%d")):format(
       u.name, u.level, d.hp, d.sp, d.atk, d.acc, d.eva))
-    self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = "NÍVEL " .. u.level, t = 0, heal = true }
+    self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = T("NÍVEL ") .. u.level, t = 0, heal = true }
     self.pending[#self.pending + 1] = u
   end
   if #ups == 0 and u.level >= (self.prog.maxLevel[u.species] or 99) and not self.prog.final[u.species] then
-    self:say(u.name .. " está no nível máximo da forma: precisa evoluir")
+    self:say(u.name .. T(" está no nível máximo da forma: precisa evoluir"))
   end
   self:openBonusIfPending()
 end
@@ -425,9 +428,9 @@ function Battle:openBonusIfPending()
   local u = self.pending[1]
   local items = {}
   for _, opt in ipairs(Progress.bonusOptions(self.prog, u)) do
-    items[#items + 1] = { label = ("%s +%d"):format(Progress.LABELS[opt.stat], opt.amount), action = function()
+    items[#items + 1] = { label = ("%s +%d"):format(T(Progress.LABELS[opt.stat]), opt.amount), action = function()
       Progress.applyBonus(u, opt)
-      self:say(("%s: %s +%d"):format(u.name, Progress.LABELS[opt.stat], opt.amount))
+      self:say(("%s: %s +%d"):format(u.name, T(Progress.LABELS[opt.stat]), opt.amount))
       table.remove(self.pending, 1)
       self.menu, self.mode = nil, "cursor"
       if #self.pending > 0 then self:openBonusIfPending()
@@ -436,7 +439,7 @@ function Battle:openBonusIfPending()
     end }
   end
   self.bonusUnit = u
-  self.menu = { items = items, index = 1, title = ("%s - nível %d: escolha um bônus"):format(u.name, u.level),
+  self.menu = { items = items, index = 1, title = (T("%s - nível %d: escolha um bônus")):format(u.name, u.level),
     center = true, wide = true }
   self.mode = "bonus"
 end
@@ -518,6 +521,12 @@ function Battle:aiDestination(stops, radius)
 end
 
 function Battle:enemyAct(e)
+  if Options.get("ai") == "melhorada" then
+    require("src.game.ai_plus").act(self, e)
+    self.cursor.x, self.cursor.y = e.x, e.y
+    self:checkEnd()
+    return
+  end
   local function attack(t)
     for _, ev in ipairs(Combat.attack(e, t, nil, true)) do self:announce(ev) end
   end
@@ -528,7 +537,8 @@ function Battle:enemyAct(e)
       e.sp = e.sp - s1.cost
       local amount = (self.data.ai and self.data.ai.heal[s1.id]) or s1.power
       local before = e.hp
-      e.hp = math.min(e.maxhp, e.hp + amount)    -- o original não limita ao HP máx. (bug); aqui limita
+      e.hp = e.hp + amount                       -- o original não limita ao HP máx. (bug)
+      if Options.get("fixHeal") then e.hp = math.min(e.maxhp, e.hp) end
       self:announce({ who = e, target = e, heal = e.hp - before, skill = s1.id })
     end
     self.cursor.x, self.cursor.y = e.x, e.y
@@ -573,11 +583,11 @@ function Battle:update(dt)
       while e and e.hp <= 0 do e = table.remove(self.queue, 1) end
       if e then
         self:enemyAct(e)
-        self.timer = 0.5
+        self.timer = Options.get("enemySpeed") == "rapida" and 0.15 or 0.5
       else
         self.phase, self.turn = "player", self.turn + 1
         for _, u in ipairs(self.units) do u.acted = false end
-        self:say(("Turno %d: sua vez"):format(self.turn))
+        self:say((T("Turno %d: sua vez")):format(self.turn))
         local first = self:alive("ally")[1]
         if first then self.cursor.x, self.cursor.y = first.x, first.y end
       end

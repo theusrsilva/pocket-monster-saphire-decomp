@@ -1,6 +1,8 @@
 -- Modo de duas telas (3DS via LÖVE Potion, ou --dual no PC para conferir):
 --   tela de cima (400x240): o mapa (View.drawBattle/drawWorld com mapOnly)
 --   tela de baixo (320x240): painéis compactos (unidade, prévia de ataque, menus, falas, registro)
+local I18n = require("src.game.i18n")
+local T = I18n.T
 local View = require("src.ui.view")
 local Names = require("src.game.names")
 local Combat = require("src.game.combat")
@@ -47,7 +49,7 @@ local function dialog(o)
     if line then love.graphics.print(line, tx, 12 + i * 18) end
   end
   love.graphics.setColor(1, 1, 0.5)
-  love.graphics.print((d.line + shown <= #lines or d.index < #d.pages) and "A: continuar" or "A: fechar", 236, 182)
+  love.graphics.print((d.line + shown <= #lines or d.index < #d.pages) and T("A: continuar") or T("A: fechar"), 236, 182)
 end
 
 local function menu(m)
@@ -89,19 +91,19 @@ local function unitInfo(u, y)
   end
   love.graphics.setFont(Dual.font)
   love.graphics.setColor(u.side == "ally" and { 0.5, 1, 0.6 } or { 1, 0.55, 0.5 })
-  love.graphics.print(("%s  Nv %d"):format(u.name or Names.species_name(u.species), u.level), 64, y + 6)
+  love.graphics.print((T("%s  Nv %d")):format(u.name or Names.species_name(u.species), u.level), 64, y + 6)
   love.graphics.setColor(0.85, 0.9, 1)
   love.graphics.print(Names.type_name(u.type), 230, y + 6)
   love.graphics.setColor(1, 1, 1)
   love.graphics.print(("HP %d/%d  SP %d/%d"):format(u.hp, u.maxhp, u.sp, u.maxsp), 64, y + 24)
-  love.graphics.print(("ATK %d PRE %d ESQ %d MOV %d"):format(u.atk, u.acc, u.eva, u.move), 64, y + 42)
+  love.graphics.print((T("ATK %d PRE %d ESQ %d MOV %d")):format(u.atk, u.acc, u.eva, u.move), 64, y + 42)
   love.graphics.setFont(Dual.tiny)
   love.graphics.setColor(0.8, 0.85, 1)
-  love.graphics.print(("forte: %s  fraco: %s  alcance %d-%d"):format(Names.type_name(u.strong), Names.type_name(u.weak),
+  love.graphics.print((T("forte: %s  fraco: %s  alcance %d-%d")):format(Names.type_name(u.strong), Names.type_name(u.weak),
     u.rmin, u.rmax), 10, y + 62)
   local sk = {}
   for _, id in ipairs(u.skills or {}) do sk[#sk + 1] = Names.skill_name(id) end
-  if #sk > 0 then love.graphics.printf("golpes: " .. table.concat(sk, ", "), 10, y + 76, 300) end
+  if #sk > 0 then love.graphics.printf(T("golpes: ") .. table.concat(sk, ", "), 10, y + 76, 300) end
 end
 
 function Dual.drawBattleBottom(b)
@@ -110,35 +112,35 @@ function Dual.drawBattleBottom(b)
   if b.result then
     love.graphics.setFont(Dual.font)
     love.graphics.setColor(1, 1, 0.5)
-    love.graphics.printf(b.result == "vitória" and "VITÓRIA!" or "DERROTA...", 0, 90, 320, "center")
+    love.graphics.printf(b.result == "vitória" and T("VITÓRIA!") or T("DERROTA..."), 0, 90, 320, "center")
     love.graphics.setColor(1, 1, 1)
-    love.graphics.printf("A: voltar ao mapa-múndi", 0, 120, 320, "center")
+    love.graphics.printf(T("A: voltar ao mapa-múndi"), 0, 120, 320, "center")
     return
   end
   if b.menu and (b.mode == "menu" or b.mode == "bonus") then
     menu(b.menu)
-  elseif b.mode == "target" then
+  elseif b.mode == "target" and require("src.game.options").get("preview") then
     local a, t, sk = b.selected, b.targets[b.targetIndex], b.action
     panel(4, 4, 312, 96)
     love.graphics.setFont(Dual.font)
     love.graphics.setColor(1, 1, 1)
     love.graphics.print(("%s -> %s"):format(a.name, t.name), 12, 10)
     if sk and sk.heal then
-      love.graphics.print(("Cura %d"):format(math.min(sk.power, t.maxhp - t.hp)), 12, 30)
+      love.graphics.print((T("Cura %d")):format(math.min(sk.power, t.maxhp - t.hp)), 12, 30)
     else
       local dmg = Combat.damage(a, t, sk and sk.power)
-      love.graphics.print(("Dano %d (HP %d -> %d)  Acerto %d%%"):format(dmg, t.hp, math.max(0, t.hp - dmg),
+      love.graphics.print((T("Dano %d (HP %d -> %d)  Acerto %d%%")):format(dmg, t.hp, math.max(0, t.hp - dmg),
         Combat.hitChance(a, t)), 12, 30)
       local c = t.hp - dmg > 0 and Combat.counterFor(a, t, sk)
-      love.graphics.print(c and ("Contra: %d  Acerto %d%%"):format(Combat.damage(t, a, c ~= "normal" and c.power or nil),
-        Combat.hitChance(t, a)) or "Sem contra-ataque", 12, 50)
+      love.graphics.print(c and (T("Contra: %d  Acerto %d%%")):format(Combat.damage(t, a, c ~= "normal" and c.power or nil),
+        Combat.hitChance(t, a)) or T("Sem contra-ataque"), 12, 50)
     end
   else
     local u = b:unitAt(b.cursor.x, b.cursor.y) or b.selected
     if u then unitInfo(u, 4) end
   end
   log(b.log, 190)
-  help("A confirma  B volta  START fim do turno")
+  help(T("A confirma  B volta  START fim do turno"))
 end
 
 function Dual.drawWorldBottom(wd, data, campaign)
@@ -157,31 +159,31 @@ function Dual.drawWorldBottom(wd, data, campaign)
     local kind = World.kind(n)
     local info
     if kind == "stage" then
-      info = ("Fase %d - %d inimigos - %s"):format(n, #data.stages[n].enemies, wd:stageStatus(n))
+      info = (T("Fase %d - %d inimigos - %s")):format(n, #data.stages[n].enemies, T(wd:stageStatus(n)))
       local k = World.KEY_FOR_STAGE[n]
-      if k then info = info .. "\nexige: " .. Names.key_item_name(k) end
-    elseif kind == "town" then info = "Cidade: Ginásio, Prefeito e Morador"
-    elseif kind == "institute" then info = "Vantagens de tipo e dicas"
-    else info = "Evolução com as insígnias" end
+      if k then info = info .. T("\nexige: ") .. Names.key_item_name(k) end
+    elseif kind == "town" then info = T("Cidade: Ginásio, Prefeito e Morador")
+    elseif kind == "institute" then info = T("Vantagens de tipo e dicas")
+    else info = T("Evolução com as insígnias") end
     love.graphics.printf(info, 12, 30, 296)
     local cleared = 0
     for i = 1, 25 do if campaign.cleared[i] then cleared = cleared + 1 end end
-    love.graphics.print(("Fases vencidas: %d/25"):format(cleared), 12, 90)
+    love.graphics.print((T("Fases vencidas: %d/25")):format(cleared), 12, 90)
     local team = {}
     for _, r in ipairs(campaign:recruited()) do team[#team + 1] = ("%s %d"):format(Names.species_name(r.species), r.level) end
     love.graphics.setFont(Dual.tiny)
     love.graphics.setColor(0.75, 0.85, 1)
-    love.graphics.printf("Time: " .. table.concat(team, ", "), 8, 120, 304)
+    love.graphics.printf(T("Time: ") .. table.concat(team, ", "), 8, 120, 304)
   end
   log(wd.log, 190)
-  help("Direcional anda  A entra  B volta")
+  help(T("Direcional anda  A entra  B volta"))
 end
 
 function Dual.drawTeamBottom(ts, data)
   bg()
   love.graphics.setFont(Dual.font)
   love.graphics.setColor(1, 1, 0.5)
-  love.graphics.print(("Podem lutar: %02d/%02d"):format(ts:count(), ts.max), 8, 4)
+  love.graphics.print((T("Podem lutar: %02d/%02d")):format(ts:count(), ts.max), 8, 4)
   local rowH, top, visible = 22, 24, 8
   local first = math.max(1, math.min(ts.cursor - 3, #ts.list - visible + 1))
   for i = first, math.min(#ts.list, first + visible - 1) do
@@ -194,12 +196,12 @@ function Dual.drawTeamBottom(ts, data)
     love.graphics.setColor(1, 1, 1)
     View.drawIndexed("units", View.quads[u.species % 256], data.stages[ts.stage].allyPal, 36, y + 2)
     love.graphics.setColor(sel and { 1, 1, 0.5 } or { 1, 1, 1 })
-    love.graphics.print(("%s  Nv %d  HP %d"):format(Names.species_name(u.species), u.level, u.maxhp), 58, y + 3)
+    love.graphics.print((T("%s  Nv %d  HP %d")):format(Names.species_name(u.species), u.level, u.maxhp), 58, y + 3)
   end
   panel(110, 204, 100, 20)
   love.graphics.setColor(ts.onButton and { 1, 1, 0.4 } or { 1, 1, 1 })
-  love.graphics.printf((ts.onButton and "> " or "") .. "Lutar!", 110, 207, 100, "center")
-  help("A marca  START Lutar  B volta")
+  love.graphics.printf((ts.onButton and "> " or "") .. T("Lutar!"), 110, 207, 100, "center")
+  help(T("A marca  START Lutar  B volta"))
 end
 
 -- Tela de cima da escolha do time: o mapa da fase com as posições iniciais.

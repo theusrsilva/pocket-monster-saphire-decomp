@@ -5,6 +5,25 @@ Recriação nativa do Pocket Monster Saphire em Lua/LÖVE 11.x, no modelo do
 primeira execução o importador lê a ROM do jogador, confere o SHA-1, gera o cache na pasta de dados
 do LÖVE (`~/.local/share/love/saphire-recomp/generated/` no Linux) e libera a ROM da memória.
 
+## Tela de configuração
+
+No PC o jogo abre numa tela de configuração (como o launcher do Gen1Recomp), que também abre com
+**F1** no mapa-múndi:
+
+- **ROM**: digite o caminho (Enter) ou arraste o `.gbc` na janela; ela é conferida (SHA-1) e
+  importada para o cache.
+- **Idioma**: português ou inglês (falas, menus, golpes, tipos, itens e lugares; em inglês as falas
+  são as do jogo). A tecla N também troca.
+- **Nomes dos Pokémon**: oficiais ou os do jogo (piku, BoBo...).
+- **Prévia de ataque**, **desfazer movimento**: melhorias que o original não tinha.
+- **IA dos inimigos**: a original (`$01:$6B95`) ou a melhorada (`src/game/ai_plus.lua`): usa o
+  alcance real e os golpes, prioriza quem pode derrubar e pesa o contra-ataque, cura aliados.
+- **Corrigir autocura do inimigo**: no original ela passa do HP máximo.
+- **Turno inimigo** normal/rápido, **som** (volume), **tela cheia**, **mostrar esta tela ao abrir**.
+- **Jogar** / **Gerar ROM traduzida** / **Sair**.
+
+As opções ficam em `options.lua` na pasta de dados (`src/game/options.lua`).
+
 ## Rodar
 
 ```sh
@@ -116,6 +135,10 @@ src/audio/apu.lua         síntese do APU (2 pulsos, onda, ruído)
 src/audio/sound.lua       som em tempo real (QueueableSource)
 src/import/music.lua      máquina mínima do driver + exportação em WAV (--render-music)
 src/ui/dual.lua           telas de baixo do modo de duas telas (3DS)
+src/ui/launcher.lua       tela de configuração (ROM e opções)
+src/game/options.lua      opções do jogador
+src/game/i18n.lua         textos da interface em inglês
+src/game/ai_plus.lua      IA melhorada (opcional)
 src/util/bit.lua          operações de bits (LuaJIT ou Lua puro)
 src/game/items.lua        itens e efeitos
 src/game/names.lua        nomes transcritos (oficiais/originais)

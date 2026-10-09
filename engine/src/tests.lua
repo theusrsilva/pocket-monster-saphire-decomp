@@ -94,9 +94,10 @@ function T.run(data)
   -- 7) Nomes (imagens dos bancos $F9 e $79, transcritas)
   local Names = require("src.game.names")
   local m = Names.mode
-  Names.mode = "original"
+  local I18nT = require("src.game.i18n")
+  Names.mode = "original"; I18nT.lang = "en"
   check("nome original", Names.species_name(0x10) == "littlecrocodile" and Names.skill_name(0x4A) == "100000 Volt")
-  Names.mode = "oficial"
+  Names.mode = "oficial"; I18nT.lang = "pt"
   check("nome oficial", Names.species_name(0x10) == "Totodile" and Names.skill_name(0x4A) == "100.000 Volts")
   check("sem oficial cai no original", Names.species_name(0x40) == "Qimoly")
   Names.mode = m
@@ -163,19 +164,19 @@ function T.run(data)
   local gate = data.messages[9][0x22]
   local NamesE = require("src.game.names")
   local me = NamesE.mode
-  NamesE.mode = "original"
+  require("src.game.i18n").lang = "en"
   local without = Messages.resolve(gate, cw)
   cw.keyItems[0] = 1
   local with = Messages.resolve(gate, cw)
-  NamesE.mode = me
+  require("src.game.i18n").lang = "pt"
   check("fala com desvio E2 (item-chave)", gate.cond and gate.cond.addr == 0xC4F1
     and without.pages[1].text:find("MOONSTONE") ~= nil and with.pages[1].text ~= without.pages[1].text)
   check("peek: fase vencida grava o número da fase", cw:peek(0xC4F7) == 1 and cw:peek(0xC4F8) == 0)
   local Names2 = require("src.game.names")
   local m2 = Names2.mode
-  Names2.mode = "original"
+  require("src.game.i18n").lang = "en"
   check("nome do lugar", Names2.place_name(1) == "ChangPanCity" and Names2.place_name(33) == "BabyAlliance")
-  Names2.mode = m2
+  require("src.game.i18n").lang = "pt"
   -- evolução só na BabyAlliance, gastando a insígnia do tipo
   local pk = cw.roster[0]
   cw.inventory[World.badgeFor(pk)] = 1
@@ -235,12 +236,13 @@ function T.run(data)
     ("faltando {%s} páginas erradas {%s}"):format(table.concat(missing, " "), table.concat(wrong, " ")))
   local NamesT = require("src.game.names")
   local mt = NamesT.mode
-  NamesT.mode = "oficial"
+  local I18nM = require("src.game.i18n")
+  I18nM.lang = "pt"
   local ptHeal = Msg.resolve(data.messages[1][15], Campaign.new(data))
-  NamesT.mode = "original"
+  I18nM.lang = "en"
   local enHeal = Msg.resolve(data.messages[1][15], Campaign.new(data))
-  NamesT.mode = mt
-  check("tecla N alterna fala PT/original", ptHeal.pages[1].text:find("cuidar") ~= nil and enHeal.pages[1].text:find("CURE") ~= nil)
+  I18nM.lang = "pt"
+  check("idioma alterna fala PT/original", ptHeal.pages[1].text:find("cuidar") ~= nil and enHeal.pages[1].text:find("CURE") ~= nil)
 
 
   -- 15) IA original ($01:$6B95), conferida no PyBoy na fase 1: Piku (vaga 0) em (26,11) e BoBo
@@ -336,6 +338,30 @@ function T.run(data)
   check("som: driver original ao vivo toca a abertura", okSnd and mm.writes > 50 and peak > 0.05,
     okSnd and ("%d escritas, pico %.2f"):format(mm.writes, peak) or tostring(mm))
   check("música de cada fase ($00:$2C85)", data.music.stage[0] == 0x16 and data.music.stage[1] == 0x17)
+
+
+  -- 19) Idioma da interface e IA melhorada (opções da tela de configuração)
+  local I18nU = require("src.game.i18n")
+  I18nU.lang = "en"
+  local enOk = I18nU.T("Atacar") == "Attack" and I18nU.T("Sua vez") == "Your turn"
+  I18nU.lang = "pt"
+  check("interface em inglês", enOk and I18nU.T("Atacar") == "Atacar")
+  local OptionsT = require("src.game.options")
+  local savedAi = OptionsT.get("ai")
+  OptionsT.set("ai", "melhorada")
+  local cp = Campaign.new(data)
+  local bp = Battle.new(data, 1, cp, { cp.roster[0], cp.roster[2] })
+  local weakA, strongA = bp:alive("ally")[1], bp:alive("ally")[2]
+  local foe
+  for _, u in ipairs(bp.units) do if u.enemySlot == 11 then foe = u end end
+  weakA.x, weakA.y, weakA.hp = foe.x + 2, foe.y, 1      -- alcançável e com 1 de HP
+  strongA.x, strongA.y = foe.x - 2, foe.y
+  local sr2 = Combat.random
+  Combat.random = function() return 99 end
+  bp:enemyAct(foe)
+  Combat.random = sr2
+  OptionsT.set("ai", savedAi)
+  check("IA melhorada derruba o alvo que pode derrubar", weakA.hp == 0)
 
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0

@@ -1,6 +1,6 @@
 -- Falas do script: resolve os desvios condicionais (comando E2) contra o estado da campanha e
 -- escolhe o texto original ou a tradução (src/game/translation_pt.lua).
-local Names = require("src.game.names")
+local I18n = require("src.game.i18n")
 
 local Messages = {}
 
@@ -8,9 +8,9 @@ local ok, PT = pcall(require, "src.game.translation_pt")
 Messages.PT = ok and PT or {}
 
 -- Texto da página n do trecho seg (chave "BB:AAAA" = banco:endereço do trecho na ROM).
--- No modo de nomes "oficial" as falas aparecem em português; no "original", como no jogo.
+-- Em português (I18n.lang = "pt") usa a tradução; em inglês, o texto original do jogo.
 function Messages.text(seg, n, original)
-  if Names.mode == "oficial" then
+  if I18n.lang == "pt" then
     local t = Messages.PT[seg]
     if t and t[n] then return t[n] end
   end
