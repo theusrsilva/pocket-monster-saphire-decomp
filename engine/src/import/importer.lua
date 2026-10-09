@@ -7,7 +7,7 @@ local serialize = require("src.util.serialize")
 local at = Rom.at
 local Importer = {}
 
-Importer.CACHE_VERSION = 3
+Importer.CACHE_VERSION = 4
 local NSTAGES = 32
 local NSPECIES_TABLE = 20     -- espécies recrutáveis ($09:$4000, 20 bytes)
 local NCOST_ROWS = 76         -- linhas da tabela de custo ($09:$4190, 33 bytes)
@@ -215,21 +215,26 @@ local function importUnitSprites(rom)
   return img
 end
 
--- Retratos 32x32 (banco $F4, 4x4 tiles row-major), também indexados.
+-- Retratos 32x32 (4x4 tiles row-major). Tabela [banco, 00, ptr u16] por espécie em $F4:$4000
+-- (mesmo esquema do carregador ROM0:$300B); ids $3E+ ficam no banco $F5. Imagem indexada.
+local NPORTRAITS = 0x4C
 local function importPortraits(rom)
-  local n = 64
-  local img = love.image.newImageData(32 * 8, 32 * (n / 8))
-  local base = at(0xF4, 0x4000)
-  for p = 0, n - 1 do
-    local ox, oy = (p % 8) * 32, math.floor(p / 8) * 32
-    for t = 0, 15 do
-      for y = 0, 7 do
-        local o = base + (p * 16 + t) * 16 + y * 2
-        local lo, hi = rom:u8(o), rom:u8(o + 1)
-        for x = 0, 7 do
-          local bit = 7 - x
-          local c = (math.floor(lo / 2 ^ bit) % 2) + 2 * (math.floor(hi / 2 ^ bit) % 2)
-          img:setPixel(ox + (t % 4) * 8 + x, oy + math.floor(t / 4) * 8 + y, c / 3, 0, 0, 1)
+  local img = love.image.newImageData(32 * 8, 32 * 10)
+  for p = 0, NPORTRAITS - 1 do
+    local e = at(0xF4, 0x4000) + p * 4
+    local bank, addr = rom:u8(e), rom:u16(e + 2)
+    if addr >= 0x4000 and addr < 0x8000 then
+      local base = at(bank, addr)
+      local ox, oy = (p % 8) * 32, math.floor(p / 8) * 32
+      for t = 0, 15 do
+        for y = 0, 7 do
+          local o = base + t * 16 + y * 2
+          local lo, hi = rom:u8(o), rom:u8(o + 1)
+          for x = 0, 7 do
+            local bit = 7 - x
+            local c = (math.floor(lo / 2 ^ bit) % 2) + 2 * (math.floor(hi / 2 ^ bit) % 2)
+            img:setPixel(ox + (t % 4) * 8 + x, oy + math.floor(t / 4) * 8 + y, c / 3, 0, 0, 1)
+          end
         end
       end
     end

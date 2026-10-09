@@ -2,7 +2,8 @@
 local Path = require("src.game.pathfind")
 local Combat = require("src.game.combat")
 local Progress = require("src.game.progress")
-local nameOf = require("src.game.names")
+local Names = require("src.game.names")
+local nameOf = Names.species_name
 
 local Battle = {}
 Battle.__index = Battle
@@ -48,6 +49,10 @@ function Battle.new(data, stageIndex)
   local first = self:alive("ally")[1]
   if first then self.cursor.x, self.cursor.y = first.x, first.y end
   return self
+end
+
+function Battle:refreshNames()
+  for _, u in ipairs(self.units) do u.name = nameOf(u.species) end
 end
 
 function Battle:skill(id)
@@ -196,11 +201,11 @@ end
 function Battle:openSkillMenu(u, skills)
   local items = {}
   for _, s in ipairs(skills) do
-    local label = s.heal and ("Cura #%02X  +%d HP  %d SP"):format(s.id, s.power, s.cost)
-      or ("Golpe #%02X  +%d  %d SP  %d-%d"):format(s.id, s.power, s.cost, s.rmin, s.rmax)
+    local label = s.heal and ("%s  +%d HP  %d SP"):format(Names.skill_name(s.id), s.power, s.cost)
+      or ("%s  +%d  %d SP  %d-%d"):format(Names.skill_name(s.id), s.power, s.cost, s.rmin, s.rmax)
     items[#items + 1] = { label = label, action = function() self:chooseTarget(u, s) end }
   end
-  self.menu = { items = items, index = 1, title = "Golpes", parent = u, wide = true }
+  self.menu = { items = items, index = 1, title = "Golpes", parent = u, wide = true, extraWide = true }
 end
 
 function Battle:evolve(u)
@@ -209,7 +214,7 @@ function Battle:evolve(u)
   local learned = Progress.evolve(u, self.prog)
   u.name = nameOf(u.species)
   self:say(("%s evoluiu para %s!"):format(old, u.name))
-  if learned then self:say(("%s aprendeu o golpe #%02X"):format(u.name, learned)) end
+  if learned then self:say(("%s aprendeu %s"):format(u.name, Names.skill_name(learned))) end
   self.popups[#self.popups + 1] = { x = u.x, y = u.y, text = "EVOLUIU!", t = 0 }
   -- evoluir não gasta a ação (melhoria/simplificação até existir o menu de itens)
   self:openMenu(u)
@@ -270,7 +275,7 @@ end
 
 function Battle:announce(ev)
   local who = (ev.counter and "Contra: " or "") .. ev.who.name
-  local tag = ev.skill and (" [golpe #%02X]"):format(ev.skill) or ""
+  local tag = ev.skill and (" [%s]"):format(Names.skill_name(ev.skill)) or ""
   if ev.heal then
     self:say(("%s cura %d de %s%s"):format(ev.who.name, ev.heal, ev.target.name, tag))
     self.popups[#self.popups + 1] = { x = ev.target.x, y = ev.target.y, text = "+" .. ev.heal, t = 0, heal = true }

@@ -15,7 +15,10 @@ love engine --test                  # roda os testes automáticos e sai
 ```
 
 Controles: setas/WASD movem o cursor · Z/Enter/Espaço ou clique confirmam · X/Backspace ou botão
-direito voltam · Esc encerra o turno.
+direito voltam · Esc encerra o turno · N alterna nomes oficiais/originais.
+
+`src/game/names.lua` é o único arquivo com conteúdo do jogo: os nomes transcritos das imagens
+(necessários para a tradução).
 
 ## O que já funciona (protótipo)
 
@@ -31,11 +34,13 @@ direito voltam · Esc encerra o turno.
 - **Evolução** com os bônus e o golpe aprendido de cada forma (pedras: 1 de cada tipo por batalha, provisório)
 - **Golpes especiais e de cura** (tabela de golpes do original), também usados pelos inimigos
 - Chefes com MOV 0 ficam parados
+- **Nomes**: oficiais (com golpes em português) ou os originais do jogo, alternando com a tecla N
+  (a escolha fica salva); retrato da unidade no painel
 - IA inimiga simples: escolhe entre ataque e golpe o que mais tira HP, cura aliados, senão avança
 
 ## Ainda não
 
-Itens e loja, eventos e falas das fases, escolha do time antes da luta, nomes dos golpes, campanha e mapa-múndi, som, nomes reais de todas as espécies e a IA original.
+Itens e loja, eventos e falas das fases, escolha do time antes da luta, campanha e mapa-múndi, som, paletas dos retratos e a IA original.
 
 ## Estrutura
 

@@ -1,6 +1,7 @@
 -- Desenho: mapa e unidades num canvas em baixa resolução (pixel art ampliado),
 -- textos e painéis desenhados na resolução da janela para ficarem nítidos.
 local Combat = require("src.game.combat")
+local Names = require("src.game.names")
 
 local View = {}
 View.W, View.H = 320, 180          -- resolução lógica do mapa (20 x 11 casas)
@@ -28,6 +29,13 @@ function View.init(assets)
   View.font = love.graphics.newFont(14)
   View.small = love.graphics.newFont(11)
   View.big = love.graphics.newFont(22)
+  View.GRAY = { { 0.97, 0.97, 0.92 }, { 0.68, 0.7, 0.75 }, { 0.38, 0.4, 0.48 }, { 0.08, 0.08, 0.12 } }
+  View.portraitQuads = {}
+  if assets.portraits then
+    for p = 1, 0x4B do
+      View.portraitQuads[p] = love.graphics.newQuad((p % 8) * 32, math.floor(p / 8) * 32, 32, 32, 256, 320)
+    end
+  end
   View.quads = {}
   for s = 0, 255 do
     View.quads[s] = love.graphics.newQuad((s % 16) * 16, math.floor(s / 16) * 16, 16, 16, 256, 256)
@@ -172,9 +180,18 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   -- unidade sob o cursor
   local u = b:unitAt(b.cursor.x, b.cursor.y) or b.selected
   if u then
-    local pw, ph = 300, 92
+    local pw, ph = 380, 92
     local px, py = 10, h - ph - 10
     panel(px, py, pw, ph)
+    local pi = u.species                           -- retrato da espécie (bancos $F4/$F5)
+    if View.assets.portraits and View.portraitQuads[pi] then
+      love.graphics.setShader(View.shader)
+      setPal(View.GRAY)
+      love.graphics.setColor(1, 1, 1)
+      love.graphics.draw(View.assets.portraits, View.portraitQuads[pi], px + 8, py + 10, 0, 2.25, 2.25)
+      love.graphics.setShader()
+    end
+    px = px + 80
     local tc = TYPE_COLORS[u.type] or { 1, 1, 1 }
     love.graphics.setColor(u.side == "ally" and { 0.5, 1, 0.6 } or { 1, 0.55, 0.5 })
     love.graphics.print(("%s  Nv %d"):format(u.name, u.level), px + 12, py + 8)
@@ -187,7 +204,7 @@ function View.drawHud(b, s, ox, oy, camx, camy)
     love.graphics.setFont(View.small)
     love.graphics.setColor(0.8, 0.85, 1)
     local sk = {}
-    for _, id in ipairs(u.skills or {}) do sk[#sk + 1] = ("#%02X"):format(id) end
+    for _, id in ipairs(u.skills or {}) do sk[#sk + 1] = Names.skill_name(id) end
     love.graphics.print(("forte: %s  fraco: %s%s"):format(types[u.strong] or "?", types[u.weak] or "?",
       #sk > 0 and ("  golpes: " .. table.concat(sk, " ")) or ""), px + 12, py + 72)
     love.graphics.setFont(View.font)
@@ -218,7 +235,7 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   -- menus (ação, golpes, bônus de nível)
   if b.menu and (b.mode == "menu" or b.mode == "bonus") then
     local m = b.menu
-    local mw = m.wide and 330 or 140
+    local mw = m.extraWide and 440 or (m.wide and 330 or 140)
     local mh = 12 + #m.items * 24 + (m.title and 26 or 0)
     local mx, my
     if m.center or not b.selected then
@@ -256,7 +273,7 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   -- ajuda de controles
   love.graphics.setFont(View.small)
   love.graphics.setColor(1, 1, 1, 0.75)
-  local help = "Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno"
+  local help = ("Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: nomes (%s)"):format(Names.mode)
   love.graphics.printf(help, 0, h - 16, w - 10, "right")
   love.graphics.setFont(View.font)
 

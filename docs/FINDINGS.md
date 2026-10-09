@@ -64,12 +64,28 @@ de robôs da própria Sintax (o cabeçalho ainda diz `ROBOT WAR v3.0`).
 | 90–B1 | frames de animação de batalha: tiles **deduplicados**, montados por tabelas de metasprite (provável índice em `$04:$4000`, entradas `[lo, hi, banco, 00]` apontando para os bancos 05/0C/0D/20/21/28/29) |
 | C0–F1, 64–6D | dados de fase: mapa, metatiles, tiles e paletas (ver **Fases**) |
 | FD | sprites 16×16 das unidades no mapa: `$FD:$4000 + espécie*64`, tiles TL TR BL BR |
-| **F4** | **retratos dos Pokémon, 4×4 tiles, row-major, sem compressão** ✅ |
-| F9 | nomes dos Pokémon pré-renderizados (fundo cinza) |
+| **F4/F5** | **retratos dos Pokémon**, 4×4 tiles, row-major; tabela de ponteiros por espécie no início de F4 (ver **Texto em imagem**) |
+| F9 | nomes das espécies como imagem, 7×2 tiles (ver **Texto em imagem**) |
 | FC | sobra de outro jogo (BOOMERANG, GRENADE, MEDI-KIT, PAUSED…) |
 
 **Impacto na tradução:** muitos textos de UI, nomes de Pokémon, golpes e lugares são **imagens**,
 não strings. Para traduzir é preciso redesenhar esses tiles (ou, no remake, gerar com fonte).
+
+## Texto em imagem (nomes, golpes, retratos)
+
+Carregador genérico em `ROM0:$300B`: no início do banco há uma tabela `[banco, 00, ptr u16]` por id
+(`BANCO:$4000 + id*4`), e a imagem é copiada por HDMA com tamanho fixo.
+
+| Banco | Conteúdo | Tamanho |
+|---|---|---|
+| `$F9` | nomes das espécies, id = espécie ($01–$4B) | 7×2 tiles (HDMA `$0D`) |
+| `$79` | nomes dos golpes, id = golpe ($01–$58) | 7×2 tiles |
+| `$F4` (→ `$F5`) | retratos, id = espécie ($01–$4B) | 4×4 tiles (HDMA `$0F`) |
+| `$7C` | lugares/itens (ainda não mapeado) | 18 tiles (HDMA `$11`) |
+
+Ferramenta: `tools/dump_textimages.py ROM banco largura altura primeiro último saída.png`.
+Os nomes foram transcritos em `engine/src/game/names.lua`, junto com o nome oficial do Pokémon
+(confirmado pelo retrato) e a tradução dos golpes para PT-BR.
 
 ## Espécies recrutáveis (banco $09:$4000)
 

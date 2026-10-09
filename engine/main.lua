@@ -9,6 +9,17 @@
 local Importer = require("src.import.importer")
 local Battle = require("src.game.battle")
 local View = require("src.ui.view")
+local Names = require("src.game.names")
+
+-- Preferências do jogador (pasta de dados do LÖVE)
+local function loadOptions()
+  local ok, o = pcall(function() return love.filesystem.load("options.lua")() end)
+  if ok and type(o) == "table" and o.names then Names.mode = o.names end
+end
+
+local function saveOptions()
+  love.filesystem.write("options.lua", ("return { names = %q }"):format(Names.mode))
+end
 
 local state = "boot"
 local data, battle, sel = nil, nil, 1
@@ -41,6 +52,7 @@ local function loadAssets()
     assets.stages[s] = love.graphics.newImage(("generated/stage_%02d.png"):format(s))
   end
   assets.units = love.graphics.newImage("generated/units.png")
+  assets.portraits = love.graphics.newImage("generated/portraits.png")
   View.init(assets)
 end
 
@@ -99,6 +111,7 @@ end
 ---------------------------------------------------------------- callbacks
 function love.load(args)
   love.graphics.setDefaultFilter("nearest", "nearest")
+  loadOptions()
   parseArgs(args or {})
   if opts.script then
     for tok in opts.script:gmatch("%S+") do
@@ -171,6 +184,12 @@ local KEY = {
 
 function love.keypressed(key)
   local k = KEY[key] or key
+  if key == "n" then
+    Names.cycle()
+    saveOptions()
+    if battle then battle:refreshNames() end
+    return
+  end
   if state == "select" then
     if k == "up" then sel = (sel - 2) % 31 + 1
     elseif k == "down" then sel = sel % 31 + 1

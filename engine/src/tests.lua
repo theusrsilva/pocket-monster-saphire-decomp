@@ -90,6 +90,16 @@ function T.run(data)
   local n = { atk = 30, type = 1, strong = 2, weak = 5 }
   check("dano com golpe = ATK + poder", Combat.damage(n, { type = 3 }, 60) == 90)
 
+  -- 7) Nomes (imagens dos bancos $F9 e $79, transcritas)
+  local Names = require("src.game.names")
+  local m = Names.mode
+  Names.mode = "original"
+  check("nome original", Names.species_name(0x10) == "littlecrocodile" and Names.skill_name(0x4A) == "100000 Volt")
+  Names.mode = "oficial"
+  check("nome oficial", Names.species_name(0x10) == "Totodile" and Names.skill_name(0x4A) == "100.000 Volts")
+  check("sem oficial cai no original", Names.species_name(0x40) == "Qimoly")
+  Names.mode = m
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end
