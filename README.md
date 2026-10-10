@@ -1,86 +1,116 @@
-# saphire-recomp
+# Pocket Monster Saphire — recomp
 
-Projeto de engenharia reversa e recriação de **Pocket Monster Saphire** (GBC, Sintax, 2003), um
-RPG de estratégia com Pokémon. A ideia segue o modelo do
-[Gen1Recomp](https://github.com/bryanthaboi/gen1recomp): entender os formatos de dados e as regras
-do jogo, extrair tudo da ROM **do próprio jogador** e reimplementar o motor (LÖVE2D) com tradução,
-correção de bugs e melhorias de usabilidade.
+Uma recriação de **Pocket Monster Saphire** (Game Boy Color, Sintax, 2003), o RPG de estratégia
+pirata com Pokémon, feita a partir da engenharia reversa do jogo original — no espírito do
+[Gen1Recomp](https://github.com/bryanthaboi/gen1recomp). O jogo roda num motor novo (LÖVE2D) que lê
+**a sua própria ROM**, com tradução para o português, correções e melhorias. A mesma ferramenta também
+gera uma **ROM traduzida** para jogar no Game Boy Color/Advance.
 
-> Este repositório não contém a ROM nem dados extraídos dela. Coloque a sua cópia em `rom/saphire.gbc`.
+> Este projeto não inclui a ROM nem nada extraído dela. Você precisa da sua cópia do jogo:
+> *Pocket Monster Saphire (Unlicensed, English) [Fixed]*, SHA-1
+> `9fa7da61c61d684f39e43d6899a68309ba8607b3`.
 
-## Estado
+## O que foi feito
 
-- [x] Cabeçalho, mapper e layout de bancos documentados
-- [x] Disassembly que remonta byte a byte idêntica (mgbdis + RGBDS)
-- [x] Codificação do texto + tabela de comandos do script
-- [x] Extrator de texto (`tools/extract_text.py`)
-- [x] Dump de tiles de todos os bancos; retratos (banco F4) decodificados
-- [x] Tabela das 20 espécies recrutáveis (`tools/extract_species.py`)
-- [x] Jogo rodando headless (PyBoy) com controle por script e dump de RAM
-- [x] Mapa parcial da WRAM (unidades, status, buffers do mapa)
-- [x] Inimigos de cada fase (stats completos)
-- [x] Golpes (nomes/efeitos), itens, eventos das fases
-- [x] Animações de batalha: o código original roda no motor (executor de GBC próprio), com som
-- [x] Layout de duas telas (3DS) e empacotamento para LÖVE Potion (`tools/package.sh` funde o jogo nos executáveis do LÖVE Potion; patch de uma linha para a música; não testado em hardware)
-- [x] Música e efeitos: o driver de som original roda ao vivo no motor (interpretador SM83 + APU)
-- [x] Formato das fases: 32 mapas renderizados da ROM, inimigos e posições iniciais (`tools/extract_stages.py`)
-- [x] Mapa da SRAM (elenco e inimigos, 64 bytes por unidade)
-- [x] Paletas CGB das fases e dos retratos
-- [x] Regra de movimento (custo por espécie × terreno), validada contra o jogo
-- [x] Fórmulas de acerto, dano e EXP tiradas do código original
-- [x] **Protótipo jogável em LÖVE2D** (`engine/`): importador em Lua, batalha por turnos, IA simples
-- [x] Subida de nível, evolução e golpes especiais/cura (tabelas do original, no motor)
-- [x] Nomes das espécies e dos golpes (transcritos das imagens), com nomes oficiais e tradução PT
-- [x] Itens e seus efeitos (inventário `$C4E0`), insígnias = pedras de evolução
-- [x] Loja: verificado que **não existe** no original (sem dinheiro no save; itens só de baús, casas e recompensas)
-- [x] Eventos e falas das fases (casas, baús, centro de cura), recompensas e recrutamento, campanha salva
-- [x] Mapa-múndi: grafo de nós do original, travas por fase vencida e por item-chave, cidades, Instituto e BabyAlliance (evolução)
-- [x] Escolha do time antes da luta (máximo = recrutados até 10, ordem das vagas)
-- [x] Tradução de todas as falas da campanha para o português (tecla N alterna PT/original)
-- [x] Tela de configuração no PC: ROM, idioma PT/EN (inclusive a interface), nomes, prévia, IA original/melhorada, correções
-- [x] IA original dos inimigos (`$01:$6B95`), conferida contra o jogo
-- [x] Conversor de ROM (tela de configuração): gera uma ROM de GBC/GBA com as falas em português
-  (acentos na fonte do jogo), nomes de golpes/espécies/lugares/itens redesenhados e a autocura do
-  inimigo corrigida
-- [x] Conversor de ROM: menus da unidade, do mapa, escolha do time, Instituto, BabyAlliance, cidades,
-  listas de itens, tipos, objetivo, avisos de turno e descrições de golpes/itens
-- [x] Conversor de ROM: tela de título, salvar/carregar; evolução e vitória conferidas (sem texto além dos nomes)
+- **O jogo inteiro roda no motor novo**: campanha com as 25 fases e os 6 ginásios, mapa-múndi com
+  as travas do original, cidades, Instituto e BabyAlliance (evolução), escolha do time, itens,
+  eventos das fases, recrutamento, subida de nível, golpes especiais e save.
+- **Regras tiradas do código original** e conferidas contra o jogo rodando em emulador: movimento,
+  acerto, dano, contra-ataque, EXP, evolução e a IA dos inimigos (veja
+  [`docs/FINDINGS.md`](docs/FINDINGS.md), com o endereço de cada regra).
+- **Música e efeitos originais**: o driver de som da ROM roda ao vivo dentro do motor.
+- **Animações de batalha originais**: a cena de ataque é o código do próprio jogo executado num
+  pequeno emulador de GBC embutido, com o resultado calculado pelo motor.
+- **Tradução completa para o português** (falas, menus, golpes, lugares e itens); dá para trocar
+  para o inglês original a qualquer momento.
+- **Conversor de ROM**: gera uma ROM de GBC já traduzida para jogar no emulador ou no cartucho.
 
-Detalhes técnicos em [`docs/FINDINGS.md`](docs/FINDINGS.md).
+## O que tem de novo em relação ao original
 
-## Downloads e releases
+| | Original | Recomp |
+|---|---|---|
+| Idioma | inglês "de bootleg" | português (com acentos) ou o inglês original, trocando com N |
+| Nomes dos Pokémon | "piku", "BoBo", "Dollysheep"... | nomes oficiais (Pichu, Pidgey, Mareep...) ou os do jogo |
+| Prévia do ataque | não tinha | dano, chance de acerto e contra-ataque antes de confirmar |
+| Desfazer movimento | não tinha | volta a unidade antes de agir |
+| IA dos inimigos | a original (só ataque normal, sem planejar) | original ou **melhorada** (usa golpes, foca quem pode derrubar, cura aliados) |
+| Bug da autocura do inimigo | passa do HP máximo | corrigido (opcional) |
+| Turno inimigo | ritmo fixo | normal ou rápido |
+| Tela | 160×144 | janela grande, tela cheia ou as duas telas do 3DS |
+| Animações de batalha | — | as originais, que podem ser puladas (A, B ou START) |
 
-Cada tag `v*` (por exemplo `git tag v0.1.0 && git push origin v0.1.0`) dispara
-`.github/workflows/release.yml`, que gera e publica no release:
+Na **ROM traduzida** (para GBC/GBA) entram: todas as falas em português, os nomes em imagem
+(golpes, Pokémon, lugares, itens, ginásios), os menus, a tela de título, as descrições de golpes e
+itens e a correção da autocura. As outras melhorias dependem do motor novo e ficam só nos executáveis.
 
-- Windows (`.zip` com `SaphireRecomp.exe`), Linux (`.AppImage`), macOS (`.app` em `.zip`, sem
-  assinatura) e `saphire-recomp.love`: `tools/build_desktop.sh`, que funde o jogo nos binários
-  oficiais do LÖVE 11.5;
-- Nintendo 3DS (`.3dsx`): compila o `lovebrew/lovepotion` (commit fixado) com
-  `tools/lovepotion-queueable.patch` e funde o jogo; se esse passo falhar, o release sai sem ele;
-- notas do release a partir dos commits desde a tag anterior (`tools/release_notes.sh`).
+## Como jogar
 
-Nenhum arquivo contém a ROM: o jogador escolhe a própria ROM na tela de configuração. Para jogar
-no Game Boy Color/Advance (emulador ou flashcart), a mesma tela tem **Gerar ROM traduzida**, que
-cria `Pocket Monster Saphire (PT-BR).gbc` ao lado da ROM original.
-"Run workflow" na aba Actions faz o build sem publicar.
+Baixe o arquivo da sua plataforma na página de
+[**Releases**](https://github.com/theusrsilva/pocket-monster-saphire-decomp/releases).
 
-## Jogar o protótipo
+### Windows
 
-Precisa do [LÖVE 11.x](https://love2d.org). Coloque a ROM em `rom/saphire.gbc` e rode `love engine`
-(ou arraste a ROM na janela). Detalhes em [`engine/README.md`](engine/README.md).
+1. Baixe `SaphireRecomp-<versão>-windows-x64.zip` e extraia a pasta.
+2. Abra `SaphireRecomp.exe`. Se o Windows avisar ("O Windows protegeu o computador"), clique em
+   **Mais informações → Executar assim mesmo** (o executável não é assinado).
+3. Na tela de configuração, em **ROM**, aperte Enter e digite o caminho do `.gbc` — ou arraste o
+   arquivo para a janela. A ROM é conferida e importada uma vez só.
+4. Escolha as opções e **Jogar**.
 
-## Ferramentas de pesquisa
+### Linux
+
+1. Baixe `SaphireRecomp-<versão>-linux-x86_64.AppImage`.
+2. Dê permissão de execução e abra:
+   ```sh
+   chmod +x SaphireRecomp-*-linux-x86_64.AppImage
+   ./SaphireRecomp-*-linux-x86_64.AppImage
+   ```
+3. Configure a ROM na tela de configuração (passos 3 e 4 do Windows).
+
+### macOS
+
+1. Baixe `SaphireRecomp-<versão>-macos.zip` e extraia o `SaphireRecomp.app`.
+2. Como o app não é assinado, abra com **clique direito → Abrir** na primeira vez (ou rode
+   `xattr -dr com.apple.quarantine SaphireRecomp.app` no Terminal).
+3. Configure a ROM na tela de configuração (passos 3 e 4 do Windows).
+
+### Nintendo 3DS
+
+1. Baixe `SaphireRecomp-<versão>-3ds.3dsx` e copie para a pasta `/3ds/` do cartão SD (precisa do
+   Homebrew Launcher).
+2. A importação da ROM é lenta no console: importe primeiro no PC (abrindo a versão de PC uma vez
+   com a sua ROM) e copie a pasta de dados `saphire-recomp` (com a subpasta `generated/`) para a
+   pasta de dados do LÖVE Potion no cartão SD.
+3. O mapa fica na tela de cima e os menus e falas na de baixo. A confirma, B volta, START encerra o
+   turno, X troca o idioma, Y liga/desliga o som. As animações de batalha ficam desligadas no
+   console. Ainda não foi testado em hardware.
+
+Pasta de dados no PC: `%APPDATA%\saphire-recomp` (Windows), `~/.local/share/saphire-recomp`
+(Linux) e `~/Library/Application Support/saphire-recomp` (macOS).
+
+### Game Boy Color / Game Boy Advance (ROM traduzida)
+
+1. Abra a versão de PC, configure a sua ROM e escolha **Gerar ROM traduzida (GBC/GBA)**.
+2. O arquivo `Pocket Monster Saphire (PT-BR).gbc` é criado ao lado da ROM original.
+3. Jogue num emulador de Game Boy Color (ou de GBA que rode jogos de GBC) ou grave num flashcart de
+   Game Boy. Ela foi conferida em emulador; ainda não em cartucho.
+
+### Pelo código-fonte
+
+Precisa do [LÖVE 11.x](https://love2d.org). Coloque a ROM em `rom/saphire.gbc` e rode:
 
 ```sh
-./tools/setup.sh                  # baixa mgbdis + RGBDS, gera disasm/ e confere o round-trip
-python3 tools/extract_text.py rom/saphire.gbc out/script.json out/script.txt
-python3 tools/dump_tiles.py   rom/saphire.gbc out/tiles
-python3 tools/extract_species.py rom/saphire.gbc out/species.json
-python3 tools/render_stage.py  rom/saphire.gbc all out/stages
-python3 tools/extract_stages.py rom/saphire.gbc out/stages.json out/stages
-python3 tools/probe_layout.py rom/saphire.gbc <offset_hex> <ntiles> out/probe.png
+love engine                      # abre a tela de configuração
+love engine --test               # testes contra valores do jogo original
+love engine --build-rom saida.gbc   # gera a ROM traduzida sem abrir a tela
 ```
 
-SHA-1 esperado da ROM (versão Fixed do Handheld Underground):
-`9fa7da61c61d684f39e43d6899a68309ba8607b3`
+Teclado: setas movem, Z/Enter confirma, X volta, Esc encerra o turno, N troca o idioma, M liga/desliga
+o som, F1 abre a configuração. Mais detalhes em [`engine/README.md`](engine/README.md).
+
+## Para quem quer contribuir
+
+- [`docs/PROJETO.md`](docs/PROJETO.md): estado técnico, checklist da engenharia reversa,
+  ferramentas de pesquisa e como os releases são gerados.
+- [`docs/FINDINGS.md`](docs/FINDINGS.md): tudo o que já foi descoberto sobre a ROM.
+- [`engine/README.md`](engine/README.md): o motor (estrutura, opções, console).

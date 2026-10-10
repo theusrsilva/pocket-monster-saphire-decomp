@@ -6,7 +6,7 @@ usuário em **português**.
 
 ## Antes de tudo
 
-1. Leia `README.md`, `docs/FINDINGS.md` (tudo o que já foi descoberto da ROM) e `engine/README.md`.
+1. Leia `README.md`, `docs/PROJETO.md` (checklist técnico), `docs/FINDINGS.md` (tudo o que já foi descoberto da ROM) e `engine/README.md`.
 2. A ROM **não está no repo**. Ela deve ficar em `rom/saphire.gbc`
    (SHA-1 `9fa7da61c61d684f39e43d6899a68309ba8607b3`). Se não estiver lá, peça ao usuário para anexar
    o arquivo `.gbc` (Pocket Monster Saphire, Unlicensed, English, [Fixed]).
@@ -40,5 +40,6 @@ um erro encerra o processo (exit 1) em vez de travar.
 - Toda regra de jogo implementada deve vir do código/tabelas do original e ficar documentada em
   `docs/FINDINGS.md` com o endereço; suposições ficam marcadas como **SUPOSIÇÃO** no código.
 - Cada mecânica nova ganha teste em `engine/src/tests.lua` com valores observados no jogo original.
-- Atualize `README.md` (checklist) e `engine/README.md` junto com o código.
+- Atualize `docs/PROJETO.md` (checklist), `README.md` (novidades e como jogar) e `engine/README.md`
+  junto com o código.
 - Commits em português, com autor `theusrsilva <theusrsilva@gmail.com>`, e push para `main`.
