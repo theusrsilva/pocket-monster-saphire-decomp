@@ -38,6 +38,7 @@ function Sound.init(stageMusic, rate)
   if not (love.audio and love.sound) then return false end
   local ok, err = pcall(function()
     local bin = assert(love.filesystem.read("generated/sound.bin"))
+    Sound.bin = bin
     Sound.m = Music.machine(Sound.shim(bin), Sound.RATE)
     Sound.src = love.audio.newQueueableSource(Sound.RATE, 16, 2, 4)
     Sound.data = love.sound.newSoundData(Sound.BUF, Sound.RATE, 16, 2)
@@ -54,13 +55,28 @@ Sound.musicOn = true
 function Sound.music(id)
   if not Sound.m or Sound.current == id then return end
   Sound.current = id
-  Sound.m.mem[0xFFF7] = Sound.musicOn and id or Sound.STOP
+  if Sound.musicOn then Sound.m.mem[0xFFF7] = id end     -- desligada: só guarda o pedido
 end
 
+-- Desligar a música vale na hora: o pedido de parar ($21) do driver original não corta a música
+-- (ela segue tocando por segundos), então o driver é recriado do zero (~8 ms) e o áudio já gerado
+-- na fila é descartado. Os efeitos continuam no driver novo.
 function Sound.setMusic(on)
   if Sound.musicOn == on then return end
   Sound.musicOn = on
-  if Sound.m and Sound.current then Sound.m.mem[0xFFF7] = on and Sound.current or Sound.STOP end
+  if not Sound.m then return end
+  if on then
+    if Sound.current then Sound.m.mem[0xFFF7] = Sound.current end
+    return
+  end
+  local ok, m = pcall(Music.machine, Sound.shim(Sound.bin), Sound.RATE)
+  if ok then
+    Sound.m = m
+    Sound.L, Sound.R, Sound.acc = {}, {}, 0
+    if Sound.src then Sound.src:stop() end         -- descarta os buffers na fila
+  elseif Sound.current then
+    Sound.m.mem[0xFFF7] = Sound.STOP
+  end
 end
 
 function Sound.stageMusic_(stage)

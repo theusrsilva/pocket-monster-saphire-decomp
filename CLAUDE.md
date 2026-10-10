@@ -29,7 +29,7 @@ xvfb-run -a love engine --stage 2 --script "wait20 z right*3 z" --shot out/x.png
 #   --attack-demo 1 [--enemy 1 | --skill 0C] --anims 1 (cena de ataque original ao entrar na fase)
 #   --emu-snap DIR [--trace arq | --scene 1 --out DIR] (executor GBC; --scene: original × src/anim lado a lado)
 #   --opening 1 (abertura e título mesmo com --script)
-#   --dev-screen bonus|skills|goods|dialog (abre a tela na fase, para conferir)
+#   --dev-screen bonus|skills|goods|dialog|target (abre a tela na fase, para conferir)
 #   --dual 1 (layout de duas telas do 3DS)   --noshader 1   --render-music out --ids "16"
 ```
 

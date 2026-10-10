@@ -176,6 +176,22 @@ function View.drawBattle(b, mapOnly)
     drawCells(atk, cols, 1, 0.25, 0.25, 0.35)
   end
   if b.previewReach then drawCells(b.previewReach, cols, 1, 0.5, 0.2, 0.35) end
+  -- escolhendo o alvo do ataque/golpe: casas ao alcance em laranja, como no original
+  if b.mode == "target" and b.selected then
+    local u = b.selected
+    local rmin, rmax = require("src.game.combat").actionRange(u, b.action)
+    local area = {}
+    for dy = -rmax, rmax do
+      for dx = -rmax, rmax do
+        local d = math.abs(dx) + math.abs(dy)
+        local tx, ty = u.x + dx, u.y + dy
+        if d >= rmin and d <= rmax and tx >= 0 and ty >= 0 and tx < cols and ty < st.rows then
+          area[ty * cols + tx] = true
+        end
+      end
+    end
+    drawCells(area, cols, 1, 0.5, 0, 0.6)
+  end
 
   -- unidades
   for _, u in ipairs(b.units) do

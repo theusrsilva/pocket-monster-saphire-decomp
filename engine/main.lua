@@ -193,6 +193,11 @@ function enterStage(i, team)
       battle.selected = u
       battle:openGoodsList(u, 0)
       battle.mode = "menu"
+    elseif dev == "target" then                -- encosta no 1º inimigo e escolhe o alvo do ataque
+      local e = battle:alive("enemy")[1]
+      u.x, u.y = e.x, e.y + 1
+      battle.selected = u
+      battle:chooseTarget(u, nil)
     elseif dev == "dialog" then
       local list = data.messages[1] or {}
       local m
@@ -233,6 +238,12 @@ local function runScriptStep()
   if cx then
     love.mousemoved(tonumber(cx), tonumber(cy))
     love.mousepressed(tonumber(cx), tonumber(cy), tonumber(cb) or 1)
+    scriptWait = 2
+    return
+  end
+  local hx, hy = tok:match("^hover:(%d+),(%d+)$")                  -- mouse parado sobre um ponto (testes)
+  if hx then
+    love.mousemoved(tonumber(hx), tonumber(hy), 0, 0, false)
     scriptWait = 2
     return
   end
@@ -743,7 +754,17 @@ function love.mousemoved(mx, my, _, _, istouch)
   if state == "launcher" then launcher:mousemoved(mx, my) return end
   if dual then return end
   local hit = View.hitAt(mx, my)
-  if hit and hit.hover then hit.hover() end
+  if hit and hit.hover then hit.hover() return end
+  -- na batalha, o cursor do mapa acompanha o mouse: o painel mostra a unidade sob o ponteiro e
+  -- some numa casa vazia (senão ficava o da última unidade clicada)
+  local b = battle
+  if state == "battle" and b and b.cam and not scene and not hit and not b.result and b.phase == "player"
+      and (b.mode == "cursor" or b.mode == "move") and not istouch and not Toolbar.hit(mx, my) then
+    local x, y = View.cellAt(b, mx, my)
+    if x >= 0 and y >= 0 and x < b.stage.cols and y < b.stage.rows then
+      b.cursor.x, b.cursor.y = x, y
+    end
+  end
 end
 
 function love.wheelmoved(_, dy)

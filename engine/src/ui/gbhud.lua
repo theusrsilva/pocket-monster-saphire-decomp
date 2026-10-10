@@ -69,18 +69,19 @@ local function drawScreen(g, vx, vy, s)
 end
 
 -- Cursor e itens do menu: posições que o script grava ($C0B2 + 2i = y, $C0B3 + 2i = x + 8; a
--- pokébola de 16x16 fica em (x, y), conferido na OAM do PyBoy). A linha do texto é a linha de
--- tiles no meio da pokébola.
-local function drawMenu(g, menu, vx, vy, s, rowW)
+-- pokébola de 16x16 fica em (x, y), conferido na OAM do PyBoy). O texto da opção começa na mesma
+-- linha da pokébola (y), a partir de x + 11: rowW x rowH pixels (golpes: duas linhas).
+local BOX = { 16 / 255, 107 / 255, 1 }       -- azul do fundo das caixas
+local function drawMenu(g, menu, vx, vy, s, rowW, rowH)
   local M = g.m.M
   for i, it in ipairs(menu.items) do
     local y, x = M[0xC0B2 + (i - 1) * 2], M[0xC0B3 + (i - 1) * 2] - 8
-    local rowY = g.wy + 8 * math.floor((y + 8 - g.wy) / 8)
-    local rx, ry = vx + (x + 13) * s, vy + rowY * s
-    local rw = ((rowW or 40) - 5) * s
-    if it.disabled then
-      love.graphics.setColor(0.02, 0.05, 0.25, 0.55)
-      love.graphics.rectangle("fill", rx, ry, rw, 8 * s)
+    local rx, ry = vx + (x + 11) * s, vy + y * s
+    local right = g.wx + (g.cols - 1) * 8          -- até a borda de dentro da caixa
+    local rw = math.max(8, math.min(rowW or 40, right - (x + 11))) * s
+    if it.disabled then                            -- opção indisponível: texto esmaecido
+      love.graphics.setColor(BOX[1], BOX[2], BOX[3], 0.6)
+      love.graphics.rectangle("fill", rx, ry, rw, (rowH or 10) * s)
     end
     clickable(vx + x * s, vy + y * s, rw + 16 * s, 16 * s,
       function() menu.index = i; press("z") end, function() menu.index = i end)
@@ -136,7 +137,7 @@ function GBHud.draw(b, w, h, s)
       g.textKey = menu.index
     end
     drawScreen(g, vx, vy, s)
-    drawMenu(g, menu, vx, vy, s, 64)
+    drawMenu(g, menu, vx, vy, s, 64, 17)
   elseif menu and menu.kind == "endturn" then
     local g = GBHud.screen(b, "menu", GBUI.END_TURN, {})
     drawScreen(g, vx, vy, s)
