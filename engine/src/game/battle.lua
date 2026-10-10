@@ -132,6 +132,7 @@ end
 function Battle:moveCursor(dx, dy)
   if self.mode == "target" then
     local t = self.targets
+    if #t == 0 then return end
     self.targetIndex = (self.targetIndex + (dx + dy) - 1) % #t + 1
     self.cursor.x, self.cursor.y = t[self.targetIndex].x, t[self.targetIndex].y
     return
@@ -145,7 +146,7 @@ function Battle:confirm()
   if self.result or self.mode == "dialog" then return end
   if self.mode == "bonus" or self.mode == "menu" then
     local it = self.menu.items[self.menu.index]
-    if it.disabled then return end
+    if it.disabled and not it.open then return end
     it.action()
     return
   end
@@ -180,6 +181,7 @@ function Battle:confirm()
     end
   elseif self.mode == "target" then
     local u, t, s = self.selected, self.targets[self.targetIndex], self.action
+    if not t then return end                  -- nada ao alcance: só B volta
     if s and s.heal then
       for _, ev in ipairs(Combat.heal(u, t, s)) do self:announce(ev) end
     else
@@ -269,23 +271,27 @@ function Battle:advanceDialog(linesShown, totalLines)
   end
 end
 
+-- Sem alvo ao alcance, o modo de alvo abre do mesmo jeito (só mostra o alcance em laranja); B volta.
 function Battle:chooseTarget(u, skill)
   local targets = self:targetsFrom(u, u.x, u.y, skill)
-  self.action, self.targets, self.targetIndex = skill, targets, 1
-  self.cursor.x, self.cursor.y = targets[1].x, targets[1].y
+  self.action, self.targets, self.targetIndex = skill, targets, #targets > 0 and 1 or 0
+  local t = targets[1] or u
+  self.cursor.x, self.cursor.y = t.x, t.y
   self.mode = "target"
+  if #targets == 0 then self:say(T("Nenhum alvo ao alcance.")) end
 end
 
 -- Menu de ação como no original ($BD:$40F0): sempre as cinco opções, as que não dão para usar
--- ficam apagadas (Atacar sem alvo, Golpe sem SP/alvo, Itens sem item usável).
+-- ficam apagadas (Atacar sem alvo, Skill sem SP/alvo, Itens sem item usável), mas Atacar, Skill e
+-- Itens ainda abrem (open): mostram o alcance, os golpes ou os itens e por que não dá para usar.
 function Battle:openMenu(u)
   local hasTarget = #self:targetsFrom(u, u.x, u.y) > 0
   local items = {
-    { id = "attack", label = T("Atacar"), disabled = not hasTarget,
+    { id = "attack", label = T("Atacar"), disabled = not hasTarget, open = true,
       action = function() self:chooseTarget(u, nil) end },
-    { id = "skill", label = T("Golpe"), disabled = #self:usableSkills(u) == 0,
+    { id = "skill", label = T("Skill"), disabled = #self:usableSkills(u) == 0, open = true,
       action = function() self:openSkillMenu(u) end },
-    { id = "goods", label = T("Itens"), disabled = #self:usableItems(u) == 0,
+    { id = "goods", label = T("Itens"), disabled = #self:usableItems(u) == 0, open = true,
       action = function() self:openGoodsMenu(u) end },
     { id = "state", label = T("Estado"), action = function() self:openStateView(u) end },
     { id = "rest", label = T("Esperar"), action = function() self:finishUnit(u) end },
@@ -324,8 +330,8 @@ function Battle:openGoodsMenu(u)
     return false
   end
   self.menu = { kind = "goods", index = 1, title = T("Itens"), parent = u, unit = u, items = {
-    { label = T("Recuperação"), disabled = not any(0, 5), action = function() self:openGoodsList(u, 0) end },
-    { label = T("Especial"), disabled = not any(6, 11), action = function() self:openGoodsList(u, 6) end },
+    { label = T("Recuperação"), disabled = not any(0, 5), open = true, action = function() self:openGoodsList(u, 0) end },
+    { label = T("Especial"), disabled = not any(6, 11), open = true, action = function() self:openGoodsList(u, 6) end },
   } }
   if self.menu.items[1].disabled then self.menu.index = 2 end
 end

@@ -328,7 +328,7 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   end
 
   -- previsão de ataque (opção "prévia de ataque"; o original não mostrava)
-  if b.mode == "target" and require("src.game.options").get("preview") then
+  if b.mode == "target" and b.targets[b.targetIndex] and require("src.game.options").get("preview") then
     local a, t, sk = b.selected, b.targets[b.targetIndex], b.action
     local dmg = sk and sk.heal and -math.min(sk.power, t.maxhp - t.hp) or Combat.damage(a, t, sk and sk.power)
     local counter = not (sk and sk.heal) and t.hp - dmg > 0 and Combat.counterFor(a, t, sk)

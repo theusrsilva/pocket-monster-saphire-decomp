@@ -120,6 +120,9 @@ function GBHud.draw(b, w, h, s)
     if g.textKey ~= menu.index then
       g:clear(1, 7, 18, 4)
       local sk = it and it.skill
+      local any = false
+      for _, x in ipairs(menu.items) do any = any or x.skill ~= nil end
+      if not any then g:text(1, 7, I18n.T("Sem skills ainda."), 18) end
       if sk then
         local Names = require("src.game.names")
         local T = I18n.T

@@ -119,7 +119,7 @@ function Dual.drawBattleBottom(b)
   end
   if b.menu and (b.mode == "menu" or b.mode == "bonus") then
     menu(b.menu)
-  elseif b.mode == "target" and require("src.game.options").get("preview") then
+  elseif b.mode == "target" and b.targets[b.targetIndex] and require("src.game.options").get("preview") then
     local a, t, sk = b.selected, b.targets[b.targetIndex], b.action
     panel(4, 4, 312, 96)
     love.graphics.setFont(Dual.font)

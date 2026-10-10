@@ -484,8 +484,9 @@ function love.load(args)
   local automatic = opts.script or opts.shot or opts.stage or opts.node or testRun
   if not CONSOLE and (opts.launcher or (not automatic and (Options.get("launcher") or not data))) then
     openLauncher()
-    if not data and Options.get("romPath") ~= "" then
-      local bytes = readFile(Options.get("romPath"))
+    if not data then                          -- cache ausente ou de versão antiga: reimporta sozinho
+      local bytes = Options.get("romPath") ~= "" and readFile(Options.get("romPath")) or nil
+      if not bytes and love.filesystem.getInfo("saphire.gbc") then bytes = love.filesystem.read("saphire.gbc") end
       if bytes then fromLauncher = true; startImport(bytes) end
     end
     return

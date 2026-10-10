@@ -24,7 +24,7 @@ local FRAME_BANK, FRAME_ADDR = 0x40, 0x4000
 -- splitAt = cortes forçados (x em px da região).
 Menus.SCREENS = {
   { name = "menu da unidade", group = "b", map = { 0xBD, 0x40F0, 6, 12 }, chunk = { 0x40, 0x4340 },
-    regions = { { 0, 1, 5, 10, align = "left", texts = { "Atacar", "Golpe", "Itens", "Status", "Esperar" } } } },
+    regions = { { 0, 1, 5, 10, align = "left", texts = { "Atacar", "Skill", "Itens", "Status", "Esperar" } } } },
   { name = "submenu de itens", group = "b", map = { 0xBD, 0x4180, 6, 6 }, chunk = { 0x40, 0x4340 },
     regions = { { 0, 1, 5, 4, align = "left", texts = { "Cura", "Especial" } } } },
   { name = "bônus de nível", group = "lv", map = { 0xBD, 0x5920, 20, 18 }, chunk = { 0x41, 0x42C0 },

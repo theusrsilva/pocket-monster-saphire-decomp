@@ -59,6 +59,9 @@ local EN = {
   -- batalha
   ["Atacar"] = "Attack",
   ["Golpe"] = "Skill",
+  ["Skill"] = "Skill",
+  ["Nenhum alvo ao alcance."] = "No target in range.",
+  ["Sem skills ainda."] = "No skills yet.",
   ["Golpes"] = "Skills",
   ["Item"] = "Item",
   ["Itens"] = "Items",

@@ -174,15 +174,18 @@ Cada turno tem duas partes: **você move todos os seus Pokémon** e depois **os 
 
 1. Escolha um Pokémon seu (A ou clique). Aparece em azul até onde ele pode andar.
 2. Escolha a casa de destino (ou a própria casa para não andar). Ele vai andando até lá.
-3. No **menu de ação** (as cinco opções sempre aparecem; as que não dão para usar ficam apagadas):
-   - **Atacar**: ataque normal num inimigo dentro do alcance.
-   - **Golpe**: golpe especial (gasta SP; alguns curam um aliado). A caixa de baixo mostra o poder,
+3. No **menu de ação** (as cinco opções sempre aparecem; as que não dão para usar ficam apagadas,
+   mas Atacar, Skill e Itens ainda abrem para mostrar o alcance, as skills ou os itens):
+   - **Atacar**: ataque normal num inimigo dentro do alcance (as casas ao alcance ficam em laranja).
+   - **Skill**: golpe especial (gasta SP; alguns curam um aliado). A caixa de baixo mostra o poder,
      o custo e o alcance.
    - **Itens**: de **recuperação** (Doce +200 HP, Suco +200 SP, Pão +500 HP, Leite +400 SP, Bolo HP
      cheio, Mel +600 SP) ou **especiais** (pedras que aumentam de vez: Vida HP máx. +10, Espírito SP
      máx. +5, Chamas ATK +2, Olho PRE +2, Fênix ESQ +2, Voo MOV +2 até 15).
    - **Estado**: todos os números do Pokémon e os golpes dele.
    - **Esperar**: termina a vez dele sem agir.
+4. A (ou clique) numa **casa vazia** abre o **menu do mapa**: **Objetivo** mostra a condição de
+   vitória e **Fim** encerra o turno (pergunta antes se alguém ainda não agiu).
 4. Quando todos tiverem agido, o turno passa sozinho. Para encerrar antes, aperte **Esc/START** (o
    jogo pergunta "Encerrar o turno?").
 
