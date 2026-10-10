@@ -55,6 +55,33 @@ function T.run(data, romBytes)
   check("alcance do Geodude (MOV 6, par) = jogo original", table.concat(geoGot, " ") == table.concat(geoWant, " "),
     table.concat(geoGot, " "))
 
+  -- 2c) As seis unidades do começo na ChangPanWoods (fase 2), lidas do mapa $A400 do original no
+  --     PyBoy (casas livres; os aliados ficam nas 6 primeiras posições iniciais).
+  do
+    local st2 = data.stages[2]
+    local occ = { ["9,23"] = true, ["8,22"] = true, ["10,22"] = true, ["12,24"] = true, ["11,23"] = true, ["10,24"] = true }
+    local cases = {
+      { 0x01, 9, 9, 23, "10,20 10,21 10,23 10,25 10,26 11,21 11,22 11,24 12,22 12,23 6,22 7,21 7,22 8,20 8,21 8,23 9,19 9,20 9,21 9,22" },
+      { 0x07, 9, 8, 22, "10,20 10,21 10,23 11,21 11,22 12,22 4,22 5,21 5,22 5,23 6,20 6,21 6,22 6,23 6,24 7,19 7,20 7,21 7,22 7,23 8,18 8,19 8,20 8,21 8,23 9,19 9,20 9,21 9,22" },
+      { 0x10, 8, 10, 22, "10,19 10,20 10,21 10,23 10,25 11,20 11,21 11,22 11,24 12,21 12,22 12,23 13,22 7,22 8,21 8,23 9,20 9,21 9,22" },
+      { 0x16, 8, 12, 24, "10,23 10,25 11,22 11,24 11,26 12,21 12,22 12,23 12,25 12,26 12,27 13,22 13,23 13,24 13,25 13,26 14,23 14,24 14,25 15,24" },
+      { 0x21, 6, 11, 23, "10,23 11,21 11,22 11,24 12,22 12,23 13,23" },
+      { 0x32, 6, 10, 24, "10,23 10,25 10,26 11,24" },
+    }
+    local bad = {}
+    for _, c in ipairs(cases) do
+      local r = Path.reach(st2, data.costs, { species = c[1], move = c[2], x = c[3], y = c[4] }, function() return false end)
+      local got = {}
+      for k in pairs(r) do
+        local key = (k % st2.cols) .. "," .. math.floor(k / st2.cols)
+        if not occ[key] then got[#got + 1] = key end
+      end
+      table.sort(got)
+      if table.concat(got, " ") ~= c[5] then bad[#bad + 1] = ("%02X"):format(c[1]) end
+    end
+    check("alcance das 6 unidades na ChangPanWoods = jogo original", #bad == 0, table.concat(bad, " "))
+  end
+
   -- 3) Inimigos da fase 26 iguais à SRAM do jogo ($B200)
   local e1 = st.enemies[1]
   check("inimigos fase 26", #st.enemies == 12 and e1.species == 0x1C and e1.level == 3 and e1.hp == 67
@@ -545,9 +572,11 @@ function T.run(data, romBytes)
     g:show(GBUI.END_TURN, {})
     check("encerrar o turno com unidades sem agir pede confirmação (tela $0D, 20x6)",
       asked and be.phase == "enemy" and g.cols == 20 and g.rows == 6 and g.m.M[0xC090] == 1)
-    check("menu de ação sempre com as 5 opções do original (indisponíveis apagadas)",
-      #bt.menu.items == 5 and bt.menu.items[1].disabled and not bt.menu.items[4].disabled
-        and not bt.menu.items[bt.menu.index].disabled, table.concat(ids, " "))
+    -- no original (PyBoy) o menu abre em Attack mesmo sem alvo, e Attack mostra o alcance
+    local idx = bt.menu.index
+    bt:confirm()
+    check("menu de ação: 5 opções, cursor em Atacar; sem alvo, Atacar abre o alcance",
+      #bt.menu.items == 5 and idx == 1 and bt.mode == "target" and #bt.targets == 0, table.concat(ids, " "))
     -- menu do mapa ($BD:$4C18, tela $09): 9x12 em wy $30, 5 posições de cursor (y $38..$78, x $5C);
     -- A numa casa vazia abre o menu, e "Fim" (5ª opção) encerra o turno pela confirmação
     g:show(GBUI.MAPMENU, {})

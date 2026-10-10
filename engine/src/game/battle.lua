@@ -283,8 +283,8 @@ function Battle:chooseTarget(u, skill)
 end
 
 -- Menu de ação como no original ($BD:$40F0): sempre as cinco opções, as que não dão para usar
--- ficam apagadas (Atacar sem alvo, Skill sem SP/alvo, Itens sem item usável), mas Atacar, Skill e
--- Itens ainda abrem (open): mostram o alcance, os golpes ou os itens e por que não dá para usar.
+-- aparecem normais e abrem mesmo sem uso possível (open), como no original (PyBoy, ChangPanWoods):
+-- Atacar sem alvo mostra o alcance e espera o B; o cursor começa sempre em Atacar.
 function Battle:openMenu(u)
   local hasTarget = #self:targetsFrom(u, u.x, u.y) > 0
   local items = {
@@ -297,9 +297,7 @@ function Battle:openMenu(u)
     { id = "state", label = T("Estado"), action = function() self:openStateView(u) end },
     { id = "rest", label = T("Esperar"), action = function() self:finishUnit(u) end },
   }
-  local first = 1
-  while items[first].disabled do first = first + 1 end
-  self.menu = { kind = "actions", items = items, index = first, title = u.name, unit = u }
+  self.menu = { kind = "actions", items = items, index = 1, title = u.name, unit = u }
   self.mode = "menu"
 end
 

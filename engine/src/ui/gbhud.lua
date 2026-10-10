@@ -79,7 +79,7 @@ local function drawMenu(g, menu, vx, vy, s, rowW, rowH)
     local rx, ry = vx + (x + 11) * s, vy + y * s
     local right = g.wx + (g.cols - 1) * 8          -- até a borda de dentro da caixa
     local rw = math.max(8, math.min(rowW or 40, right - (x + 11))) * s
-    if it.disabled then                            -- opção indisponível: texto esmaecido
+    if it.disabled and not it.open then            -- opção indisponível: texto esmaecido
       love.graphics.setColor(BOX[1], BOX[2], BOX[3], 0.6)
       love.graphics.rectangle("fill", rx, ry, rw, (rowH or 10) * s)
     end
