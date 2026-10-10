@@ -144,6 +144,7 @@ end
 local AttackScene = require("src.anim.scene")
 local Toolbar = require("src.ui.toolbar")
 local scene                                  -- animação de batalha original em andamento
+local sceneCanvas
 
 -- Animação de batalha original (reimplementada, src/anim): com o recorte da ROM no cache e a opção
 -- ligada. Em execuções com --script fica desligada (a não ser com --anims 1), para os roteiros de
@@ -835,9 +836,18 @@ function love.draw(screen)
   View.hits = {}
   if state == "launcher" then launcher:draw(fonts); Pad.drawToast(fonts.font) return end
   if state == "battle" and scene then
+    -- a cena (160x144, proporção da tela do Game Boy) ocupa a altura inteira da janela: desenhada
+    -- em 1x num canvas e ampliada sem filtro (escala fracionária não deixa emendas entre tiles)
+    sceneCanvas = sceneCanvas or love.graphics.newCanvas(160, 144)
+    sceneCanvas:setFilter("nearest", "nearest")
+    love.graphics.setCanvas(sceneCanvas)
     love.graphics.clear(0, 0, 0)
-    local sc = math.max(1, math.floor(math.min(w / 160, h / 144)))
-    scene:draw(math.floor((w - 160 * sc) / 2), math.floor((h - 144 * sc) / 2), sc)
+    scene:draw(0, 0, 1)
+    love.graphics.setCanvas()
+    love.graphics.clear(0, 0, 0)
+    local sc = math.min(w / 160, h / 144)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(sceneCanvas, math.floor((w - 160 * sc) / 2), math.floor((h - 144 * sc) / 2), 0, sc, sc)
   elseif state == "battle" then
     View.drawBattle(battle)
   elseif state == "world" then

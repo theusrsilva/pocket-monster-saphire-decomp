@@ -527,6 +527,23 @@ function T.run(data, romBytes)
     check("menu de ação sempre com as 5 opções do original (indisponíveis apagadas)",
       #bt.menu.items == 5 and bt.menu.items[1].disabled and not bt.menu.items[4].disabled
         and not bt.menu.items[bt.menu.index].disabled, table.concat(ids, " "))
+    -- menu do mapa ($BD:$4C18, tela $09): 9x12 em wy $30, 5 posições de cursor (y $38..$78, x $5C);
+    -- A numa casa vazia abre o menu, e "Fim" (5ª opção) encerra o turno pela confirmação
+    g:show(GBUI.MAPMENU, {})
+    local M9 = g.m.M
+    local bm = Battle.new(data, 1, Campaign.new(data))
+    local ex, ey
+    for y = 0, bm.stage.rows - 1 do for x = 0, bm.stage.cols - 1 do
+      if not ex and not bm:unitAt(x, y) then ex, ey = x, y end end end
+    bm.cursor.x, bm.cursor.y = ex, ey
+    bm:confirm()
+    local mm = bm.menu
+    local opened = bm.mode == "menu" and mm.kind == "mapmenu" and #mm.items == 5 and mm.items[5].id == "end"
+    mm.index = 5
+    bm:confirm()
+    check("menu do mapa do original numa casa vazia (tela $09, 9x12, 5 opções; Fim encerra o turno)",
+      g.cols == 9 and g.rows == 12 and g.wy == 0x30 and M9[0xC0B2] == 0x38 and M9[0xC0BA] == 0x78
+        and M9[0xC0B3] == 0x5C and opened and bm.menu and bm.menu.kind == "endturn")
   end
 
   -- 23) Abertura e título importados da ROM ($11:$40AC/$40C4/$40D0, paletas $19:$40F7; título

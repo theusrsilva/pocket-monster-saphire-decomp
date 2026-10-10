@@ -64,6 +64,9 @@ local EN = {
   ["Itens"] = "Items",
   ["Estado"] = "State",
   ["Encerrar o turno?"] = "End the turn?",
+  -- menu do mapa ($BD:$4C18)
+  ["Time"] = "Team show", ["Salvar"] = "Save", ["Carregar"] = "Load", ["Objetivo"] = "Win condition",
+  ["Fim"] = "End",
   ["Sim"] = "Yes",
   ["Não"] = "No",
   ["START/Esc: pular"] = "START/Esc: skip",

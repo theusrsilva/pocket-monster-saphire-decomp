@@ -501,7 +501,7 @@ Ids `< $20` = moldura comum (`$40:$4000 + id*16`); ids `≥ $20` vêm do bloco d
 | Tela | Mapa | Bloco (id → base + id*16) | Palavras |
 |---|---|---|---|
 | menu da unidade | `$BD:$40F0` 6×12 | `$40:$4340` | Attack, Skill, Goods, State, Rest |
-| menu do mapa | `$BD:$4C18` 9×12 | `$40:$5E10` | Team show, Save, Load, Win Condition, End |
+| menu do mapa | `$BD:$4C18` 9×12 | `$40:$5E10` | Team show, Save, Load, Win Condition, End (tela `$09` do script `$BC`: janela em wy `$30`, cursor y `$38..$78` de 16 em 16, x `$5C`; aberto com A numa casa vazia; Win Condition = tela `$0F`, 20×8) |
 | escolha do time | `$BD:$63E8` 20×18 | `$41:$5770` | One can attack; attack, Change ←→ Page (números escritos em tempo de execução) |
 | Instituto | `$BD:$5E48` 20×9 | `$41:$4AC0` | Surmount, Raise information |
 | BabyAlliance | `$BD:$5FB0` 20×9 | `$41:$4AC0` | Evolve Condition, Role evolve |

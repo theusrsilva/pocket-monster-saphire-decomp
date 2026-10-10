@@ -26,7 +26,8 @@ correção de bugs e melhorias de usabilidade.
 - [x] Abertura (5 cenas com o texto do script `$20`) e tela de título com NOVO JOGO / RECORDES, importadas da ROM
 - [x] Interface do original no motor: painel da unidade, menu de ação com as 5 opções, golpes, itens, Estado, bônus de nível, avisos de turno e caixas de fala com retrato (telas `$BC` desenhadas pelo interpretador, em PT pela ROM traduzida)
 - [x] Confirmação do fim do turno (tela `$0D`) traduzida no conversor e usada ao encerrar o turno com unidades sem agir
-- [ ] Telas do original ainda não usadas: escolha do time (`$1B`), menu do mapa (`$09/$1C`), cidades (`$17–$19`), salvar/carregar
+- [x] Menu do mapa na batalha (tela `$09`, A numa casa vazia): Objetivo (tela `$0F`) e Fim; Time/Salvar/Carregar apagadas por enquanto
+- [ ] Telas do original ainda não usadas: escolha do time (`$1B`), Time (`$0A`), menu `$1C`, cidades (`$17–$19`), salvar/carregar
 - [x] PC: launcher redesenhado e clicável; mouse em menus, listas e mapa-múndi; barra de botões (música, tela cheia, minimizar, configuração)
 - [x] Controle (DualSense, DualShock, Xbox, Switch Pro) no Windows, Linux, macOS e Android: direcional e analógico com repetição, launcher navegável, aviso de conexão (`src/ui/pad.lua`)
 - [x] Android (APK): love-android 11.5a com o jogo embutido e `tools/love-android.patch` (seletor de arquivo e "Abrir com" para a ROM); controle na tela (`src/ui/touch.lua`); não testado em aparelho

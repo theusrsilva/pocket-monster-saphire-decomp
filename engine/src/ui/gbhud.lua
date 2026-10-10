@@ -142,6 +142,14 @@ function GBHud.draw(b, w, h, s)
     local g = GBHud.screen(b, "menu", GBUI.END_TURN, {})
     drawScreen(g, vx, vy, s)
     drawMenu(g, menu, vx, vy, s, 24)
+  elseif menu and menu.kind == "mapmenu" then
+    local g = GBHud.screen(b, "menu", GBUI.MAPMENU, {})
+    drawScreen(g, vx, vy, s)
+    drawMenu(g, menu, vx, vy, s, 56)
+  elseif menu and menu.kind == "objective" then
+    local g = GBHud.screen(b, "full", GBUI.WIN, {})
+    drawScreen(g, vx, vy, s)
+    clickable(vx, vy, 160 * s, 144 * s, function() press("z") end)
   elseif menu and menu.kind == "goods" then
     local g = GBHud.screen(b, "menu", GBUI.GOODS, {})
     drawScreen(g, vx, vy, s)

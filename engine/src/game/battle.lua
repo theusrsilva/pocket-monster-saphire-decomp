@@ -162,6 +162,8 @@ function Battle:confirm()
     elseif u then
       self.preview = u
       self.previewReach = self:computeReach(u)
+    else
+      self:openMapMenu()                      -- casa vazia: menu do mapa, como no original
     end
   elseif self.mode == "move" then
     local k = c.y * self.stage.cols + c.x
@@ -419,6 +421,27 @@ end
 -- Encerrar o turno com Pokémon que ainda não agiram pede confirmação (tela $BC:$484C do original,
 -- "Are you sure to end this turn? Yes / No"). SUPOSIÇÃO: quando o original mostra essa tela não foi
 -- achado (o "End" do menu do mapa encerra direto); no motor ela evita encerrar sem querer.
+-- Menu do mapa ($BD:$4C18, tela $09 do script $BC): A numa casa vazia. Opções do original: Time,
+-- Salvar, Carregar, Objetivo e Fim. Fim encerra o turno (com a confirmação $0D se alguém ainda não
+-- agiu); Objetivo mostra a tela $0F. Time (tela $0A) e salvar/carregar no meio da fase ainda não
+-- existem no motor (a campanha é salva ao fim de cada fase): ficam apagadas.
+function Battle:openMapMenu()
+  if self.phase ~= "player" or self.result then return end
+  self.preview, self.previewReach = nil, nil
+  local function close() self.mode, self.menu = "cursor", nil end
+  self.menu = { kind = "mapmenu", index = 4, back = close, items = {
+    { id = "team", label = T("Time"), disabled = true },
+    { id = "save", label = T("Salvar"), disabled = true },
+    { id = "load", label = T("Carregar"), disabled = true },
+    { id = "goal", label = T("Objetivo"), action = function()
+        self.menu = { kind = "objective", index = 1, back = function() self:openMapMenu() end,
+          items = { { label = T("Voltar"), action = function() self:openMapMenu() end } } }
+      end },
+    { id = "end", label = T("Fim"), action = function() close(); self:askEndTurn() end },
+  } }
+  self.mode = "menu"
+end
+
 function Battle:askEndTurn()
   if self.phase ~= "player" or self.result then return end
   local pending = false

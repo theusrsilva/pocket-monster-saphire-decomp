@@ -74,6 +74,21 @@ function View.clickable(x, y, w, h, fn, hover)
   View.hits[#View.hits + 1] = { x = x, y = y, w = w, h = h, fn = fn, hover = hover }
 end
 
+-- Linha de ajuda dos controles numa faixa escura (legível sobre o mapa), quebrada em maxw.
+-- y é o topo; com align "right" o texto encosta na direita da faixa e a faixa cresce para cima.
+function View.helpBox(text, x, y, maxw, align)
+  local f = View.small
+  love.graphics.setFont(f)
+  local tw, lines = f:getWrap(text, maxw - 12)
+  local bw, bh = tw + 12, #lines * f:getHeight() + 6
+  local bx = align == "right" and x + maxw - bw or x
+  local by = align == "right" and y + f:getHeight() + 6 - bh or y
+  love.graphics.setColor(0.02, 0.05, 0.16, 0.72)
+  love.graphics.rectangle("fill", bx, by, bw, bh, 4, 4)
+  love.graphics.setColor(1, 1, 1, 0.92)
+  love.graphics.printf(text, bx + 6, by + 3, bw - 12, "left")
+end
+
 -- Clique/movimento do mouse: a região mais de cima que contém o ponto.
 function View.hitAt(mx, my)
   for i = #View.hits, 1, -1 do
@@ -392,7 +407,11 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   else
     help = T("Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: idioma (%s)   M: música"):format(I18n.lang == "pt" and "PT" or "EN")
   end
-  love.graphics.printf(help, gb and 14 or 0, gb and 44 or h - 16, w - 10, gb and "left" or "right")
+  if gb then
+    View.helpBox(help, 14, 44, math.max(200, w - 380 - 44), "left")   -- sem invadir o registro à direita
+  else
+    View.helpBox(help, 10, h - 26, w - 20, "right")
+  end
   love.graphics.setFont(View.font)
 
   if b.result then
@@ -639,7 +658,7 @@ function View.drawWorld(wd, data, campaign, mapOnly)
   else
     help = T("Setas/clique: andar   Z/Enter: entrar   X: voltar   N: idioma (%s)   M: música   Delete: novo jogo"):format(I18n.lang == "pt" and "PT" or "EN")
   end
-  love.graphics.printf(help, 0, h - 18, w - 10, "right")
+  View.helpBox(help, 10, h - 26, w - 20, "right")
   love.graphics.setFont(View.font)
 end
 
