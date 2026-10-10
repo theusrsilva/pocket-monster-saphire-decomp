@@ -68,5 +68,5 @@ fi
 out="$ROOT/dist/$NAME-$VERSION-android.apk"
 "$bt/apksigner" sign --ks "$ks" --ks-pass "pass:$pass" --key-pass "pass:$pass" --ks-key-alias "$alias" \
   --out "$out" "$work/aligned.apk"
-"$bt/apksigner" verify "$out"
+"$bt/apksigner" verify --print-certs "$out" | grep -i "SHA-256"   # confere a chave usada
 ls -la "$out"
