@@ -526,35 +526,71 @@ caracteres (minúsculas viram maiúsculas), então nela os acentos aparecem sem 
 
 ## Animação de batalha (`ApplyAttack`, `$09:$62EC`)
 
-Em vez de reimplementar, o motor **executa o código original** da ROM do jogador num executor de
-GBC próprio (`engine/src/emu/gbc.lua`: CPU SM83 do projeto + MBC5, WRAM/VRAM/SRAM em bancos, DMA da
-OAM, HDMA, paletas CGB, LY/STAT com contagem de ciclos, velocidade dupla, interrupções e um
-renderizador por linha). Conferido quadro a quadro contra o PyBoy a partir de um snapshot.
+A cena de ataque foi **decodificada e reimplementada em Lua** (`engine/src/anim/attack.lua`): cada
+rotina abaixo foi transliterada com as variáveis nos mesmos endereços da WRAM, e uma corrotina faz o
+papel da espera de VBlank. Os dados (scripts, quadros, tiles, cenários) vêm de um recorte da ROM do
+jogador gravado no cache (`generated/attack.bin`, ~470 KB, `engine/src/anim/slice.lua`). O código
+original continua rodando no executor de GBC (`engine/src/emu/`) só como referência: os testes
+comparam objetos, OAM e VRAM **quadro a quadro** entre os dois (turno do aliado, do inimigo, erro,
+golpe especial, desmaio, chefe, vários terrenos: iguais), e o desenho em LÖVE é comparado pixel a
+pixel com o do executor.
 
-* **Sistema de objetos** (`$00:$1D7E`, chamado a cada quadro): até 12 objetos em `$DB00 + $40*n`.
-  `+$0F` = personagem (índice de `$04:$4000`, entradas `[ptr, banco]` → lista de animações),
-  `+$10` = animação, `+$27/+$28` = banco/ponteiro do script. Cada passo do script tem 4 bytes
-  `[dy, dx, quadro, espera]` (dx invertido quando o objeto está espelhado, `+$12`); byte `≥ $80` =
-  comando (`$00:$20AC`); `$FF $FF` encerra. O quadro indexa `$80:$4400 + personagem*4` →
-  `[banco, ?, ptr]` dos tiles do quadro (bancos `$90–$B1`), recarregados na VRAM quando mudam.
-  Personagem = `$7C` + espécie.
-* **Laço da cena** (`$00:$083F`): espera o VBlank (`$2A02`: `[$C030]` muda), entrada, objetos,
-  efeitos (`$3E93` → `$2D:$4BE9` colisão), monta a OAM (`$1AC2`) e termina quando os dois objetos
-  principais acabam (`$086A`). VBlank (`$0C3C`): conta quadros, rolagem, DMA da OAM de `$C600`,
-  paletas e som. STAT (`$0CD5`): com `[$C060]=1`, zera o SCX na linha `$6F` (HUD parado embaixo).
-* **Fluxo do ataque**: `$01:$63B9` (copia posições e HP para a barra) → `$38:$7124` (cenário:
-  `[$C1D7] = $38:$7139[terreno $C220] + $2F`) → música → `ApplyAttack` (`$09:$62EC` aliado ataca,
-  `$09:$64C7` inimigo ataca, por `[$C008]`) → volta em `$01:$6440`.
-* **Entradas** (rastreadas: nada de VRAM nem SRAM é lido antes de ser escrito): cópias de 128 bytes
-  do atacante (`$C900`) e do defensor (`$C980`) no formato da SRAM (`+$42/+$43` = endereço do
-  registro, `+$46/+$47` = HP mostrado na barra); `$C1D0/$C1D3` = personagens; `$C1D1` = ação do
-  atacante (2 = normal; golpe = tabela `$09:$6F4D[espécie]`, 4 pares `[golpe, animação]`, sem par
-  vale o último); `$C1D4` = ação do contra (1 = sem contra); `$C1D5/$CD43` = resultado (`$0C`
-  acertou, `$10` errou) e dano do ataque; `$C1D2/$CD03` = idem do contra (sorteios `$38:$73C4` e
-  `$741B`). Paletas de BG 4–7 = as de interface da fase.
-* O motor monta essas entradas com o resultado que já calculou (mesmas regras), roda a cena a
-  60 quadros/s (~3 ms por quadro no PC) e só depois anuncia dano e EXP. Música e efeitos pedidos pela
-  cena (`$FFF7/$FFF8`) vão para o driver de som que já roda no motor.
+* **Entradas**. `$C900` = registro do **aliado** e `$C980` = do **inimigo** (cópias de 128 bytes no
+  formato da SRAM; `+$0C` SP, `+$0E` HP, `+$10/+$12` máximos, `+$46` HP mostrado), nos dois turnos
+  (`$01:$4368` aliado ataca, `$01:$6B0E` IA). `$C1D0`/`$C1D3` = `$7C` + espécie do aliado/inimigo.
+  `$C1D1` = ação do aliado, `$C1D4` = ação do inimigo (2 = ataque normal; golpe = tabela
+  `$09:$6F4D[espécie]` → 4 pares `[golpe, animação]`, sem par igual vale o último; 1 = não age).
+  `$C1D2/$CD03` = reação/dano no aliado, `$C1D5/$CD43` = no inimigo (`$0C` acertou, `$10` errou;
+  sorteios `$38:$73C4`/`$741B`). `$C008` = 1 no turno inimigo. `$C220` = terreno.
+* **Fluxo** (`$01:$63B9`): cenário `[$C080] = $38:$7139[terreno] + $2F` carregado por `$00:$2CEB`;
+  depois `$09:$62EC` (aliado ataca) ou `$09:$64C7` (inimigo ataca). Cada ação tem duas fases:
+  animação `n` (aproximação, câmera em X=`$90`) e `n+1` (golpe, câmera em 0) com o alvo reagindo
+  com `$C1D5`/`$C1D2`; depois o dano (`$09:$695F`/`$6993`, mínimo 0 por `$00:$3ED9`), a barra de HP
+  (`$08:$4BEC`), o desmaio (`$09:$66AA`: animação `$12` por 200 quadros e fim) e o contra-ataque
+  com os papéis trocados. Música da cena: `$01:$64AB` (`$01:$64DF[espécie]`, chefes `$15`/`$38`).
+  Entre as fases, 20 quadros de espera (`$00:$2A12`). No turno inimigo, escrever `IF = 3`
+  (`$09:$654D`) dispara um VBlank extra na hora.
+* **Objetos** (`$00:$1D7E`): 12 em `$DB00 + $40*n`. 0 = esquerda (`X=$20`, inimigo), 1 = direita
+  (`X=$B0`, aliado, virado), montados em `$09:$676A`; 2–11 = efeitos. Campos: `+$00` ativo, `+$01/+$03`
+  Y/X (16 bits), `+$05` quadro, `+$06/+$07/+$09` atributo OR / base do tile / soma no atributo,
+  `+$0A` espera, `+$0F` personagem, `+$10` animação (0 = parado, não atualiza), `+$12` virado,
+  `+$13–$24` caixas, `+$26` já acertou, `+$27–$29` banco/ponteiro do script, `+$2A–$2C` tiles do
+  quadro a carregar, `+$2D/+$2E` destino na VRAM, `+$2F–$31` último carregado, `+$33` banco da VRAM.
+  Script: `$04:$4000 + personagem*4` → `[lista, banco]`, lista de ponteiros por animação; passos de
+  4 bytes `[dy, dx, quadro, espera]` (dx negado se virado; `$FF $FF` desativa o objeto). Comandos
+  depois de um passo (`$00:$20AC`, tabela `$20C1`), usados pelas animações: `$80 n` vai para a
+  animação n; `$81` vira; `$85 c dy dx dxv ? anim ?` cria o efeito c (8 bytes); `$8C` espera o sinal
+  (`[$C255]`, repete o passo anterior); `$8E` dá o sinal.
+* **Criação** (`$00:$3B22`): modelo de 16 bytes em `$1C:$4000 + personagem*16` (personagem,
+  animação, virado, …, atributo, base do tile, destino VRAM, …, caixa, banco VRAM) na posição
+  `$C208/$C20A`, no primeiro objeto livre.
+* **Caixas e colisão**: `$2D:$423F` calcula a cada passo duas caixas a partir de
+  `$2D:$43ED[personagem]` (10 bytes por quadro): golpe (`+$13–$1A`) e corpo (`+$1D–$24`). Na fase do
+  golpe (`[$C439]` = 1 alvo objeto 0, = 2 alvo objeto 1; `$2D:$4BE9`/`$4DCB`), um efeito que encosta
+  no corpo do alvo muda a reação do alvo para `$0D`/`$0F` (sorteio `[$C035]`), consulta
+  `$2D:$4FA7[personagem][animação]` e cria a faísca `$79`.
+* **Quadros**: metasprite `$80:$4000 + personagem*4` → `[ptr, X base, banco]`, lista por quadro com
+  `[n, ?]` e n entradas `[dy, dx, dx virado, tile, atributo]` (`$00:$1BD4`; tile + `+$07`, atributo
+  `| +$06` `+ +$09`, bit 5 trocado se virado; objeto fora de -32..`$B0`/`$C0` não aparece; `+$1C`
+  pisca). A ordem dos objetos na OAM alterna a cada quadro (`$1A8E`/`$1AA8`). Tiles:
+  `$80:$4400 + personagem*4` → `[banco, ?, ptr]`, quadro*4 → `[banco, ?, ptr]` dos dados (16 bytes de
+  cabeçalho, tamanho big-endian nos 2 primeiros), copiados por HDMA no VBlank (`$00:$2572`).
+  Paletas de sprite 0/1 = espécie do aliado/inimigo (`$38:$716B`, `$38:$71BC[espécie]`, 8 bytes).
+* **Cenário** (`$00:$2D35`, scripts no banco `$BC`, `$BC:$4000[id]`): lista de comandos `[rotina,
+  parâmetros]`: `$2DA0` escreve na memória (`[endereço, valor, flag]`, até `$FF`), `$2DDB` HDMA
+  (12 bytes), `$2E3B` paleta, `$2EB0` bloco do mapa (linhas×colunas), `$BC:$5940` desvio, `$322B`
+  número (`$BC:$5EFF` + `$B5:$402E`, dígitos do estilo `$BC:$60A2`; zero à esquerda usa o mesmo tile
+  do zero), `$BC:$5D49` barra (tile cheio `$13`, parcial `$0B + n`). Cenários `$2F–$37`: paletas do
+  banco `$49`, tiles do `$4C`, mapa 20×18 na janela (`$9C00`); painel com HP/SP em `$BC:$546C`
+  (redesenhado por `$BC:$54BE`/`$54E8`). Escritas que esperam o LCD (`$00:$2B3A`) fazem ~640 por
+  quadro.
+* **Fim** (`$00:$086A`): a cena acaba 100 quadros depois que os objetos 0 e 1 estão parados
+  (animação < 2 ou inativos). Algumas combinações artificiais nunca terminam (no original também);
+  o motor corta em 1 minuto.
+* O motor monta essas entradas com o resultado que já calculou, roda a cena a 60 quadros/s
+  (~0,1 ms por quadro no PC) e só depois anuncia dano e EXP; START/A/B pulam. O desenho
+  (`engine/src/anim/render.lua`) usa uma imagem para o cenário (atualizada por célula) e atlas de
+  tiles por banco/paleta para os sprites, com o limite de 10 sprites por linha do hardware.
 
 ## Emulação para pesquisa
 

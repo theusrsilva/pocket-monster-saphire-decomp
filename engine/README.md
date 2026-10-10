@@ -19,9 +19,9 @@ No PC o jogo abre numa tela de configuração (como o launcher do Gen1Recomp), q
 - **IA dos inimigos**: a original (`$01:$6B95`) ou a melhorada (`src/game/ai_plus.lua`): usa o
   alcance real e os golpes, prioriza quem pode derrubar e pesa o contra-ataque, cura aliados.
 - **Corrigir autocura do inimigo**: no original ela passa do HP máximo.
-- **Animações de batalha (do jogo original)**: a cena de ataque é o código da sua ROM rodando num
-  executor de GBC dentro do motor (`src/emu/`), com o resultado calculado pelo motor. A, B ou START
-  pulam a cena. No console fica desligada.
+- **Animações de batalha (do jogo original)**: a cena de ataque do original, decodificada e
+  reimplementada em Lua (`src/anim/`), com o resultado calculado pelo motor e os dados lidos do
+  recorte da sua ROM no cache. A, B ou START pulam a cena. Funciona também no console.
 - **Turno inimigo** normal/rápido, **som** (volume), **tela cheia**, **mostrar esta tela ao abrir**.
 - **Jogar** / **Gerar ROM traduzida** / **Sair**.
 
@@ -124,8 +124,7 @@ A fusão foi conferida com o LÖVE do PC (o executável fundido passa nos testes
 
 ## Ainda não
 
-Animação para golpes de cura (a cena original só roda nos ataques); animação no 3DS (o executor de
-GBC é pesado demais para o console sem JIT).
+Animação para golpes de cura (a cena original só roda nos ataques).
 
 ## Estrutura
 
@@ -150,9 +149,13 @@ src/game/options.lua      opções do jogador
 src/game/i18n.lua         textos da interface em inglês
 src/game/ai_plus.lua      IA melhorada (opcional)
 src/util/bit.lua          operações de bits (LuaJIT ou Lua puro)
-src/emu/gbc.lua           executor de GBC (CPU SM83 + memória, vídeo e interrupções)
-src/emu/battlescene.lua   animação de batalha original (ApplyAttack) a partir do resultado do motor
-src/emu/devtest.lua       desenvolvimento: snapshot do PyBoy, rastreio de entradas
+src/anim/attack.lua       cena de ataque original reimplementada (objetos, scripts, colisão, cenário, HUD)
+src/anim/render.lua       desenho da cena (fundo por célula, atlas de sprites; render de referência)
+src/anim/slice.lua        recorte da ROM usado pela cena (generated/attack.bin)
+src/anim/scene.lua        a cena dentro do jogo (ritmo, música, limite de segurança)
+src/emu/gbc.lua           executor de GBC (CPU SM83 + memória, vídeo e interrupções), referência
+src/emu/battlescene.lua   o código original da cena no executor, para conferir src/anim
+src/emu/devtest.lua       desenvolvimento: snapshot do PyBoy, rastreio, cena lado a lado
 src/romhack/patcher.lua   conversor de ROM (ROM traduzida para GBC/GBA)
 src/romhack/dialogs.lua   falas em PT na ROM: reapontamento, quebra por palavra, acentos
 src/romhack/buffer.lua    cópia editável da ROM + checksum

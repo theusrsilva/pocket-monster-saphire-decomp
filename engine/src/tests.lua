@@ -422,27 +422,57 @@ function T.run(data, romBytes)
   end
 
 
-  -- 21) Animação de batalha original (src/emu): ApplyAttack roda no executor GBC a partir do
-  --     resultado do motor. Valores do PyBoy: BoBo (7) acerta 30 no inimigo 63 (55 -> 25) e leva
-  --     contra de 9 (65 -> 56); a cena termina sozinha em ~680 quadros.
+  -- 21) Animação de batalha original reimplementada (src/anim), conferida contra o código original
+  --     rodando no executor GBC (src/emu). Valores do PyBoy: BoBo (7) acerta 30 no inimigo 63
+  --     (55 -> 25) e leva contra de 9 (65 -> 56); a cena termina sozinha em 681 quadros.
   if romBytes then
-    local Scene = require("src.emu.battlescene")
-    local okS, sc = pcall(Scene.new, {
-      rom = romBytes,
-      att = { species = 7, level = 1, hp = 65, maxhp = 65, sp = 40, maxsp = 40, atk = 20, acc = 10, eva = 10, move = 6, x = 26, y = 6 },
-      def = { species = 63, level = 1, hp = 55, maxhp = 55, sp = 0, maxsp = 0, atk = 19, acc = 10, eva = 10, move = 4, x = 26, y = 5 },
-      hit = true, dmg = 30, counter = { hit = true, dmg = 9 }, stage = 1, terrain = 2,
-    })
+    local Attack = require("src.anim.attack")
+    local Slice = require("src.anim.slice")
+    local full = Slice.fromRom(romBytes)
+    local function ev(enemy)
+      return { rom = romBytes, enemyTurn = enemy,
+        att = { species = 7, level = 1, hp = 65, maxhp = 65, sp = 40, maxsp = 40 },
+        def = { species = 63, level = 1, hp = 55, maxhp = 55, sp = 0, maxsp = 0 },
+        hit = true, dmg = 30, counter = { hit = true, dmg = 9 }, terrain = 2 }
+    end
+    local A = Attack.new(full, ev(false))
     local n = 0
-    if okS then while sc:step() and n < 2000 do n = n + 1 end end
-    local m = okS and sc.m
-    local hpDef = m and (m:read(0xC98E) + m:read(0xC98F) * 256)
-    local hpAtt = m and (m:read(0xC90E) + m:read(0xC90F) * 256)
-    check("animação de batalha original roda e aplica o resultado do motor",
-      okS and sc.done and n > 300 and hpDef == 25 and hpAtt == 56,
-      okS and ("%d quadros, HP %s/%s"):format(n, tostring(hpAtt), tostring(hpDef)) or tostring(sc))
-    check("animação do golpe pela tabela $09:$6F4D", Scene.skillAnim(romBytes, 1, 0x34) == 6
-      and Scene.skillAnim(romBytes, 1, 0x0F) == 10)
+    while A:step() and n < 3000 do n = n + 1 end
+    local hpEnemy, hpAlly = A:r16(0xC98E), A:r16(0xC90E)
+    check("cena de ataque reimplementada aplica o resultado e termina",
+      A.done and n == 681 and hpEnemy == 25 and hpAlly == 56,
+      ("%d quadros, HP %d/%d"):format(n, hpAlly, hpEnemy))
+    -- quadro a quadro contra o executor (objetos, OAM e VRAM), turno do aliado e do inimigo
+    local Scene = require("src.emu.battlescene")
+    for _, enemy in ipairs({ false, true }) do
+      local e, a = Scene.new(ev(enemy)), Attack.new(full, ev(enemy))
+      local bad
+      for f = 1, 160 do
+        local m = e.m
+        if not (m:frame(600000) and a:advance()) then bad = "fim antes" break end
+        if f > 5 then
+          for addr = 0xDB00, 0xDDFF do if m:read(addr) ~= a.M[addr] then bad = ("%d: %04X"):format(f, addr) break end end
+          for addr = 0xC600, 0xC69F do if m:read(addr) ~= a.M[addr] then bad = ("%d: %04X"):format(f, addr) break end end
+          for k = 0, 0x17FF do if m.vram[0][k] ~= a.V[0][k] or m.vram[1][k] ~= a.V[1][k] then bad = ("%d: VRAM %04X"):format(f, k) break end end
+        end
+        if bad then break end
+        a:vblank()
+      end
+      check(("cena reimplementada igual ao código original (%s)"):format(enemy and "inimigo ataca" or "aliado ataca"),
+        bad == nil, bad)
+    end
+    -- o recorte do cache dá o mesmo resultado que a ROM inteira
+    local B = Attack.new(Slice.load((Slice.build(romBytes))), ev(true))
+    local C = Attack.new(full, ev(true))
+    local same = true
+    while C:step() do
+      B:step()
+      for k = 0, 159 do if B.oam[k] ~= C.oam[k] then same = false end end
+    end
+    B:step()
+    check("recorte da ROM (generated/attack.bin) basta para a cena", same and B.done)
+    check("animação do golpe pela tabela $09:$6F4D", Attack.skillAnim(full, 1, 0x34) == 6
+      and Attack.skillAnim(full, 1, 0x0F) == 10)
   end
 
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))

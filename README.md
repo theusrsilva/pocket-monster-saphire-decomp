@@ -19,8 +19,9 @@ gera uma **ROM traduzida** para jogar no Game Boy Color/Advance.
   acerto, dano, contra-ataque, EXP, evolução e a IA dos inimigos (veja
   [`docs/FINDINGS.md`](docs/FINDINGS.md), com o endereço de cada regra).
 - **Música e efeitos originais**: o driver de som da ROM roda ao vivo dentro do motor.
-- **Animações de batalha originais**: a cena de ataque é o código do próprio jogo executado num
-  pequeno emulador de GBC embutido, com o resultado calculado pelo motor.
+- **Animações de batalha originais**: a cena de ataque do jogo foi decodificada e refeita no motor
+  (conferida quadro a quadro com o código original), com o resultado calculado pelo motor. Leve o
+  bastante para rodar também no 3DS.
 - **Tradução completa para o português** (falas, menus, golpes, lugares e itens); dá para trocar
   para o inglês original a qualquer momento.
 - **Conversor de ROM**: gera uma ROM de GBC já traduzida para jogar no emulador ou no cartucho.
@@ -82,8 +83,7 @@ Baixe o arquivo da sua plataforma na página de
    com a sua ROM) e copie a pasta de dados `saphire-recomp` (com a subpasta `generated/`) para a
    pasta de dados do LÖVE Potion no cartão SD.
 3. O mapa fica na tela de cima e os menus e falas na de baixo. A confirma, B volta, START encerra o
-   turno, X troca o idioma, Y liga/desliga o som. As animações de batalha ficam desligadas no
-   console. Ainda não foi testado em hardware.
+   turno, X troca o idioma, Y liga/desliga o som. Ainda não foi testado em hardware.
 
 Pasta de dados no PC: `%APPDATA%\saphire-recomp` (Windows), `~/.local/share/saphire-recomp`
 (Linux) e `~/Library/Application Support/saphire-recomp` (macOS).

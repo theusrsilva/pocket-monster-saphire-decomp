@@ -120,13 +120,14 @@ local function readFile(path)
   end
 end
 
-local BattleScene = require("src.emu.battlescene")
+local AttackScene = require("src.anim.scene")
 local scene                                  -- animação de batalha original em andamento
 
--- Animação de batalha original: só no PC, com a ROM no cache e a opção ligada. Em execuções com
--- --script fica desligada (a não ser com --anims 1), para os roteiros de teste não esperarem a cena.
+-- Animação de batalha original (reimplementada, src/anim): com o recorte da ROM no cache e a opção
+-- ligada. Em execuções com --script fica desligada (a não ser com --anims 1), para os roteiros de
+-- teste não esperarem a cena.
 local function updateAnimHook()
-  Battle.animHook = Options.get("anims") and not CONSOLE and BattleScene.available()
+  Battle.animHook = Options.get("anims") and AttackScene.available()
     and (not opts.script or opts.anims ~= nil) or false
 end
 
@@ -351,7 +352,7 @@ function love.load(args)
     local bytes = assert(readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc")))
     local Dev = require("src.emu.devtest")
     local ok, err
-    if opts.scene then ok, err = pcall(Dev.scene, opts.out, tonumber(opts.frames or "800"))
+    if opts.scene then ok, err = pcall(Dev.scene, bytes, opts.out, tonumber(opts.frames or "800"))
     elseif opts.trace then ok, err = pcall(Dev.trace, bytes, opts["emu-snap"], opts.trace)
     else
       ok, err = pcall(Dev.run, bytes, opts["emu-snap"], opts.out or opts["emu-snap"],
@@ -451,11 +452,9 @@ function love.update(dt)
     end
   elseif state == "battle" then
     if battle.anim and not scene then
-      local ok, sc = pcall(BattleScene.new, battle.anim)
+      local ok, sc = pcall(AttackScene.new, battle.anim, function(v) Sound.music(v) end)
       if ok then
         scene = sc
-        scene.m.writeHooks[0xFFF7] = function(v) Sound.music(v) end
-        scene.m.writeHooks[0xFFF8] = function(v) Sound.sfx(v) end
       else
         print("animação de batalha desligada: " .. tostring(sc))
         Battle.animHook = false

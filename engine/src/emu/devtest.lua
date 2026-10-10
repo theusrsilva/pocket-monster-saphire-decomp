@@ -104,24 +104,36 @@ function Dev.trace(rom, dir, out)
 end
 
 
--- Cena montada do zero (sem snapshot), como o motor fará.
-function Dev.scene(out, n)
+-- Cena de ataque: executor (código original, à esquerda) e reimplementação (src/anim, à direita),
+-- lado a lado a cada 10 quadros. ENEMY=1 no ambiente: turno inimigo.
+function Dev.scene(rom, out, n)
   local Scene = require("src.emu.battlescene")
-  local s = Scene.new({
-    att = { species = 7, level = 1, hp = 65, maxhp = 65, sp = 40, maxsp = 40, atk = 20, acc = 10, eva = 10, move = 6, x = 26, y = 6 },
-    def = { species = 63, level = 1, hp = 55, maxhp = 55, sp = 0, maxsp = 0, atk = 19, acc = 10, eva = 10, move = 4, x = 26, y = 5 },
-    hit = true, dmg = 30, counter = { hit = true, dmg = 9 }, stage = 1, terrain = 2,
-  })
+  local Attack = require("src.anim.attack")
+  local Render = require("src.anim.render")
+  local ev = {
+    rom = rom, enemyTurn = os.getenv("ENEMY") == "1", skill = tonumber(os.getenv("SKILL") or "", 16),
+    att = { species = 7, level = 1, hp = 65, maxhp = 65, sp = 40, maxsp = 40 },
+    def = { species = 63, level = 1, hp = 55, maxhp = 55, sp = 0, maxsp = 0 },
+    hit = true, dmg = 30, counter = { hit = true, dmg = 9 }, terrain = tonumber(os.getenv("TERRAIN") or "2"),
+  }
+  local s = Scene.new(ev)
+  local a = Attack.new(require("src.anim.slice").fromRom(rom), ev)
+  local img = love.image.newImageData(320, 144)
   local t0 = love.timer.getTime()
   local i = 0
-  while s:step() and i < n do
+  while i < n do
+    local okE = s:step()
+    local okA = a:step()
+    if not okE and not okA then break end
     if i % 10 == 0 then
+      s.m:render(function(x, y, r, g, b) img:setPixel(x, y, r, g, b, 1) end)
+      Render.pixels(a, function(x, y, r, g, b) img:setPixel(160 + x, y, r, g, b, 1) end)
       local f = assert(io.open(("%s/scene_%03d.png"):format(out, i / 10), "wb"))
-      f:write(s.img:encode("png"):getString()); f:close()
+      f:write(img:encode("png"):getString()); f:close()
     end
     i = i + 1
   end
-  print(("cena: %d quadros em %.2fs, acabou=%s"):format(i, love.timer.getTime() - t0, tostring(s.done)))
+  print(("cena: %d quadros em %.2fs"):format(i, love.timer.getTime() - t0))
 end
 
 return Dev
