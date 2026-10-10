@@ -31,7 +31,7 @@ function Battle.new(data, stageIndex, campaign, team)
   local st = data.stages[stageIndex]
   Combat.skills = data.prog.skills
   local self = setmetatable({
-    data = data, prog = data.prog, stageIndex = stageIndex, stage = st, units = {},
+    data = data, prog = data.prog, stageIndex = stageIndex, stage = st, units = {}, steps = {},
     phase = "player", turn = 1, mode = "cursor",
     cursor = { x = 0, y = 0 }, selected = nil, reach = nil, prev = nil,
     menu = nil, popups = {}, queue = {}, timer = 0, result = nil, log = {}, pending = {},
@@ -166,9 +166,13 @@ function Battle:confirm()
     if self.stops[k] then
       local u = self.selected
       self.origin = { x = u.x, y = u.y }
-      u.x, u.y = c.x, c.y
+      local path = Path.route(self.prev, self.stage.cols, u.y * self.stage.cols + u.x, k)
       self.reach = nil
-      if not self:triggerEvent(u) then self:openMenu(u) end
+      self.mode = "walk"
+      self:walk(u, path, function()
+        self.mode = "cursor"
+        if not self:triggerEvent(u) then self:openMenu(u) end
+      end)
     end
   elseif self.mode == "target" then
     local u, t, s = self.selected, self.targets[self.targetIndex], self.action
@@ -556,15 +560,102 @@ function Battle:aiDestination(stops, radius)
   end
 end
 
+---------------------------------------------------------------- andar casa a casa
+
+-- No original a unidade anda casa a casa, 4 px por quadro com um quadro parado a cada três
+-- (~6 quadros por casa, medido no PyBoy na fase 1); no turno inimigo a câmera vai até o inimigo,
+-- ele anda e há uma pausa de ~27 quadros antes da próxima ação.
+Battle.TILE_TIME = 6 / 60
+Battle.FOCUS_TIME = 9 / 60
+Battle.AFTER_WALK = 27 / 60
+
+local function fast() return Options.get("enemySpeed") == "rapida" end
+
+-- Passos pendentes (esperar, andar, chamar): o turno só segue quando acabam.
+function Battle:queueStep(st) self.steps[#self.steps + 1] = st end
+
+-- Anda pela lista de casas (sem a de partida) e chama after no fim.
+function Battle:walk(u, path, after)
+  if #path == 0 then
+    if after then after() end
+    return
+  end
+  self:queueStep({ walk = { u = u, path = path, i = 1, t = 0, fx = u.x, fy = u.y } })
+  if after then self:queueStep({ fn = after }) end
+end
+
+-- Caminho até (x, y) com a mesma regra de bloqueio usada para decidir o destino.
+function Battle:pathTo(u, x, y, blocked)
+  local walker = { species = u.species, x = u.x, y = u.y, move = math.min(u.move, 16) }
+  local _, prev = Path.reach(self.stage, self.data.costs, walker, blocked)
+  local cols = self.stage.cols
+  return Path.route(prev, cols, u.y * cols + u.x, y * cols + x)
+end
+
+-- Inimigo vai até (x, y) (câmera nele, anda, pausa) e depois faz after.
+function Battle:enemyMove(e, x, y, after, blocked)
+  self.cursor.x, self.cursor.y = e.x, e.y
+  local f = fast() and 0.3 or 1
+  self:queueStep({ wait = Battle.FOCUS_TIME * f })
+  if x and (x ~= e.x or y ~= e.y) then
+    self:walk(e, self:pathTo(e, x, y, blocked))
+    self:queueStep({ wait = Battle.AFTER_WALK * f })
+  end
+  if after then self:queueStep({ fn = after }) end
+end
+
+-- Avança os passos pendentes. Devolve true enquanto houver algum.
+function Battle:updateSteps(dt)
+  local st = self.steps[1]
+  if not st then return false end
+  if st.wait then
+    st.wait = st.wait - dt
+    if st.wait <= 0 then table.remove(self.steps, 1) end
+  elseif st.walk then
+    local w = st.walk
+    local tt = Battle.TILE_TIME * ((w.u.side == "enemy" and fast()) and 0.4 or 1)
+    w.t = w.t + dt
+    while w.t >= tt and w.path[w.i] do
+      w.t = w.t - tt
+      w.fx, w.fy = w.path[w.i].x, w.path[w.i].y
+      w.i = w.i + 1
+    end
+    local nxt = w.path[w.i]
+    if nxt then
+      local k = w.t / tt
+      w.u.px = (w.fx + (nxt.x - w.fx) * k) * 16
+      w.u.py = (w.fy + (nxt.y - w.fy) * k) * 16
+      self.cursor.x, self.cursor.y = nxt.x, nxt.y
+    else
+      w.u.x, w.u.y = w.fx, w.fy
+      w.u.px, w.u.py = nil, nil
+      self.cursor.x, self.cursor.y = w.u.x, w.u.y
+      table.remove(self.steps, 1)
+    end
+  elseif st.fn then
+    table.remove(self.steps, 1)
+    st.fn()
+  end
+  return true
+end
+
+-- Termina na hora todos os passos pendentes (testes).
+function Battle:flushSteps()
+  local n = 0
+  while self.steps[1] and n < 10000 do
+    self:updateSteps(1)
+    n = n + 1
+  end
+end
+
 function Battle:enemyAct(e)
   if Options.get("ai") == "melhorada" then
     require("src.game.ai_plus").act(self, e)
-    self.cursor.x, self.cursor.y = e.x, e.y
-    self:checkEnd()
     return
   end
   local function attack(t)
     self:attack(e, t, nil, true)
+    self:checkEnd()
   end
   -- 1. cura
   local s1 = e.skills[1] and self:skill(e.skills[1])
@@ -584,26 +675,26 @@ function Battle:enemyAct(e)
   -- 2. aliado colado: ataca sem andar
   local t = self:aiAdjacentAlly(e.x, e.y)
   if t then
-    attack(t)
+    self:enemyMove(e, nil, nil, function() attack(t) end)
   elseif e.enemySlot ~= 0 and e.move > 0 then
-    -- 3/4/5. anda
-    local walker = { species = e.species, x = e.x, y = e.y, move = math.min(e.move, 16) }
-    local reach = Path.reach(self.stage, self.data.costs, walker, function(x, y)
+    -- 3/4/5. anda (atravessa aliados; só outros inimigos bloqueiam)
+    local function blocked(x, y)
       local o = self:unitAt(x, y)
       return o ~= nil and o.side == "enemy" and o ~= e
-    end)
+    end
+    local walker = { species = e.species, x = e.x, y = e.y, move = math.min(e.move, 16) }
+    local reach = Path.reach(self.stage, self.data.costs, walker, blocked)
     local x, y = self:aiDestination(reach, 1)
     if x then
-      e.x, e.y = x, y
-      t = self:aiAdjacentAlly(x, y)
-      if t then attack(t) end
+      self:enemyMove(e, x, y, function()
+        local t2 = self:aiAdjacentAlly(e.x, e.y)
+        if t2 then attack(t2) end
+      end, blocked)
     else
       x, y = self:aiDestination(reach, 4)
-      if x then e.x, e.y = x, y end
+      if x then self:enemyMove(e, x, y, nil, blocked) end
     end
   end
-  self.cursor.x, self.cursor.y = e.x, e.y
-  self:checkEnd()
 end
 
 function Battle:update(dt)
@@ -612,6 +703,7 @@ function Battle:update(dt)
     p.t = p.t + dt
     if p.t > 1.2 then table.remove(self.popups, i) end
   end
+  if self.mode ~= "dialog" and self.mode ~= "bonus" and self:updateSteps(dt) then return end
   if self.phase == "enemy" and not self.result and self.mode ~= "bonus" and self.mode ~= "dialog" then
     self.timer = self.timer - dt
     if self.timer <= 0 then

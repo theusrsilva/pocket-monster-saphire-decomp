@@ -257,7 +257,25 @@ function T.run(data, romBytes)
     else before[u.enemySlot] = { u.x, u.y } end
   end
   ba:endPlayerTurn()
-  for _, e in ipairs(ba.queue) do ba:enemyAct(e) end
+  local walkOk, walkTime = true, nil
+  for _, e in ipairs(ba.queue) do
+    local x0, y0 = e.x, e.y
+    ba:enemyAct(e)
+    -- anda casa a casa: cada passo vizinho do anterior, ~6 quadros por casa (PyBoy, fase 1)
+    for _, st in ipairs(ba.steps) do
+      if st.walk then
+        local px, py = x0, y0
+        for _, c in ipairs(st.walk.path) do
+          if math.abs(c.x - px) + math.abs(c.y - py) ~= 1 then walkOk = false end
+          px, py = c.x, c.y
+        end
+        walkTime = (walkTime or 0) + #st.walk.path * Battle.TILE_TIME
+      end
+    end
+    ba:flushSteps()
+  end
+  check("turno inimigo: anda casa a casa (6 quadros por casa, como no original)", walkOk and walkTime
+    and math.abs(Battle.TILE_TIME - 0.1) < 1e-9, tostring(walkTime))
   local moved, okRest = {}, true
   for _, u in ipairs(ba.units) do
     if u.side == "enemy" then
@@ -281,6 +299,7 @@ function T.run(data, romBytes)
   local hp0 = hero.hp
   local bx, by = boss.x, boss.y
   bb:enemyAct(boss)
+  bb:flushSteps()
   Combat.random = savedRandom
   check("IA: chefe ataca quem está colado e não anda", hero.hp < hp0 and boss.x == bx and boss.y == by,
     ("hp %d->%d boss %d,%d hero %d,%d skill %s"):format(hp0, hero.hp, boss.x, boss.y, hero.x, hero.y, tostring(boss.skills[1])))
@@ -359,6 +378,7 @@ function T.run(data, romBytes)
   local sr2 = Combat.random
   Combat.random = function() return 99 end
   bp:enemyAct(foe)
+  bp:flushSteps()
   Combat.random = sr2
   OptionsT.set("ai", savedAi)
   check("IA melhorada derruba o alvo que pode derrubar", weakA.hp == 0)

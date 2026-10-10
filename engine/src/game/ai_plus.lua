@@ -59,13 +59,19 @@ function AIPlus.act(b, e)
       end
     end
   end
+  local function blocked(x, y)
+    local o = b:unitAt(x, y)
+    return o ~= nil and o.side ~= e.side
+  end
   if best and best.score > 0 then
-    e.x, e.y = best.x, best.y
-    if best.skill and best.skill.heal then
-      for _, ev in ipairs(Combat.heal(e, best.t, best.skill)) do b:announce(ev) end
-    else
-      b:attack(e, best.t, best.skill)
-    end
+    b:enemyMove(e, best.x, best.y, function()
+      if best.skill and best.skill.heal then
+        for _, ev in ipairs(Combat.heal(e, best.t, best.skill)) do b:announce(ev) end
+      else
+        b:attack(e, best.t, best.skill)
+      end
+      b:checkEnd()
+    end, blocked)
     return
   end
   -- sem ação: aproxima-se do aliado mais próximo
@@ -77,7 +83,7 @@ function AIPlus.act(b, e)
       if not bd or d < bd then bk, bd = k, d end
     end
   end
-  if bk then e.x, e.y = bk % cols, math.floor(bk / cols) end
+  if bk then b:enemyMove(e, bk % cols, math.floor(bk / cols), nil, blocked) end
 end
 
 return AIPlus

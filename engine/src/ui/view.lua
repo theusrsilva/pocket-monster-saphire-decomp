@@ -160,7 +160,7 @@ function View.drawBattle(b, mapOnly)
       local dim = (u.acted and b.phase == "player" and u.side == "ally") and 0.5 or 1
       love.graphics.setColor(dim, dim, dim)
       View.drawIndexed("units", View.quads[u.species % 256], u.side == "ally" and st.allyPal or st.enemyPal,
-        u.x * CELL, u.y * CELL)
+        u.px or u.x * CELL, u.py or u.y * CELL)
     end
   end
 
@@ -169,9 +169,10 @@ function View.drawBattle(b, mapOnly)
     if u.hp > 0 then
       local w = math.max(1, math.floor(14 * u.hp / u.maxhp))
       love.graphics.setColor(0, 0, 0, 0.6)
-      love.graphics.rectangle("fill", u.x * CELL + 1, u.y * CELL + 14, 14, 2)
+      local ux, uy = u.px or u.x * CELL, u.py or u.y * CELL
+      love.graphics.rectangle("fill", ux + 1, uy + 14, 14, 2)
       if u.side == "ally" then love.graphics.setColor(0.3, 1, 0.4) else love.graphics.setColor(1, 0.35, 0.3) end
-      love.graphics.rectangle("fill", u.x * CELL + 1, u.y * CELL + 14, w, 2)
+      love.graphics.rectangle("fill", ux + 1, uy + 14, w, 2)
     end
   end
 

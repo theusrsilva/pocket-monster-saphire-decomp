@@ -36,7 +36,7 @@ gera uma **ROM traduzida** para jogar no Game Boy Color/Advance.
 | Desfazer movimento | não tinha | volta a unidade antes de agir |
 | IA dos inimigos | a original (só ataque normal, sem planejar) | original ou **melhorada** (usa golpes, foca quem pode derrubar, cura aliados) |
 | Bug da autocura do inimigo | passa do HP máximo | corrigido (opcional) |
-| Turno inimigo | ritmo fixo | normal ou rápido |
+| Turno inimigo | ritmo fixo | normal (unidades andando como no original) ou rápido |
 | Tela | 160×144 | janela grande, tela cheia ou as duas telas do 3DS |
 | Animações de batalha | — | as originais, que podem ser puladas (A, B ou START) |
 

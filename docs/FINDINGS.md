@@ -266,6 +266,14 @@ Conferido no PyBoy, fase 1: com o Piku (vaga 0) em (26,11) e o BoBo (vaga 2) em 
 turno o inimigo 11 vai de (21,13) para (22,11) e o 9 de (21,12) para (23,12) (primeiras casas do raio
 4 em volta do Piku que eles alcançam); todos os outros ficam parados porque não alcançam nenhuma.
 
+**Animação do turno inimigo** (medida no PyBoy, fase 1): a câmera vai até o inimigo (~6 quadros),
+ele anda **casa a casa a 4 px por quadro com um quadro parado a cada três (~6 quadros por casa)**,
+com sprites de andar (tiles `$7C/$7E`), e há ~27 quadros de pausa antes da próxima ação. O registro
+na SRAM só muda no fim do trajeto. O motor anda pelo menor caminho do mesmo alcance
+(**SUPOSIÇÃO**: o desempate entre caminhos iguais não foi conferido) e usa o mesmo ritmo para os
+aliados. Alcance de movimento conferido de novo contra o mapa `$A400` do original (BoBo e Pichu na
+fase 1): igual.
+
 ## Itens (inventário em `$C4E0 + id`, 1 byte por item; efeitos em `$01:$4ECB`)
 
 | id | Item | Efeito |
