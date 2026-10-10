@@ -199,6 +199,17 @@ function enterStage(i, team)
       u.x, u.y = e.x, e.y + 1
       battle.selected = u
       battle:chooseTarget(u, nil)
+    elseif dev == "reach" then                 -- desenvolvimento: alcance de cada unidade no terminal
+      for _, x in ipairs(battle.units) do
+        local best = battle:computeReach(x)
+        local n = 0
+        for _ in pairs(best) do n = n + 1 end
+        local cells = {}
+        for k in pairs(best) do cells[#cells + 1] = (k % battle.stage.cols) .. "," .. math.floor(k / battle.stage.cols) end
+        table.sort(cells)
+        print(("%s %s sp%02X lv%d mov%d em %d,%d: %d casas: %s"):format(x.side, x.name, x.species, x.level or 0,
+          x.move, x.x, x.y, n, table.concat(cells, " ")))
+      end
     elseif dev == "dialog" then
       local list = data.messages[1] or {}
       local m

@@ -41,6 +41,20 @@ function T.run(data, romBytes)
   check("alcance do piku = jogo original", #missing == 0 and #extra == 0,
     ("faltando {%s} sobrando {%s}"):format(table.concat(missing, " "), table.concat(extra, " ")))
 
+  -- 2b) MOV par: o custo acumulado tem que ser MENOR que o MOV ($09:$5945 recusa sobra 0). Geodude
+  --     (espécie $32, MOV 6, chão custo 2) em (7,3) no PyBoy: só 2 passos; casas livres marcadas em
+  --     $A400 = (5,3) (8,3) (9,3) (6,4) (7,4) (8,4) (7,5), passando pelo aliado em (6,3).
+  local allyAt = { ["6,3"] = true, ["7,3"] = true, ["5,4"] = true, ["4,5"] = true, ["6,5"] = true, ["5,6"] = true }
+  local geo = Path.reach(st, data.costs, { species = 0x32, move = 6, x = 7, y = 3 }, function() return false end)
+  local geoGot, geoWant = {}, { "5,3", "6,4", "7,4", "7,5", "8,3", "8,4", "9,3" }
+  for k in pairs(geo) do
+    local c = (k % st.cols) .. "," .. math.floor(k / st.cols)
+    if not allyAt[c] then geoGot[#geoGot + 1] = c end
+  end
+  table.sort(geoGot)
+  check("alcance do Geodude (MOV 6, par) = jogo original", table.concat(geoGot, " ") == table.concat(geoWant, " "),
+    table.concat(geoGot, " "))
+
   -- 3) Inimigos da fase 26 iguais à SRAM do jogo ($B200)
   local e1 = st.enemies[1]
   check("inimigos fase 26", #st.enemies == 12 and e1.species == 0x1C and e1.level == 3 and e1.hp == 67
@@ -202,6 +216,13 @@ function T.run(data, romBytes)
   local big = TeamSelect.new(data, ct, 1)
   for i = 1, 12 do big:toggle(i) end
   check("time: no máximo 10 com elenco cheio", big.max == 10 and big:count() == 10)
+  local nav = TeamSelect.new(data, Campaign.new(data), 1)
+  nav.cursor = 1; nav:confirm()
+  for _ = 1, #nav.list - 1 do nav:move(1) end
+  local atLast = not nav.onButton and nav.cursor == #nav.list
+  nav:move(1)
+  check("time (recomp): descer do último Pokémon chega no botão de lutar, sem desmarcar",
+    atLast and nav.onButton and nav:count() == 1 and nav:confirm() ~= nil)
   local Battle = require("src.game.battle")
   local bt = Battle.new(data, 1, ct, team)
   local allies = bt:alive("ally")

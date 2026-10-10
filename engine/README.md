@@ -26,6 +26,8 @@ também abre com **F1** ou pelo botão no mapa-múndi:
 - **Animações de batalha (do jogo original)**: a cena de ataque do original, decodificada e
   reimplementada em Lua (`src/anim/`), com o resultado calculado pelo motor e os dados lidos do
   recorte da sua ROM no cache. A, B ou START pulam a cena. Funciona também no console.
+- **Histórico da partida**: a lista do que aconteceu no canto de cima; desligado (padrão), só o
+  último aviso aparece por 3 segundos. A prévia de ataque fica sempre embaixo dele, nunca por cima.
 - **Turno inimigo** normal/rápido, **música** (os efeitos continuam), **volume**, **tela cheia**,
   **mostrar esta tela ao abrir**.
 - **Jogar** / **Gerar ROM traduzida** / **Sair**.

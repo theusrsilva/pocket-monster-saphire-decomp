@@ -1,6 +1,9 @@
--- Alcance de movimento, igual ao jogo original (ROM0:$1A00):
--- custo de entrar numa casa = costs[espécie][terreno]; $63 (99) = intransitável;
--- a unidade gasta até MOV pontos. Validado casa a casa contra o jogo rodando.
+-- Alcance de movimento, igual ao jogo original (ROM0:$1A00 + $09:$5945):
+-- custo de entrar numa casa = costs[espécie][terreno]; $63 (99) = intransitável.
+-- ROM0:$1A00 grava em $C059 o MOV que sobra depois de entrar na casa e $09:$5945 só aceita a casa
+-- se a sobra for maior que zero: o custo acumulado tem que ser MENOR que o MOV (com MOV par isso
+-- tira um passo; conferido no PyBoy com o Geodude, MOV 6, no Palaestra de Ifleaf). MOV limitado a
+-- 16 ($01:$5C80). Validado casa a casa contra o jogo rodando.
 local Path = {}
 
 local function key(x, y, cols) return y * cols + x end
@@ -30,7 +33,7 @@ function Path.reach(stage, costs, unit, blocked)
         if c < 99 then
           local nc = best[bk] + c
           local nk = key(nx, ny, cols)
-          if nc <= unit.move and (best[nk] == nil or nc < best[nk]) then
+          if nc < math.min(unit.move, 16) and (best[nk] == nil or nc < best[nk]) then
             if best[nk] == nil then open[#open + 1] = nk end
             best[nk], prev[nk] = nc, bk
           end

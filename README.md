@@ -39,6 +39,7 @@ gera uma **ROM traduzida** para jogar no Game Boy Color/Advance.
 | IA dos inimigos | a original (só ataque normal, sem planejar) | original ou **melhorada** (usa golpes, foca quem pode derrubar, cura aliados) |
 | Bug da autocura do inimigo | passa do HP máximo | corrigido (opcional) |
 | Turno inimigo | ritmo fixo | normal (unidades andando como no original) ou rápido |
+| Histórico da partida | — | opcional (desligado: só o último aviso por alguns segundos) |
 | Tela | 160×144 | janela grande, tela cheia, celular (Android) ou as duas telas do 3DS |
 | Controles | botões do Game Boy | teclado, mouse, controle (DualSense, DualShock, Xbox, Switch Pro...) ou toque no Android |
 | Animações de batalha | — | as originais, que podem ser puladas (A, B ou START) |

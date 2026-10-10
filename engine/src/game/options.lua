@@ -14,6 +14,7 @@ local Options = {
     enemySpeed = "normal",  -- "normal" ou "rapida"
     sound = true,
     music = true,           -- música (os efeitos continuam com a música desligada)
+    log = false,            -- histórico da partida no canto (desligado: só o último aviso, por 3 s)
     volume = 0.5,
     fullscreen = false,
     launcher = true,        -- mostrar a configuração ao abrir (PC)

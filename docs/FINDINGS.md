@@ -204,7 +204,12 @@ custo = byte[$09:$4190 + espécie*33 + terreno]      ($63 = 99 = intransitável)
 terreno = 3º byte de (+2C da fase)[metatile*4]
 ```
 
-A unidade gasta até **MOV** pontos (Dijkstra). Há 76 linhas, uma por espécie: a família do BoBo
+A unidade gasta **menos que MOV** pontos (Dijkstra): `ROM0:$1A00` grava em `$C059` o MOV que sobra
+depois de entrar na casa (`[$C058] − custo`) e a BFS (`$09:$5945`) só aceita a casa se a sobra for
+**maior que zero** (sobra 0 é recusada pelo `cp b / ret nc` contra o valor da casa em `$A400`). Com
+MOV ímpar dá na mesma que "até MOV"; com MOV par tira um passo. Conferido no PyBoy: Geodude
+(espécie `$32`, MOV 6, chão custo 2) no Palaestra de Ifleaf (fase 26) em (7,3) só chega a 2 casas de
+distância. O MOV entra limitado a 16 (`$01:$5C80`). Há 76 linhas, uma por espécie: a família do BoBo
 (voadores, linhas 7–12 e 56–58) paga 2 em tudo; os aquáticos (13–18, 59, 61, 62) atravessam o
 terreno 11 (água) com custo 3. No Palaestra de Ifleaf, o alcance previsto do Piku (MOV 9, chão
 custo 2) bateu com as 28 casas azuis mostradas pelo jogo. Esse caso virou teste automático do motor.
@@ -272,7 +277,7 @@ com sprites de andar (tiles `$7C/$7E`), e há ~27 quadros de pausa antes da pró
 na SRAM só muda no fim do trajeto. O motor anda pelo menor caminho do mesmo alcance
 (**SUPOSIÇÃO**: o desempate entre caminhos iguais não foi conferido) e usa o mesmo ritmo para os
 aliados. Alcance de movimento conferido de novo contra o mapa `$A400` do original (BoBo e Pichu na
-fase 1): igual.
+fase 1): igual; o Geodude (MOV par) mostrou a regra do "menor que MOV" (ver **Movimento**).
 
 ## Itens (inventário em `$C4E0 + id`, 1 byte por item; efeitos em `$01:$4ECB`)
 

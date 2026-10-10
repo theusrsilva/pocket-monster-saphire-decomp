@@ -84,6 +84,7 @@ end
 
 function Battle:say(msg)
   table.insert(self.log, 1, msg)
+  self.logAt = love.timer and love.timer.getTime() or 0
   if #self.log > 5 then table.remove(self.log) end
 end
 

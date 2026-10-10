@@ -270,6 +270,29 @@ local function panel(x, y, w, h)
   return View.panel(x, y, w, h)
 end
 
+-- Registro de eventos no canto de cima à direita. Com a opção "log" desligada, só o último aviso
+-- aparece, por 3 segundos. Devolve a altura ocupada (0 se nada foi desenhado).
+View.LOG_SECS = 3
+function View.drawLog(log, logAt, w, fade)
+  if #log == 0 then return 0 end
+  local lines = log
+  if not require("src.game.options").get("log") then
+    if not logAt or love.timer.getTime() - logAt > View.LOG_SECS then return 0 end
+    lines = { log[1] }
+  end
+  local lw = 380
+  local hgt = 12 + #lines * 18
+  panel(w - lw - 10, 10, lw, hgt)
+  love.graphics.setFont(View.small)
+  for i, line in ipairs(lines) do
+    love.graphics.setColor(1, 1, 1, 1 - (i - 1) * fade)
+    love.graphics.print(line, w - lw, 16 + (i - 1) * 18)
+  end
+  love.graphics.setFont(View.font)
+  return hgt
+end
+
+
 function View.panel(x, y, w, h)
   love.graphics.setColor(0.05, 0.1, 0.35, 0.88)
   love.graphics.rectangle("fill", x, y, w, h, 6, 6)
@@ -327,12 +350,15 @@ function View.drawHud(b, s, ox, oy, camx, camy)
     love.graphics.setFont(View.font)
   end
 
+  -- registro de eventos (antes da prévia, que fica embaixo dele e nunca por cima)
+  local logH = View.drawLog(b.log, b.logAt, w, 0.2)
+
   -- previsão de ataque (opção "prévia de ataque"; o original não mostrava)
   if b.mode == "target" and b.targets[b.targetIndex] and require("src.game.options").get("preview") then
     local a, t, sk = b.selected, b.targets[b.targetIndex], b.action
     local dmg = sk and sk.heal and -math.min(sk.power, t.maxhp - t.hp) or Combat.damage(a, t, sk and sk.power)
     local counter = not (sk and sk.heal) and t.hp - dmg > 0 and Combat.counterFor(a, t, sk)
-    local py0 = gb and (h - 144 * s - 102) or (h - 102)
+    local py0 = gb and (logH > 0 and 10 + logH + 8 or 10) or (h - 102)
     love.graphics.push()
     love.graphics.translate(0, py0 - (h - 102))
     panel(w - 300, h - 102, 290, 92)
@@ -383,17 +409,6 @@ function View.drawHud(b, s, ox, oy, camx, camy)
     end
   end
 
-  -- registro de eventos
-  if #b.log > 0 then
-    local lw = 380
-    panel(w - lw - 10, 10, lw, 12 + #b.log * 18)
-    love.graphics.setFont(View.small)
-    for i, line in ipairs(b.log) do
-      love.graphics.setColor(1, 1, 1, 1 - (i - 1) * 0.2)
-      love.graphics.print(line, w - lw, 16 + (i - 1) * 18)
-    end
-    love.graphics.setFont(View.font)
-  end
 
   -- ajuda de controles
   love.graphics.setFont(View.small)
@@ -638,15 +653,7 @@ function View.drawWorld(wd, data, campaign, mapOnly)
 
   if wd.menu and wd.mode == "menu" then drawMenuBox(wd.menu, w, h) end
 
-  if #wd.log > 0 then
-    local lw = 380
-    panel(w - lw - 10, 10, lw, 12 + #wd.log * 18)
-    love.graphics.setFont(View.small)
-    for i, line in ipairs(wd.log) do
-      love.graphics.setColor(1, 1, 1, 1 - (i - 1) * 0.25)
-      love.graphics.print(line, w - lw, 16 + (i - 1) * 18)
-    end
-  end
+  View.drawLog(wd.log, wd.logAt, w, 0.25)
   love.graphics.setFont(View.small)
   love.graphics.setColor(1, 1, 1, 0.75)
   local Pad = require("src.ui.pad")

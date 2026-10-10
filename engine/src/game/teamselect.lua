@@ -40,6 +40,8 @@ function TeamSelect:toggle(i)
   return true
 end
 
+-- O botão "Lutar" fica depois do último Pokémon da lista: descer do último (ou subir do primeiro)
+-- chega nele, sem precisar de START (melhoria do recomp; no original só START vai ao botão).
 function TeamSelect:move(d)
   Sound.sfx(Sound.CURSOR)
   if self.onButton then
@@ -47,7 +49,12 @@ function TeamSelect:move(d)
     self.cursor = d > 0 and 1 or #self.list
     return
   end
-  self.cursor = (self.cursor - 1 + d) % #self.list + 1
+  local n = self.cursor + d
+  if n > #self.list or n < 1 then
+    self.onButton = true
+    return
+  end
+  self.cursor = n
 end
 
 -- Time escolhido, na ordem das vagas do elenco.
@@ -64,6 +71,8 @@ function TeamSelect:confirm()
     return nil
   end
   self:toggle()
+  -- time cheio: o cursor já vai para o botão de lutar
+  if self:count() >= self.max then self.onButton = true end
 end
 
 function TeamSelect:start()
