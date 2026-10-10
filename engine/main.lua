@@ -120,8 +120,34 @@ local function readFile(path)
   end
 end
 
+local BattleScene = require("src.emu.battlescene")
+local scene                                  -- animação de batalha original em andamento
+
+-- Animação de batalha original: só no PC, com a ROM no cache e a opção ligada. Em execuções com
+-- --script fica desligada (a não ser com --anims 1), para os roteiros de teste não esperarem a cena.
+local function updateAnimHook()
+  Battle.animHook = Options.get("anims") and not CONSOLE and BattleScene.available()
+    and (not opts.script or opts.anims ~= nil) or false
+end
+
+local function endScene()
+  scene = nil
+  if battle then
+    battle:finishAnim()
+    Sound.current = nil
+    Sound.stageMusic_(battle.stageIndex)
+  end
+end
+
 function enterStage(i, team)
+  updateAnimHook()
   battle = Battle.new(data, i, campaign, team)
+  if opts["attack-demo"] then                 -- desenvolvimento: aliado encosta no 1º inimigo e ataca
+    local a, e = battle:alive("ally")[1], battle:alive("enemy")[tonumber(opts["attack-demo"]) or 1]
+    a.x, a.y = e.x, e.y + 1
+    if opts.enemy then battle:attack(e, a, nil, true)
+    else battle:attack(a, e, opts.skill and battle:skill(tonumber(opts.skill, 16)) or nil, false) end
+  end
   Sound.stageMusic_(i)
   if opts["cheat-move"] then                  -- só para testes: aliados andam muito
     for _, u in ipairs(battle.units) do if u.side == "ally" then u.move = 60 end end
@@ -321,6 +347,20 @@ function love.load(args)
     love.event.quit(0)
     return
   end
+  if opts["emu-snap"] then                   -- desenvolvimento: executor GBC a partir de um snapshot
+    local bytes = assert(readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc")))
+    local Dev = require("src.emu.devtest")
+    local ok, err
+    if opts.scene then ok, err = pcall(Dev.scene, opts.out, tonumber(opts.frames or "800"))
+    elseif opts.trace then ok, err = pcall(Dev.trace, bytes, opts["emu-snap"], opts.trace)
+    else
+      ok, err = pcall(Dev.run, bytes, opts["emu-snap"], opts.out or opts["emu-snap"],
+        tonumber(opts.frames or "200"), tonumber(opts.every or "2"))
+    end
+    if not ok then print("erro: " .. tostring(err)) end
+    love.event.quit(ok and 0 or 1)
+    return
+  end
   if opts["build-rom"] then                  -- gera a ROM convertida sem abrir a tela (fora do git)
     local bytes = assert(readFile(opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc")), "ROM não encontrada")
     local out, report = require("src.romhack.patcher").build(bytes, {})
@@ -410,7 +450,26 @@ function love.update(dt)
       end
     end
   elseif state == "battle" then
-    battle:update(dt)
+    if battle.anim and not scene then
+      local ok, sc = pcall(BattleScene.new, battle.anim)
+      if ok then
+        scene = sc
+        scene.m.writeHooks[0xFFF7] = function(v) Sound.music(v) end
+        scene.m.writeHooks[0xFFF8] = function(v) Sound.sfx(v) end
+      else
+        print("animação de batalha desligada: " .. tostring(sc))
+        Battle.animHook = false
+        battle:finishAnim()
+      end
+    end
+    if scene then
+      -- em roteiros (--script) o tempo não anda: um quadro por atualização
+      local ok, alive = pcall(opts.script and scene.step or scene.update, scene, dt)
+      if not ok then print("animação de batalha: " .. tostring(alive)) end
+      if not ok or not alive then endScene() end
+    else
+      battle:update(dt)
+    end
   elseif state == "world" then
     world:update(dt)
   end
@@ -475,6 +534,10 @@ function love.keypressed(key)
     end
   elseif state == "battle" then
     local b = battle
+    if scene then                            -- durante a animação: START/B/A pulam a cena
+      if k == "start" or k == "b" or k == "a" then endScene() end
+      return
+    end
     if b.result then
       if k == "a" then campaign:save(); openWorld() end
       return
@@ -550,7 +613,11 @@ end
 local function drawScreen(which)
   if which == "top" then
     View.forced = { Dual.TOP_W, Dual.TOP_H }
-    if state == "battle" then View.drawBattle(battle, true)
+    if state == "battle" and scene then
+      love.graphics.clear(0, 0, 0)
+      local sc = math.min(Dual.TOP_W / 160, Dual.TOP_H / 144)
+      scene:draw(math.floor((Dual.TOP_W - 160 * sc) / 2), math.floor((Dual.TOP_H - 144 * sc) / 2), sc)
+    elseif state == "battle" then View.drawBattle(battle, true)
     elseif state == "world" then View.drawWorld(world, data, campaign, true)
     elseif state == "team" then Dual.drawTeamTop(teamsel, data)
     else drawMessage(Dual.TOP_W, Dual.TOP_H) end
@@ -588,7 +655,11 @@ function love.draw(screen)
   end
   local w, h = love.graphics.getDimensions()
   if state == "launcher" then launcher:draw(fonts) return end
-  if state == "battle" then
+  if state == "battle" and scene then
+    love.graphics.clear(0, 0, 0)
+    local sc = math.max(1, math.floor(math.min(w / 160, h / 144)))
+    scene:draw(math.floor((w - 160 * sc) / 2), math.floor((h - 144 * sc) / 2), sc)
+  elseif state == "battle" then
     View.drawBattle(battle)
   elseif state == "world" then
     View.drawWorld(world, data, campaign)

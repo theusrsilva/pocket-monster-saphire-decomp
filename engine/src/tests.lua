@@ -421,6 +421,30 @@ function T.run(data, romBytes)
       and heal(250, 260, 800) == 260)
   end
 
+
+  -- 21) Animação de batalha original (src/emu): ApplyAttack roda no executor GBC a partir do
+  --     resultado do motor. Valores do PyBoy: BoBo (7) acerta 30 no inimigo 63 (55 -> 25) e leva
+  --     contra de 9 (65 -> 56); a cena termina sozinha em ~680 quadros.
+  if romBytes then
+    local Scene = require("src.emu.battlescene")
+    local okS, sc = pcall(Scene.new, {
+      rom = romBytes,
+      att = { species = 7, level = 1, hp = 65, maxhp = 65, sp = 40, maxsp = 40, atk = 20, acc = 10, eva = 10, move = 6, x = 26, y = 6 },
+      def = { species = 63, level = 1, hp = 55, maxhp = 55, sp = 0, maxsp = 0, atk = 19, acc = 10, eva = 10, move = 4, x = 26, y = 5 },
+      hit = true, dmg = 30, counter = { hit = true, dmg = 9 }, stage = 1, terrain = 2,
+    })
+    local n = 0
+    if okS then while sc:step() and n < 2000 do n = n + 1 end end
+    local m = okS and sc.m
+    local hpDef = m and (m:read(0xC98E) + m:read(0xC98F) * 256)
+    local hpAtt = m and (m:read(0xC90E) + m:read(0xC90F) * 256)
+    check("animação de batalha original roda e aplica o resultado do motor",
+      okS and sc.done and n > 300 and hpDef == 25 and hpAtt == 56,
+      okS and ("%d quadros, HP %s/%s"):format(n, tostring(hpAtt), tostring(hpDef)) or tostring(sc))
+    check("animação do golpe pela tabela $09:$6F4D", Scene.skillAnim(romBytes, 1, 0x34) == 6
+      and Scene.skillAnim(romBytes, 1, 0x0F) == 10)
+  end
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

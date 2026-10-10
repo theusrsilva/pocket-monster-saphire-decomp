@@ -70,7 +70,7 @@ de robôs da própria Sintax (o cabeçalho ainda diz `ROBOT WAR v3.0`).
 | 40, 41, 4C | UI de batalha/menus: números, HP/SP/EXP, palavras **pré-renderizadas** ("Attack", "Skill", "Goods", "State", "Load", "Save"…) |
 | 74, 79, 7C | nomes de golpes, de lugares e de itens **como imagem** |
 | 75, F5 | mais retratos/arte |
-| 90–B1 | frames de animação de batalha: tiles **deduplicados**, montados por tabelas de metasprite (provável índice em `$04:$4000`, entradas `[lo, hi, banco, 00]` apontando para os bancos 05/0C/0D/20/21/28/29) |
+| 90–B1 | tiles dos quadros da animação de batalha (ver **Animação de batalha**: scripts por `$04:$4000`, quadros por `$80:$4400`) |
 | C0–F1, 64–6D | dados de fase: mapa, metatiles, tiles e paletas (ver **Fases**) |
 | FD | sprites 16×16 das unidades no mapa: `$FD:$4000 + espécie*64`, tiles TL TR BL BR |
 | **F4/F5** | **retratos dos Pokémon**, 4×4 tiles, row-major; tabela de ponteiros por espécie no início de F4 (ver **Texto em imagem**) |
@@ -524,6 +524,38 @@ atribui cada entrada à lista que começa mais perto. As traduções seguem mode
 próprio texto (`src/romhack/descriptions.lua`). A caixa das descrições usa outra tabela de
 caracteres (minúsculas viram maiúsculas), então nela os acentos aparecem sem acento.
 
+## Animação de batalha (`ApplyAttack`, `$09:$62EC`)
+
+Em vez de reimplementar, o motor **executa o código original** da ROM do jogador num executor de
+GBC próprio (`engine/src/emu/gbc.lua`: CPU SM83 do projeto + MBC5, WRAM/VRAM/SRAM em bancos, DMA da
+OAM, HDMA, paletas CGB, LY/STAT com contagem de ciclos, velocidade dupla, interrupções e um
+renderizador por linha). Conferido quadro a quadro contra o PyBoy a partir de um snapshot.
+
+* **Sistema de objetos** (`$00:$1D7E`, chamado a cada quadro): até 12 objetos em `$DB00 + $40*n`.
+  `+$0F` = personagem (índice de `$04:$4000`, entradas `[ptr, banco]` → lista de animações),
+  `+$10` = animação, `+$27/+$28` = banco/ponteiro do script. Cada passo do script tem 4 bytes
+  `[dy, dx, quadro, espera]` (dx invertido quando o objeto está espelhado, `+$12`); byte `≥ $80` =
+  comando (`$00:$20AC`); `$FF $FF` encerra. O quadro indexa `$80:$4400 + personagem*4` →
+  `[banco, ?, ptr]` dos tiles do quadro (bancos `$90–$B1`), recarregados na VRAM quando mudam.
+  Personagem = `$7C` + espécie.
+* **Laço da cena** (`$00:$083F`): espera o VBlank (`$2A02`: `[$C030]` muda), entrada, objetos,
+  efeitos (`$3E93` → `$2D:$4BE9` colisão), monta a OAM (`$1AC2`) e termina quando os dois objetos
+  principais acabam (`$086A`). VBlank (`$0C3C`): conta quadros, rolagem, DMA da OAM de `$C600`,
+  paletas e som. STAT (`$0CD5`): com `[$C060]=1`, zera o SCX na linha `$6F` (HUD parado embaixo).
+* **Fluxo do ataque**: `$01:$63B9` (copia posições e HP para a barra) → `$38:$7124` (cenário:
+  `[$C1D7] = $38:$7139[terreno $C220] + $2F`) → música → `ApplyAttack` (`$09:$62EC` aliado ataca,
+  `$09:$64C7` inimigo ataca, por `[$C008]`) → volta em `$01:$6440`.
+* **Entradas** (rastreadas: nada de VRAM nem SRAM é lido antes de ser escrito): cópias de 128 bytes
+  do atacante (`$C900`) e do defensor (`$C980`) no formato da SRAM (`+$42/+$43` = endereço do
+  registro, `+$46/+$47` = HP mostrado na barra); `$C1D0/$C1D3` = personagens; `$C1D1` = ação do
+  atacante (2 = normal; golpe = tabela `$09:$6F4D[espécie]`, 4 pares `[golpe, animação]`, sem par
+  vale o último); `$C1D4` = ação do contra (1 = sem contra); `$C1D5/$CD43` = resultado (`$0C`
+  acertou, `$10` errou) e dano do ataque; `$C1D2/$CD03` = idem do contra (sorteios `$38:$73C4` e
+  `$741B`). Paletas de BG 4–7 = as de interface da fase.
+* O motor monta essas entradas com o resultado que já calculou (mesmas regras), roda a cena a
+  60 quadros/s (~3 ms por quadro no PC) e só depois anuncia dano e EXP. Música e efeitos pedidos pela
+  cena (`$FFF7/$FFF8`) vão para o driver de som que já roda no motor.
+
 ## Emulação para pesquisa
 
 `tools/run_headless.py` + `tools/play.py` rodam a ROM no **PyBoy** sem janela
@@ -536,8 +568,7 @@ escolher unidades com A/↓ → START.
 
 1. ~~Stats das espécies~~ ✅ ~~Inimigos e posições por fase~~ ✅. ~~Golpes, itens, eventos e falas~~ ✅.
    ~~Mapa-múndi~~ ✅. ~~Loja~~: não existe no original (ver **Loja**).
-2. Achar as tabelas de metasprite dos frames de batalha (90–B1): seguir no debugger a rotina que
-   escreve na OAM ($FE00 / DMA) durante uma luta.
+2. ~~Animações de batalha~~ ✅: executadas do código original (ver **Animação de batalha**).
 3. ~~Formato dos mapas~~ ✅. Falta: confirmar a tabela de terreno (+2C) e a paleta de cada sprite de unidade.
 4. ~~Paletas de BG das fases~~ ✅ (rotinas `ROM0:$2C56`/`$2C42`). ~~Retratos~~ ✅: as paletas de BG
    4–7 de toda fase são as da interface; os retratos (luta e diálogos) usam a **paleta 4**

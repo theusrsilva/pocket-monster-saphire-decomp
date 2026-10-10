@@ -61,9 +61,11 @@ function AIPlus.act(b, e)
   end
   if best and best.score > 0 then
     e.x, e.y = best.x, best.y
-    local evs = (best.skill and best.skill.heal) and Combat.heal(e, best.t, best.skill)
-      or Combat.attack(e, best.t, best.skill)
-    for _, ev in ipairs(evs) do b:announce(ev) end
+    if best.skill and best.skill.heal then
+      for _, ev in ipairs(Combat.heal(e, best.t, best.skill)) do b:announce(ev) end
+    else
+      b:attack(e, best.t, best.skill)
+    end
     return
   end
   -- sem ação: aproxima-se do aliado mais próximo

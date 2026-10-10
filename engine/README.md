@@ -19,6 +19,9 @@ No PC o jogo abre numa tela de configuração (como o launcher do Gen1Recomp), q
 - **IA dos inimigos**: a original (`$01:$6B95`) ou a melhorada (`src/game/ai_plus.lua`): usa o
   alcance real e os golpes, prioriza quem pode derrubar e pesa o contra-ataque, cura aliados.
 - **Corrigir autocura do inimigo**: no original ela passa do HP máximo.
+- **Animações de batalha (do jogo original)**: a cena de ataque é o código da sua ROM rodando num
+  executor de GBC dentro do motor (`src/emu/`), com o resultado calculado pelo motor. A, B ou START
+  pulam a cena. No console fica desligada.
 - **Turno inimigo** normal/rápido, **som** (volume), **tela cheia**, **mostrar esta tela ao abrir**.
 - **Jogar** / **Gerar ROM traduzida** / **Sair**.
 
@@ -121,7 +124,8 @@ A fusão foi conferida com o LÖVE do PC (o executável fundido passa nos testes
 
 ## Ainda não
 
-Animações de batalha (metasprites).
+Animação para golpes de cura (a cena original só roda nos ataques); animação no 3DS (o executor de
+GBC é pesado demais para o console sem JIT).
 
 ## Estrutura
 
@@ -146,6 +150,9 @@ src/game/options.lua      opções do jogador
 src/game/i18n.lua         textos da interface em inglês
 src/game/ai_plus.lua      IA melhorada (opcional)
 src/util/bit.lua          operações de bits (LuaJIT ou Lua puro)
+src/emu/gbc.lua           executor de GBC (CPU SM83 + memória, vídeo e interrupções)
+src/emu/battlescene.lua   animação de batalha original (ApplyAttack) a partir do resultado do motor
+src/emu/devtest.lua       desenvolvimento: snapshot do PyBoy, rastreio de entradas
 src/romhack/patcher.lua   conversor de ROM (ROM traduzida para GBC/GBA)
 src/romhack/dialogs.lua   falas em PT na ROM: reapontamento, quebra por palavra, acentos
 src/romhack/buffer.lua    cópia editável da ROM + checksum

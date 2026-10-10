@@ -175,7 +175,7 @@ function Battle:confirm()
     if s and s.heal then
       for _, ev in ipairs(Combat.heal(u, t, s)) do self:announce(ev) end
     else
-      for _, ev in ipairs(Combat.attack(u, t, s)) do self:announce(ev) end
+      self:attack(u, t, s)
     end
     self:finishUnit(u)
   end
@@ -383,6 +383,42 @@ function Battle:endPlayerTurn()
   self.timer = 0.4
 end
 
+---------------------------------------------------------------- ataque e animação original
+
+-- Quando o main liga Battle.animHook (opção "animações" + ROM no cache), o ataque guarda um pedido
+-- de animação (estado de antes + resultado) e os anúncios (dano, EXP) esperam a cena terminar.
+Battle.animHook = false
+
+local function unitBefore(u)
+  return { species = u.species, level = u.level, hp = u.hp, maxhp = u.maxhp, sp = u.sp, maxsp = u.maxsp,
+    atk = u.atk, acc = u.acc, eva = u.eva, move = u.move, type = u.type, strong = u.strong, weak = u.weak,
+    rmin = u.rmin, rmax = u.rmax, x = u.x, y = u.y }
+end
+
+function Battle:attack(att, def, skill, enemyTurn)
+  local a0, d0 = unitBefore(att), unitBefore(def)
+  local evs = Combat.attack(att, def, skill, enemyTurn)
+  if not Battle.animHook then
+    for _, ev in ipairs(evs) do self:announce(ev) end
+    return evs
+  end
+  local e1, e2 = evs[1], evs[2]
+  self.anim = {
+    att = a0, def = d0, skill = skill and skill.id, hit = e1.hit, dmg = e1.dmg,
+    counter = e2 and { skill = e2.skill, hit = e2.hit, dmg = e2.dmg } or nil,
+    enemyTurn = enemyTurn and true or false, stage = self.stageIndex,
+    terrain = self.stage.terrain[def.y * self.stage.cols + def.x + 1] or 0, evs = evs,
+  }
+  return evs
+end
+
+-- Fim da cena (ou cena pulada/indisponível): anuncia o resultado.
+function Battle:finishAnim()
+  local a = self.anim
+  self.anim = nil
+  if a then for _, ev in ipairs(a.evs) do self:announce(ev) end end
+end
+
 ---------------------------------------------------------------- eventos, EXP e nível
 
 function Battle:announce(ev)
@@ -528,7 +564,7 @@ function Battle:enemyAct(e)
     return
   end
   local function attack(t)
-    for _, ev in ipairs(Combat.attack(e, t, nil, true)) do self:announce(ev) end
+    self:attack(e, t, nil, true)
   end
   -- 1. cura
   local s1 = e.skills[1] and self:skill(e.skills[1])

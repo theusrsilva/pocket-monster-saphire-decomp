@@ -10,6 +10,7 @@ local Options = {
     ai = "original",        -- IA dos inimigos: "original" ou "melhorada"
     fixHeal = true,         -- corrige o bug da autocura do inimigo passar do HP máximo
     undo = true,            -- desfazer o movimento antes de agir
+    anims = true,           -- animações de batalha do jogo original (executadas da ROM)
     enemySpeed = "normal",  -- "normal" ou "rapida"
     sound = true,
     volume = 0.5,
