@@ -250,3 +250,14 @@ ligado com o jogo aberto; um aviso no canto mostra quando ele conecta ou descone
   ferramentas de pesquisa e como os releases são gerados.
 - [`docs/FINDINGS.md`](docs/FINDINGS.md): tudo o que já foi descoberto sobre a ROM.
 - [`engine/README.md`](engine/README.md): o motor (estrutura, opções, console).
+
+## Licença
+
+O código, as ferramentas, a documentação e a tradução deste projeto estão sob a
+[licença MIT](LICENSE): dá para usar, modificar e redistribuir, mantendo o aviso de copyright.
+
+A licença **não** cobre o jogo original (código, gráficos, música e texto da ROM, que não são
+distribuídos aqui), as marcas e nomes de Pokémon (Nintendo, Game Freak e Creatures) nem o software
+de terceiros que vai junto nos executáveis (LÖVE, love-android, LÖVE Potion e SDL, cada um com a
+própria licença). Projeto de fã, sem vínculo com a Nintendo, Game Freak, Creatures, The Pokémon
+Company ou Sintax.
