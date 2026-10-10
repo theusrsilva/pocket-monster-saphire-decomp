@@ -34,7 +34,7 @@ cat <<'TXT'
 
 Nenhum arquivo contém a ROM: na primeira vez, escolha a sua ROM do Pocket Monster Saphire (versão
 Fixed, SHA-1 `9fa7da61c61d684f39e43d6899a68309ba8607b3`) na tela de configuração (no Android,
-toque em "Escolher ROM" ou abra o .gbc com o app). Lá também dá para
+toque em ROM e escolha o .gbc, ou abra o .gbc com o app). Lá também dá para
 gerar a ROM traduzida para jogar em GBC/GBA. No 3DS, importe no PC e copie a pasta de dados
 (veja o README).
 TXT
