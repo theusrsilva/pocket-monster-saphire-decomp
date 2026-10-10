@@ -600,6 +600,44 @@ pixel com o do executor.
   (`engine/src/anim/render.lua`) usa uma imagem para o cenário (atualizada por célula) e atlas de
   tiles por banco/paleta para os sprites, com o limite de 10 sprites por linha do hardware.
 
+## Telas de interface (scripts do banco `$BC`)
+
+Todas as telas de interface do campo são **scripts do mesmo interpretador do cenário da batalha**
+(`$00:$2D35`; tabela `$BC:$4000[id]`): gravam variáveis (`$2DA0`: posição da janela em
+`$C242/$C243`, número de opções em `$C090`, **posições do cursor** em `$C0B2 + 2i` = y e
+`$C0B3 + 2i` = x + 8, coordenadas de tela; a pokébola do cursor tem 16×16, conferido na OAM do
+PyBoy), carregam o bloco de tiles (`$2DDB`), copiam o mapa do banco `$BD` para a janela (`$2EB0`),
+escrevem números (`$322B`) e barras (`$5D49`) lidos da WRAM e carregam nomes e retratos em imagem
+por id (`$2F25–$2FF4` → `$00:$300B`: tabela `[banco, 0, ptr]`, cópia para o banco 1 da VRAM):
+
+| id | tela | lê |
+|---|---|---|
+| `$01` | painel da unidade (20×6, embaixo) | `$C905` espécie (retrato `$F4`, nome `$F9`), `$C906` tipo, `$C902` nível, `$C903` EXP, `$C90E` HP, `$C90C` SP, `$C274` P/C |
+| `$02` | menu de ação (Attack, Skill, Goods, State, Rest) | — |
+| `$03` / `$1D` | submenu de itens | — |
+| `$04` | golpes (4 vagas em 2 colunas) | `$C924 + 5i` |
+| `$05` / `$06` | itens de cura / pedras | contagens `$C4E0–$C4EB` |
+| `$07` | Estado da unidade | registro `$C900` (o sprite grande é um objeto) |
+| `$09` / `$1C` | menu do mapa | — |
+| `$0A` / `$0B` | Team show (tipos / lista) | — |
+| `$0D` / `$0E` / `$13` | caixas de fala (sem retrato / larga / com retrato `$C270`, tabela `$7C:$4108`) | — |
+| `$0F` | objetivo da fase | `$C274` |
+| `$10` / `$11` | avisos "Enemy action" / "Player action" | — |
+| `$12` | confirmar fim do turno | — |
+| `$15` | **bônus de nível**: LV, HP, SP, ATK, HIT, AGI, MOV com "+n" e Points | registro `$C900`, bônus `$CD0A–$CD0E`, pontos `$CD14`, golpe aprendido `$C1DD` |
+| `$16` | HP/SP dos dois lados | `$C90E/$C98E`... |
+| `$17–$19` | cidade, Instituto, BabyAlliance | `$C274`, `$C270` |
+| `$1B` | escolha do time | `$DF82 + $10i` |
+| `$1E` / `$1F` | itens-chave / insígnias | `$C4F1–`, contagens |
+| `$20` | nome do lugar | `$C27D` |
+| `$21` / `$22` | salvar / carregar | `$C0F0–` |
+| `$2F–$37` | cenários da batalha | — |
+
+O motor desenha essas telas pelo próprio interpretador (`engine/src/ui/gbui.lua`, HUD em
+`engine/src/ui/gbhud.lua`), com o registro da unidade escrito em `$C900` e as paletas de BG da fase;
+em português, os dados vêm da ROM traduzida pelo conversor. Texto das falas com a fonte `$39:$4365`
+(tabela `$39:$4226`).
+
 ## Emulação para pesquisa
 
 `tools/run_headless.py` + `tools/play.py` rodam a ROM no **PyBoy** sem janela

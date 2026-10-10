@@ -23,6 +23,8 @@ correção de bugs e melhorias de usabilidade.
 - [x] Mapa parcial da WRAM (unidades, status, buffers do mapa)
 - [x] Inimigos de cada fase (stats completos)
 - [x] Golpes (nomes/efeitos), itens, eventos das fases
+- [x] Interface do original no motor: painel da unidade, menu de ação com as 5 opções, golpes, itens, Estado, bônus de nível, avisos de turno e caixas de fala com retrato (telas `$BC` desenhadas pelo interpretador, em PT pela ROM traduzida)
+- [ ] Telas do original ainda não usadas: escolha do time (`$1B`), menu do mapa (`$09/$1C`), confirmar fim do turno (`$12`, falta traduzir), cidades (`$17–$19`), salvar/carregar
 - [x] PC: launcher redesenhado e clicável; mouse em menus, listas e mapa-múndi; barra de botões (música, tela cheia, minimizar, configuração)
 - [x] Unidades andam casa a casa como no original (~6 quadros por casa; câmera no inimigo antes da ação)
 - [x] Animações de batalha: cena de ataque decodificada e reimplementada em Lua (`engine/src/anim`),

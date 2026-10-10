@@ -7,7 +7,7 @@ local serialize = require("src.util.serialize")
 local at = Rom.at
 local Importer = {}
 
-Importer.CACHE_VERSION = 13
+Importer.CACHE_VERSION = 16
 local NSTAGES = 32
 local NSPECIES_TABLE = 20     -- espécies recrutáveis ($09:$4000, 20 bytes)
 local NCOST_ROWS = 76         -- linhas da tabela de custo ($09:$4190, 33 bytes)
@@ -130,6 +130,11 @@ local function importStage(rom, s)
     cols = cols, rows = rows, terrain = terrain, enemies = enemies, starts = starts,
     allyPal = bgpal[8], enemyPal = bgpal[7],
     portraitPal = bgpal[5],          -- paleta 4 de BG: retratos da luta e dos diálogos (igual em todas)
+    bgpalRaw = (function()           -- as 8 paletas de BG em RGB555 (telas de interface, src/ui/gbui)
+      local t, o = {}, at(e[0].bank, e[0].addr)
+      for i = 0, 63 do t[i + 1] = rom:u8(o + i) end
+      return t
+    end)(),
   }
 end
 
@@ -436,6 +441,14 @@ function Importer.run(bytes, progress)
   -- Animação de batalha (src/anim): só os bytes que a cena lê (scripts, quadros, tiles, cenários).
   love.filesystem.write("generated/attack.bin", (require("src.anim.slice").build(rom.data)))
   if love.filesystem.getInfo("generated/rom.bin") then love.filesystem.remove("generated/rom.bin") end
+  -- Telas de interface do original (scripts $BC, mapas $BD, tiles $40/$41, fonte $39, nomes e
+  -- retratos em imagem): em inglês da ROM do jogador e em português da ROM traduzida pelo conversor.
+  progress("telas")
+  local Slice = require("src.anim.slice")
+  love.filesystem.write("generated/ui_en.bin", Slice.fromBanks(rom.data, Slice.UI_BANKS))
+  local okPt, pt = pcall(function() return require("src.romhack.patcher").build(rom.data, {}) end)
+  if okPt then love.filesystem.write("generated/ui_pt.bin", Slice.fromBanks(pt, Slice.UI_BANKS))
+  else print("telas em português: " .. tostring(pt)) end
   data.music = { stage = {} }
   for st = 0, NSTAGES - 1 do data.music.stage[st] = rom:u8(0x2C85 + st) end
   importSpeakers(rom):encode("png", "generated/speakers.png")

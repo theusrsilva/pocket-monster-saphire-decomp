@@ -495,6 +495,33 @@ function T.run(data, romBytes)
       and Attack.skillAnim(full, 1, 0x0F) == 10)
   end
 
+  -- 22) Telas de interface do original (scripts $BC, src/ui/gbui.lua): o painel da unidade lê o
+  --     registro em $C900 (HP em $9C88-$9C8A, da direita para a esquerda; dígito d = tile d+1, $BC:$60AE) e o menu de ação
+  --     tem as 5 opções nas posições do cursor gravadas pelo script (y $38..$78, x $74, PyBoy).
+  local GBUI = require("src.ui.gbui")
+  if GBUI.available() then
+    local GBHud = require("src.ui.gbhud")
+    local g = GBUI.new("en", data.stages[1].bgpalRaw)
+    g:show(GBUI.PANEL, GBHud.unitVars({ species = 7, level = 3, hp = 80, maxhp = 90, sp = 5, maxsp = 9 }, 0xC900))
+    local V0 = g.m.V[0]
+    check("tela original: painel da unidade mostra o HP do registro $C900",
+      g.cols == 20 and g.rows == 6 and g.wy == 0x60 and V0[0x1C88] == 1 and V0[0x1C89] == 9 and V0[0x1C8A] == 1,
+      ("%dx%d wy %d tiles %d %d %d"):format(g.cols, g.rows, g.wy, V0[0x1C88], V0[0x1C89], V0[0x1C8A]))
+    g:show(GBUI.ACTIONS, {})
+    local M = g.m.M
+    check("tela original: menu de ação 6x12 com 5 posições de cursor",
+      g.cols == 6 and g.rows == 12 and M[0xC090] == 4 and M[0xC0B2] == 0x38 and M[0xC0BA] == 0x78
+        and M[0xC0B3] == 0x74)
+    local bt = Battle.new(data, 1, Campaign.new(data))
+    local u = bt:alive("ally")[1]
+    bt:openMenu(u)
+    local ids = {}
+    for _, it in ipairs(bt.menu.items) do ids[#ids + 1] = it.id .. (it.disabled and "-" or "+") end
+    check("menu de ação sempre com as 5 opções do original (indisponíveis apagadas)",
+      #bt.menu.items == 5 and bt.menu.items[1].disabled and not bt.menu.items[4].disabled
+        and not bt.menu.items[bt.menu.index].disabled, table.concat(ids, " "))
+  end
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

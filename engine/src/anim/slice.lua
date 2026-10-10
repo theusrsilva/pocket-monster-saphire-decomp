@@ -181,6 +181,21 @@ function Slice.build(rom)
   return table.concat(out), total, need
 end
 
+-- Bancos inteiros (telas de interface, src/ui/gbui.lua).
+Slice.UI_BANKS = { 0x08, 0x39, 0x40, 0x41, 0x48, 0x74, 0x75, 0x79, 0x7C, 0xBC, 0xBD, 0xF4, 0xF5, 0xF9 }
+
+function Slice.fromBanks(rom, banks)
+  local out = { "SAPHANIM1" }
+  for _, b in ipairs(banks) do
+    for half = 0, 1 do                               -- blocos de 8 KB (tamanho cabe em u16)
+      local s = 0x4000 + half * 0x2000
+      out[#out + 1] = string.char(b, s % 256, math.floor(s / 256), 0x00, 0x20)
+      out[#out + 1] = rom:sub(at(b, s) + 1, at(b, s) + 0x2000)
+    end
+  end
+  return table.concat(out)
+end
+
 -- Leitor sobre o recorte: um texto de 16 KB por banco, montado na primeira leitura do banco.
 function Slice.load(data)
   assert(data:sub(1, 9) == "SAPHANIM1", "recorte de animação inválido")

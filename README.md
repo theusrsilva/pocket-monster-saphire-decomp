@@ -39,6 +39,7 @@ gera uma **ROM traduzida** para jogar no Game Boy Color/Advance.
 | Turno inimigo | ritmo fixo | normal (unidades andando como no original) ou rápido |
 | Tela | 160×144 | janela grande, tela cheia ou as duas telas do 3DS |
 | Animações de batalha | — | as originais, que podem ser puladas (A, B ou START) |
+| Menus e falas | inglês | as telas do próprio jogo (painel, menu de ação, golpes, itens, Estado, bônus de nível, falas com retrato), em português, clicáveis |
 
 Na **ROM traduzida** (para GBC/GBA) entram: todas as falas em português, os nomes em imagem
 (golpes, Pokémon, lugares, itens, ginásios), os menus, a tela de título, as descrições de golpes e

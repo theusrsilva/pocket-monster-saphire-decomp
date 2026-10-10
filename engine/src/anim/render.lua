@@ -81,6 +81,31 @@ function Render.pixels(s, plot, noLimit)
   end
 end
 
+-- Janela (mapa $9C00) de cols x rows tiles numa ImageData nova (telas de interface).
+function Render.window(s, cols, rows)
+  local d = love.image.newImageData(cols * 8, rows * 8)
+  local cl = {}
+  for p = 0, 7 do
+    for c = 0, 3 do cl[p * 4 + c] = { rgb(s.bgpal[p * 8 + c * 2], s.bgpal[p * 8 + c * 2 + 1]) } end
+  end
+  for ty = 0, rows - 1 do
+    for tx = 0, cols - 1 do
+      local base, attr = bgTile(s, tx, ty)
+      local vr = band(attr, 8) ~= 0 and s.V[1] or s.V[0]
+      for py = 0, 7 do
+        for px = 0, 7 do
+          local qx, qy = px, py
+          if band(attr, 0x20) ~= 0 then qx = 7 - px end
+          if band(attr, 0x40) ~= 0 then qy = 7 - py end
+          local c = cl[band(attr, 7) * 4 + pix(vr, base, qx, qy)]
+          d:setPixel(tx * 8 + px, ty * 8 + py, c[1], c[2], c[3], 1)
+        end
+      end
+    end
+  end
+  return d
+end
+
 -- ---------------------------------------------------------------------------------------------
 -- LÖVE
 

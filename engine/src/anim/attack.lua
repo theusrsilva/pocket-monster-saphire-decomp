@@ -18,6 +18,7 @@
 local bit = require("src.util.bit")
 local band, bor, bxor = bit.band, bit.bor, bit.bxor
 local floor = math.floor
+local TEXT_IMAGES
 
 local Attack = {}
 Attack.__index = Attack
@@ -487,6 +488,14 @@ end
 -- Cenário: scripts do banco $BC ($00:$2D35). Comandos: $2DA0 memória, $2DDB HDMA, $2E3B paleta,
 -- $2EB0 bloco do mapa, $5940 desvio, $322B número, $5D49 barra.
 
+-- Comandos $2F25-$2FF4: imagens de texto ($00:$300B) -> [banco da tabela, base, blocos-1].
+TEXT_IMAGES = {
+  [0x2F25] = { 0x7C, 0x4000, 0x11 }, [0x2F3C] = { 0x79, 0x4000, 0x0D }, [0x2F53] = { 0xF9, 0x4000, 0x0D },
+  [0x2F6A] = { 0xF4, 0x4000, 0x0F }, [0x2F81] = { 0x7C, 0x4088, 0x03 }, [0x2F98] = { 0x7C, 0x40A0, 0x03 },
+  [0x2FAF] = { 0x7C, 0x40A8, 0x0D }, [0x2FC6] = { 0x7C, 0x40C4, 0x0D }, [0x2FDD] = { 0x7C, 0x40DC, 0x23 },
+  [0x2FF4] = { 0x7C, 0x4108, 0x0F },
+}
+
 function Attack:runBG(p)
   local M = self.M
   while true do
@@ -528,12 +537,28 @@ function Attack:runBG(p)
       local bank = self:R(0xBC, p + 6)
       local src = self:R16(0xBC, p + 8)
       local rows, cols = self:R(0xBC, p + 10), self:R(0xBC, p + 11)
+      if dst >= 0x1C00 and dst < 0x2000 then           -- tamanho da janela desenhada
+        local c0, r0 = (dst - 0x1C00) % 32, math.floor((dst - 0x1C00) / 32)
+        self.extent = self.extent or { cols = 0, rows = 0 }
+        self.extent.cols = math.max(self.extent.cols, c0 + cols)
+        self.extent.rows = math.max(self.extent.rows, r0 + rows)
+      end
       for _ = 1, rows do
         for i = 0, cols - 1 do self:slow(); self:vwrite(vb, dst + i, self:R(bank, src + i)) end
         src = src + cols
         dst = dst + 32
       end
       p = p + 12
+    elseif TEXT_IMAGES[h] then
+      -- $00:$300B: imagem por id ([$id] na WRAM) da tabela [banco, 0, ptr] -> VRAM1 por HDMA
+      local t = TEXT_IMAGES[h]
+      local id = M[self:R16(0xBC, p + 2)] or 0
+      local dst = self:R16(0xBC, p + 4)
+      local e = t[2] + id * 4
+      local bank, src = self:R(t[1], e), self:R16(t[1], e + 2)
+      src, dst = band(src, 0xFFF0), band(dst, 0x1FF0)
+      for i = 0, (t[3] + 1) * 16 - 1 do self:vwrite(1, dst + i, self:R(bank, src + i)) end
+      p = p + 6
     elseif h == 0x5940 then
       p = self:R16(0xBC, p + 2)
     elseif h == 0x322B then
@@ -889,6 +914,22 @@ function Attack.new(rom, ev)
   self.done = false
   self.frames = 0
   return self
+end
+
+-- Máquina sem cena (telas de interface, src/ui/gbui.lua): mesma memória e interpretador do $BC.
+function Attack.machine(rom)
+  return setmetatable(newState(rom), Attack)
+end
+
+-- Roda um script de tela até o fim (as esperas de quadro passam na hora).
+function Attack:runScreen(p)
+  local co = coroutine.create(function() self:runBG(p) end)
+  for _ = 1, 200 do
+    local ok, err = coroutine.resume(co)
+    if not ok then error(err, 0) end
+    if coroutine.status(co) == "dead" then return end
+    self:vblank()
+  end
 end
 
 -- Avança um quadro (60 por segundo). Devolve false quando a cena acabou.

@@ -156,6 +156,29 @@ function enterStage(i, team)
   end
   battle:say(T("Sua vez. Selecione um Pokémon."))
   state = "battle"
+  local dev = opts["dev-screen"]                -- desenvolvimento: abre uma tela para conferir
+  if dev then
+    local u = battle:alive("ally")[1]
+    if dev == "bonus" then
+      battle.pending = { u }
+      battle:openBonusIfPending()
+    elseif dev == "skills" then
+      u.skills = { 0x34, 0x0F, 0x01 }
+      battle.selected = u
+      battle:openSkillMenu(u)
+      battle.mode = "menu"
+    elseif dev == "goods" then
+      for id = 0, 11 do battle.inventory[id] = id % 3 end
+      battle.selected = u
+      battle:openGoodsList(u, 0)
+      battle.mode = "menu"
+    elseif dev == "dialog" then
+      local list = data.messages[1] or {}
+      local m
+      for _, k in ipairs({ 18, 19, 20, 15, 33 }) do m = m or list[k] end
+      battle:showMessage(m or { pages = { { text = "Teste de fala com acentos: ação, maçã." } } })
+    end
+  end
   if opts["cheat-win"] then                   -- só para testes: vence a fase na hora
     for _, u in ipairs(battle.units) do if u.side == "enemy" then u.hp = 0 end end
     battle:checkEnd()

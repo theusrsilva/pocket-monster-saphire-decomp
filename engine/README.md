@@ -149,6 +149,9 @@ src/audio/apu.lua         síntese do APU (2 pulsos, onda, ruído)
 src/audio/sound.lua       som em tempo real (QueueableSource)
 src/import/music.lua      máquina mínima do driver + exportação em WAV (--render-music)
 src/ui/dual.lua           telas de baixo do modo de duas telas (3DS)
+src/ui/gbui.lua           telas de interface do original (scripts $BC) desenhadas pelo interpretador
+src/ui/gbhud.lua          HUD da batalha e falas com essas telas (cursor, opções apagadas, mouse)
+src/ui/toolbar.lua        barra de botões do PC (música, tela cheia, minimizar, configuração)
 src/ui/launcher.lua       tela de configuração (ROM e opções)
 src/game/options.lua      opções do jogador
 src/game/i18n.lua         textos da interface em inglês

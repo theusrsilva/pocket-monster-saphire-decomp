@@ -144,7 +144,9 @@ end
 function Battle:confirm()
   if self.result or self.mode == "dialog" then return end
   if self.mode == "bonus" or self.mode == "menu" then
-    self.menu.items[self.menu.index].action()
+    local it = self.menu.items[self.menu.index]
+    if it.disabled then return end
+    it.action()
     return
   end
   if self.phase ~= "player" then return end
@@ -272,31 +274,80 @@ function Battle:chooseTarget(u, skill)
   self.mode = "target"
 end
 
+-- Menu de ação como no original ($BD:$40F0): sempre as cinco opções, as que não dão para usar
+-- ficam apagadas (Atacar sem alvo, Golpe sem SP/alvo, Itens sem item usável).
 function Battle:openMenu(u)
-  local items = {}
-  if #self:targetsFrom(u, u.x, u.y) > 0 then
-    items[#items + 1] = { label = T("Atacar"), action = function() self:chooseTarget(u, nil) end }
-  end
-  local skills = self:usableSkills(u)
-  if #skills > 0 then
-    items[#items + 1] = { label = T("Golpe"), action = function() self:openSkillMenu(u, skills) end }
-  end
-  if #self:usableItems(u) > 0 then
-    items[#items + 1] = { label = T("Item"), action = function() self:openItemMenu(u) end }
-  end
-  items[#items + 1] = { label = T("Esperar"), action = function() self:finishUnit(u) end }
-  self.menu = { items = items, index = 1, title = u.name }
+  local hasTarget = #self:targetsFrom(u, u.x, u.y) > 0
+  local items = {
+    { id = "attack", label = T("Atacar"), disabled = not hasTarget,
+      action = function() self:chooseTarget(u, nil) end },
+    { id = "skill", label = T("Golpe"), disabled = #self:usableSkills(u) == 0,
+      action = function() self:openSkillMenu(u) end },
+    { id = "goods", label = T("Itens"), disabled = #self:usableItems(u) == 0,
+      action = function() self:openGoodsMenu(u) end },
+    { id = "state", label = T("Estado"), action = function() self:openStateView(u) end },
+    { id = "rest", label = T("Esperar"), action = function() self:finishUnit(u) end },
+  }
+  local first = 1
+  while items[first].disabled do first = first + 1 end
+  self.menu = { kind = "actions", items = items, index = first, title = u.name, unit = u }
   self.mode = "menu"
 end
 
-function Battle:openSkillMenu(u, skills)
+-- Golpes da unidade nas quatro vagas ($BD:$41C8); os que não dão para usar ficam apagados.
+function Battle:openSkillMenu(u)
+  local usable = {}
+  for _, sk in ipairs(self:usableSkills(u)) do usable[sk.id] = sk end
   local items = {}
-  for _, s in ipairs(skills) do
-    local label = s.heal and ("%s  +%d HP  %d SP"):format(Names.skill_name(s.id), s.power, s.cost)
-      or ("%s  +%d  %d SP  %d-%d"):format(Names.skill_name(s.id), s.power, s.cost, s.rmin, s.rmax)
-    items[#items + 1] = { label = label, action = function() self:chooseTarget(u, s) end }
+  for i = 1, 4 do
+    local id = u.skills[i]
+    local sk = id and self:skill(id)
+    local label = sk and (sk.heal and ("%s  +%d HP  %d SP"):format(Names.skill_name(id), sk.power, sk.cost)
+      or ("%s  +%d  %d SP  %d-%d"):format(Names.skill_name(id), sk.power, sk.cost, sk.rmin, sk.rmax)) or "-"
+    items[i] = { label = label, skill = sk, disabled = not (id and usable[id]),
+      action = function() self:chooseTarget(u, sk) end }
   end
-  self.menu = { items = items, index = 1, title = T("Golpes"), parent = u, wide = true, extraWide = true }
+  local first = 1
+  while items[first] and items[first].disabled do first = first + 1 end
+  self.menu = { kind = "skills", items = items, index = first <= 4 and first or 1, title = T("Golpes"),
+    parent = u, unit = u, wide = true, extraWide = true }
+end
+
+-- Itens ($BD:$4180): recuperação (ids 0-5, $BD:$43A8) ou especiais (pedras, ids 6-11, $BD:$4678).
+function Battle:openGoodsMenu(u)
+  local function any(a, b)
+    for id = a, b do
+      if (self.inventory[id] or 0) > 0 and Items.usable(id, u, self.prog) then return true end
+    end
+    return false
+  end
+  self.menu = { kind = "goods", index = 1, title = T("Itens"), parent = u, unit = u, items = {
+    { label = T("Recuperação"), disabled = not any(0, 5), action = function() self:openGoodsList(u, 0) end },
+    { label = T("Especial"), disabled = not any(6, 11), action = function() self:openGoodsList(u, 6) end },
+  } }
+  if self.menu.items[1].disabled then self.menu.index = 2 end
+end
+
+function Battle:openGoodsList(u, first)
+  local items = {}
+  for id = first, first + 5 do
+    local n = self.inventory[id] or 0
+    items[#items + 1] = {
+      label = ("%s x%d  %s"):format(Items.name(id), n, Items.desc(id)), item = id,
+      disabled = n == 0 or not Items.usable(id, u, self.prog),
+      action = function() self:useItem(u, id) end }
+  end
+  local idx = 1
+  while items[idx] and items[idx].disabled do idx = idx + 1 end
+  self.menu = { kind = "goodslist", first = first, items = items, index = idx <= 6 and idx or 1,
+    title = T("Itens"), parent = u, unit = u, wide = true, extraWide = true,
+    back = function() self:openGoodsMenu(u) end }
+end
+
+-- Estado da unidade ($BD:$4948): qualquer botão volta ao menu.
+function Battle:openStateView(u)
+  self.menu = { kind = "state", index = 1, unit = u, parent = u, title = u.name,
+    items = { { label = T("Voltar"), action = function() self:openMenu(u) end } } }
 end
 
 function Battle:usableItems(u)
@@ -307,17 +358,6 @@ function Battle:usableItems(u)
     end
   end
   return out
-end
-
-function Battle:openItemMenu(u)
-  local items = {}
-  for _, id in ipairs(self:usableItems(u)) do
-    local it = Items.list[id]
-    items[#items + 1] = {
-      label = ("%s x%d  %s"):format(Items.name(id), self.inventory[id], Items.desc(id)),
-      action = function() self:useItem(u, id) end }
-  end
-  self.menu = { items = items, index = 1, title = T("Itens"), parent = u, wide = true, extraWide = true }
 end
 
 -- As insígnias só são usadas na BabyAlliance ("Role evolve", $01:$5630), fora da luta.
@@ -336,6 +376,7 @@ function Battle:cancel()
   if self.mode == "move" then
     self.mode, self.selected, self.reach = "cursor", nil, nil
   elseif self.mode == "menu" then
+    if self.menu.back then self.menu.back() return end
     if self.menu.parent then self:openMenu(self.menu.parent) return end
     if self.noUndo or not Options.get("undo") then return end
     local u = self.selected
@@ -384,7 +425,8 @@ function Battle:endPlayerTurn()
   self.queue = {}
   local enemies = self:alive("enemy")
   for i = #enemies, 1, -1 do self.queue[#self.queue + 1] = enemies[i] end
-  self.timer = 0.4
+  self.banner = { kind = "enemy", t = Battle.BANNER_TIME }        -- "Enemy action" ($BD:$55B0)
+  self.timer = Battle.BANNER_TIME
 end
 
 ---------------------------------------------------------------- ataque e animação original
@@ -468,7 +510,8 @@ function Battle:openBonusIfPending()
   local u = self.pending[1]
   local items = {}
   for _, opt in ipairs(Progress.bonusOptions(self.prog, u)) do
-    items[#items + 1] = { label = ("%s +%d"):format(T(Progress.LABELS[opt.stat]), opt.amount), action = function()
+    items[#items + 1] = { label = ("%s +%d"):format(T(Progress.LABELS[opt.stat]), opt.amount), amount = opt.amount,
+      action = function()
       Progress.applyBonus(u, opt)
       self:say(("%s: %s +%d"):format(u.name, T(Progress.LABELS[opt.stat]), opt.amount))
       table.remove(self.pending, 1)
@@ -479,7 +522,7 @@ function Battle:openBonusIfPending()
     end }
   end
   self.bonusUnit = u
-  self.menu = { items = items, index = 1, title = (T("%s - nível %d: escolha um bônus")):format(u.name, u.level),
+  self.menu = { kind = "bonus", unit = u, items = items, index = 1, title = (T("%s - nível %d: escolha um bônus")):format(u.name, u.level),
     center = true, wide = true }
   self.mode = "bonus"
 end
@@ -697,7 +740,13 @@ function Battle:enemyAct(e)
   end
 end
 
+Battle.BANNER_TIME = 1.0
+
 function Battle:update(dt)
+  if self.banner then
+    self.banner.t = self.banner.t - dt
+    if self.banner.t <= 0 then self.banner = nil end
+  end
   for i = #self.popups, 1, -1 do
     local p = self.popups[i]
     p.t = p.t + dt
@@ -714,6 +763,7 @@ function Battle:update(dt)
         self.timer = Options.get("enemySpeed") == "rapida" and 0.15 or 0.5
       else
         self.phase, self.turn = "player", self.turn + 1
+        self.banner = { kind = "player", t = Battle.BANNER_TIME }   -- "Player action" ($BD:$5600)
         for _, u in ipairs(self.units) do u.acted = false end
         self:say((T("Turno %d: sua vez")):format(self.turn))
         local first = self:alive("ally")[1]

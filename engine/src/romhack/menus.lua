@@ -27,6 +27,10 @@ Menus.SCREENS = {
     regions = { { 0, 1, 5, 10, align = "left", texts = { "Atacar", "Golpe", "Itens", "Status", "Esperar" } } } },
   { name = "submenu de itens", group = "b", map = { 0xBD, 0x4180, 6, 6 }, chunk = { 0x40, 0x4340 },
     regions = { { 0, 1, 5, 4, align = "left", texts = { "Cura", "Especial" } } } },
+  { name = "bônus de nível", group = "lv", map = { 0xBD, 0x5920, 20, 18 }, chunk = { 0x41, 0x42C0 },
+    regions = {
+      { 12, 15, 17, 16, align = "left", texts = { "Pontos" } },
+    } },
   { name = "itens de cura", group = "ic", map = { 0xBD, 0x43A8, 20, 18 }, chunk = { 0x40, 0x49B0 },
     regions = {
       { 1, 1, 18, 2, align = "center", gap = 9, texts = { "Itens de cura" } },

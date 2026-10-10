@@ -258,13 +258,16 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   love.graphics.print((T("Fase %d   Turno %d   %s")):format(b.stageIndex, b.turn,
     b.phase == "player" and T("Sua vez") or T("Inimigos")), 20, 16)
 
+  local GBHud = require("src.ui.gbhud")
+  local gb = b.stage.bgpalRaw and GBHud.available()
   if b.mode == "dialog" and b.dialog then
-    View.drawDialog(b, w, h)
+    if not (gb and GBHud.drawDialog(b, b.dialog, w, h, s, true)) then View.drawDialog(b, w, h) end
     return
   end
+  if gb then GBHud.draw(b, w, h, s) end
 
-  -- unidade sob o cursor
-  local u = b:unitAt(b.cursor.x, b.cursor.y) or b.selected
+  -- unidade sob o cursor (HUD do motor, sem as telas do original no cache)
+  local u = not gb and (b:unitAt(b.cursor.x, b.cursor.y) or b.selected)
   if u then
     local pw, ph = 380, 92
     local px, py = 10, h - ph - 10
@@ -298,6 +301,9 @@ function View.drawHud(b, s, ox, oy, camx, camy)
     local a, t, sk = b.selected, b.targets[b.targetIndex], b.action
     local dmg = sk and sk.heal and -math.min(sk.power, t.maxhp - t.hp) or Combat.damage(a, t, sk and sk.power)
     local counter = not (sk and sk.heal) and t.hp - dmg > 0 and Combat.counterFor(a, t, sk)
+    local py0 = gb and (h - 144 * s - 102) or (h - 102)
+    love.graphics.push()
+    love.graphics.translate(0, py0 - (h - 102))
     panel(w - 300, h - 102, 290, 92)
     love.graphics.setColor(1, 1, 1)
     love.graphics.print(("%s -> %s"):format(a.name, t.name), w - 288, h - 94)
@@ -315,10 +321,11 @@ function View.drawHud(b, s, ox, oy, camx, camy)
     love.graphics.setColor(0.8, 0.85, 1)
     love.graphics.print(T("fórmula do jogo original ($01:6526)"), w - 288, h - 28)
     love.graphics.setFont(View.font)
+    love.graphics.pop()
   end
 
   -- menus (ação, golpes, bônus de nível)
-  if b.menu and (b.mode == "menu" or b.mode == "bonus") then
+  if not gb and b.menu and (b.mode == "menu" or b.mode == "bonus") then
     local m = b.menu
     local mw = m.extraWide and 440 or (m.wide and 330 or 140)
     local mh = 12 + #m.items * 24 + (m.title and 26 or 0)
@@ -361,7 +368,7 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   love.graphics.setFont(View.small)
   love.graphics.setColor(1, 1, 1, 0.75)
   local help = T("Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: idioma (%s)   M: música"):format(I18n.lang == "pt" and "PT" or "EN")
-  love.graphics.printf(help, 0, h - 16, w - 10, "right")
+  love.graphics.printf(help, gb and 14 or 0, gb and 44 or h - 16, w - 10, gb and "left" or "right")
   love.graphics.setFont(View.font)
 
   if b.result then
@@ -538,7 +545,14 @@ function View.drawWorld(wd, data, campaign, mapOnly)
   love.graphics.print((T("Mapa-múndi   Fases vencidas: %d/25")):format(cleared), 20, 16)
 
   if wd.mode == "dialog" and wd.dialog then
-    View.drawDialog(wd, w, h)
+    local GBHud = require("src.ui.gbhud")
+    local st0 = data.stages[0]
+    local s0 = View.layout()
+    if not (st0.bgpalRaw and GBHud.available()
+        and GBHud.drawDialog({ stageIndex = 0, stage = st0, dialog = wd.dialog,
+          set = function(_, k, v) wd[k] = v end }, wd.dialog, w, h, s0, true)) then
+      View.drawDialog(wd, w, h)
+    end
     return
   end
 
