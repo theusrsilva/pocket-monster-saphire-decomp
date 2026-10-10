@@ -68,13 +68,36 @@ function View.layout()
   return s, math.floor((w - View.W * s) / 2), math.floor((h - View.H * s) / 2)
 end
 
+-- Regiões clicáveis registradas durante o desenho (mouse no PC): { x, y, w, h, fn, hover }.
+View.hits = {}
+function View.clickable(x, y, w, h, fn, hover)
+  View.hits[#View.hits + 1] = { x = x, y = y, w = w, h = h, fn = fn, hover = hover }
+end
+
+-- Clique/movimento do mouse: a região mais de cima que contém o ponto.
+function View.hitAt(mx, my)
+  for i = #View.hits, 1, -1 do
+    local r = View.hits[i]
+    if mx >= r.x and mx < r.x + r.w and my >= r.y and my < r.y + r.h then return r end
+  end
+end
+
+local function press(k) love.keypressed(k) end
+
 function View.camera(b)
   local st = b.stage
   local mw, mh = st.cols * CELL, st.rows * CELL
-  local cx = b.cursor.x * CELL + 8 - View.W / 2
-  local cy = b.cursor.y * CELL + 8 - View.H / 2
+  -- a câmera só rola quando o cursor chega a 2 casas da borda (como no original); assim o mapa
+  -- não pula a cada clique do mouse
+  local px, py = b.cursor.x * CELL, b.cursor.y * CELL
+  local base = b.camTarget or { x = px + 8 - View.W / 2, y = py + 8 - View.H / 2 }
+  local mx, my = 2 * CELL, 2 * CELL
+  local cx, cy = base.x, base.y
+  if px < cx + mx then cx = px - mx elseif px + CELL > cx + View.W - mx then cx = px + CELL - View.W + mx end
+  if py < cy + my then cy = py - my elseif py + CELL > cy + View.H - my then cy = py + CELL - View.H + my end
   cx = math.max(0, math.min(math.max(0, mw - View.W), cx))
   cy = math.max(0, math.min(math.max(0, mh - View.H), cy))
+  b.camTarget = { x = cx, y = cy }
   -- câmera suave
   b.cam = b.cam or { x = cx, y = cy }
   b.cam.x = b.cam.x + (cx - b.cam.x) * 0.25
@@ -317,6 +340,8 @@ function View.drawHud(b, s, ox, oy, camx, camy)
     for i, it in ipairs(m.items) do
       love.graphics.setColor(i == m.index and { 1, 1, 0.4 } or { 1, 1, 1 })
       love.graphics.print((i == m.index and "> " or "  ") .. it.label, mx + 10, ty + (i - 1) * 24)
+      View.clickable(mx + 4, ty + (i - 1) * 24 - 2, mw - 8, 24, function() m.index = i; press("z") end,
+        function() m.index = i end)
     end
   end
 
@@ -335,7 +360,7 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   -- ajuda de controles
   love.graphics.setFont(View.small)
   love.graphics.setColor(1, 1, 1, 0.75)
-  local help = T("Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: idioma (%s)"):format(I18n.lang == "pt" and "PT" or "EN")
+  local help = T("Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: idioma (%s)   M: música"):format(I18n.lang == "pt" and "PT" or "EN")
   love.graphics.printf(help, 0, h - 16, w - 10, "right")
   love.graphics.setFont(View.font)
 
@@ -395,6 +420,13 @@ end
 
 -- Caixa de menu genérica (mapa-múndi).
 local function drawMenuBox(m, w, h)
+  local mw0 = m.wide and 440 or 260
+  local mh0 = 12 + #m.items * 24 + (m.title and 26 or 0)
+  local mx0, my0 = (w - mw0) / 2, math.max(50, (h - mh0) / 2 - 40)
+  for i = 1, #m.items do
+    View.clickable(mx0 + 4, my0 + 6 + (m.title and 26 or 0) + (i - 1) * 24 - 2, mw0 - 8, 24,
+      function() m.index = i; press("z") end, function() m.index = i end)
+  end
   local mw = m.wide and 440 or 260
   local mh = 12 + #m.items * 24 + (m.title and 26 or 0)
   local mx, my = (w - mw) / 2, math.max(50, (h - mh) / 2 - 40)
@@ -482,6 +514,21 @@ function View.drawWorld(wd, data, campaign, mapOnly)
     return
   end
 
+  -- mouse: clicar num lugar vizinho anda até ele; no lugar atual, confirma
+  if wd.mode == "map" and not wd.anim then
+    local node = wd:node()
+    local keys = { "up", "down", "left", "right" }
+    for d = 1, 4 do
+      local nb = node.nb[d] ~= 0 and wd.world.nodes[node.nb[d]]
+      if nb then
+        View.clickable(ox + (nb.x * CELL - camx) * s, oy + (nb.y * CELL - camy) * s, CELL * s, CELL * s,
+          function() press(keys[d]) end)
+      end
+    end
+    View.clickable(ox + (node.x * CELL - camx) * s, oy + (node.y * CELL - camy) * s, CELL * s, CELL * s,
+      function() press("z") end)
+  end
+
   -- topo: progresso
   love.graphics.setFont(View.font)
   local cleared = 0
@@ -545,7 +592,7 @@ function View.drawWorld(wd, data, campaign, mapOnly)
   end
   love.graphics.setFont(View.small)
   love.graphics.setColor(1, 1, 1, 0.75)
-  love.graphics.printf(T("Setas: andar   Z/Enter: entrar   X: voltar   N: idioma (%s)   Delete: novo jogo"):format(I18n.lang == "pt" and "PT" or "EN"),
+  love.graphics.printf(T("Setas/clique: andar   Z/Enter: entrar   X: voltar   N: idioma (%s)   M: música   Delete: novo jogo"):format(I18n.lang == "pt" and "PT" or "EN"),
     0, h - 18, w - 10, "right")
   love.graphics.setFont(View.font)
 end
@@ -572,6 +619,8 @@ function View.drawTeam(ts, data)
     local y = top + (i - first) * rowH
     local sel = (i == ts.cursor and not ts.onButton)
     panel(24, y, w - 48, rowH - 4)
+    View.clickable(24, y, w - 48, rowH - 4, function() ts.cursor = i; ts.onButton = false; press("z") end,
+      function() ts.cursor = i; ts.onButton = false end)
     if sel then
       love.graphics.setColor(1, 1, 0.4, 0.25)
       love.graphics.rectangle("fill", 26, y + 2, w - 52, rowH - 8, 5, 5)
@@ -592,6 +641,7 @@ function View.drawTeam(ts, data)
   local bw, bh = 220, 40
   local bx, by = (w - bw) / 2, h - bh - 46
   panel(bx, by, bw, bh)
+  View.clickable(bx, by, bw, bh, function() ts.onButton = true; press("z") end, function() ts.onButton = true end)
   local ok = ts:count() >= 1
   love.graphics.setColor(ts.onButton and { 1, 1, 0.4 } or (ok and { 1, 1, 1 } or { 0.5, 0.5, 0.6 }))
   love.graphics.printf((ts.onButton and "> " or "") .. T("Lutar!"), bx, by + 11, bw, "center")

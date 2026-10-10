@@ -47,10 +47,20 @@ function Sound.init(stageMusic, rate)
   return ok
 end
 
+-- Música pedida (Sound.current) e tocando: com a música desligada o driver recebe "parar" e os
+-- efeitos continuam.
+Sound.musicOn = true
+
 function Sound.music(id)
   if not Sound.m or Sound.current == id then return end
   Sound.current = id
-  Sound.m.mem[0xFFF7] = id
+  Sound.m.mem[0xFFF7] = Sound.musicOn and id or Sound.STOP
+end
+
+function Sound.setMusic(on)
+  if Sound.musicOn == on then return end
+  Sound.musicOn = on
+  if Sound.m and Sound.current then Sound.m.mem[0xFFF7] = on and Sound.current or Sound.STOP end
 end
 
 function Sound.stageMusic_(stage)

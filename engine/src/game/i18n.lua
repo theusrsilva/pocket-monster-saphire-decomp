@@ -37,8 +37,8 @@ local EN = {
   ["%s evoluiu para %s!"] = "%s evolved into %s!",
   ["%s aprendeu %s"] = "%s learned %s",
   ["%s aprendeu %s!"] = "%s learned %s!",
-  ["Setas: andar   Z/Enter: entrar   X: voltar   N: idioma (%s)   Delete: novo jogo"] =
-    "Arrows: walk   Z/Enter: enter   X: back   N: language (%s)   Delete: new game",
+  ["Setas/clique: andar   Z/Enter: entrar   X: voltar   N: idioma (%s)   M: música   Delete: novo jogo"] =
+    "Arrows/click: walk   Z/Enter: enter   X: back   N: language (%s)   M: music   Delete: new game",
   ["Direcional anda  A entra  B volta"] = "D-pad walks  A enters  B back",
   -- escolha do time
   ["Podem lutar: %02d/%02d"] = "One can attack: %02d/%02d",
@@ -103,8 +103,8 @@ local EN = {
   ["ATK %d  PRE %d  ESQ %d  MOV %d  Alc %d-%d"] = "ATK %d  ACC %d  EVA %d  MOV %d  Rng %d-%d",
   ["ATK %d PRE %d ESQ %d MOV %d"] = "ATK %d ACC %d EVA %d MOV %d",
   ["%s  Nv %d  HP %d"] = "%s  Lv %d  HP %d",
-  ["Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: idioma (%s)"] =
-    "Arrows: move   Z/Enter/click: confirm   X/right button: back   Esc: end turn   N: language (%s)",
+  ["Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: idioma (%s)   M: música"] =
+    "Arrows: move   Z/Enter/click: confirm   X/right button: back   Esc: end turn   N: language (%s)   M: music",
   ["PRE"] = "ACC",
   ["ESQ"] = "EVA",
   -- itens

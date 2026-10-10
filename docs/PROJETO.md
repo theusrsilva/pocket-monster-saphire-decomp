@@ -23,6 +23,7 @@ correção de bugs e melhorias de usabilidade.
 - [x] Mapa parcial da WRAM (unidades, status, buffers do mapa)
 - [x] Inimigos de cada fase (stats completos)
 - [x] Golpes (nomes/efeitos), itens, eventos das fases
+- [x] PC: launcher redesenhado e clicável; mouse em menus, listas e mapa-múndi; barra de botões (música, tela cheia, minimizar, configuração)
 - [x] Unidades andam casa a casa como no original (~6 quadros por casa; câmera no inimigo antes da ação)
 - [x] Animações de batalha: cena de ataque decodificada e reimplementada em Lua (`engine/src/anim`),
   conferida quadro a quadro contra o código original no executor de GBC (`engine/src/emu`); roda no 3DS

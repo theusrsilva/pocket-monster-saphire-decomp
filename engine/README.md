@@ -7,8 +7,12 @@ do LÖVE (`~/.local/share/love/saphire-recomp/generated/` no Linux) e libera a R
 
 ## Tela de configuração
 
-No PC o jogo abre numa tela de configuração (como o launcher do Gen1Recomp), que também abre com
-**F1** no mapa-múndi:
+No mapa-múndi, na escolha do time e na batalha, os menus, listas e lugares aceitam clique, e uma barra
+de botões no canto (`src/ui/toolbar.lua`) liga/desliga a música, alterna a tela cheia, minimiza a
+janela e abre a configuração.
+
+No PC o jogo abre numa tela de configuração (como o launcher do Gen1Recomp, toda clicável), que
+também abre com **F1** ou pelo botão no mapa-múndi:
 
 - **ROM**: digite o caminho (Enter) ou arraste o `.gbc` na janela; ela é conferida (SHA-1) e
   importada para o cache.
@@ -22,7 +26,8 @@ No PC o jogo abre numa tela de configuração (como o launcher do Gen1Recomp), q
 - **Animações de batalha (do jogo original)**: a cena de ataque do original, decodificada e
   reimplementada em Lua (`src/anim/`), com o resultado calculado pelo motor e os dados lidos do
   recorte da sua ROM no cache. A, B ou START pulam a cena. Funciona também no console.
-- **Turno inimigo** normal/rápido, **som** (volume), **tela cheia**, **mostrar esta tela ao abrir**.
+- **Turno inimigo** normal/rápido, **música** (os efeitos continuam), **volume**, **tela cheia**,
+  **mostrar esta tela ao abrir**.
 - **Jogar** / **Gerar ROM traduzida** / **Sair**.
 
 **Gerar ROM traduzida** cria, a partir da ROM configurada, `Pocket Monster Saphire (PT-BR).gbc` na
@@ -45,7 +50,7 @@ love engine --stage 2 --script "wait20 z" --shot out.png   # entradas automátic
 ```
 
 Controles: setas/WASD movem o cursor · Z/Enter/Espaço ou clique confirmam · X/Backspace ou botão
-direito voltam · Esc encerra o turno · M liga/desliga o som · N alterna entre **PT** (falas traduzidas, nomes oficiais) e
+direito voltam · Esc encerra o turno · M liga/desliga a música · F11 tela cheia · N alterna entre **PT** (falas traduzidas, nomes oficiais) e
 **original** (falas e nomes como no jogo).
 
 `src/game/names.lua` e `src/game/translation_pt.lua` são os únicos arquivos com conteúdo do jogo: os

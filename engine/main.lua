@@ -121,6 +121,7 @@ local function readFile(path)
 end
 
 local AttackScene = require("src.anim.scene")
+local Toolbar = require("src.ui.toolbar")
 local scene                                  -- animação de batalha original em andamento
 
 -- Animação de batalha original (reimplementada, src/anim): com o recorte da ROM no cache e a opção
@@ -184,6 +185,13 @@ local function runScriptStep()
   end
   local n = tok:match("^wait(%d+)$")
   if n then scriptWait = tonumber(n) return end
+  local cx, cy, cb = tok:match("^click:(%d+),(%d+),?(%d*)$")       -- clique do mouse (testes)
+  if cx then
+    love.mousemoved(tonumber(cx), tonumber(cy))
+    love.mousepressed(tonumber(cx), tonumber(cy), tonumber(cb) or 1)
+    scriptWait = 2
+    return
+  end
   love.keypressed(tok)
   scriptWait = 2
 end
@@ -487,9 +495,15 @@ function love.keypressed(key)
   local k = KEY[key] or key
   if state == "launcher" then launcher:keypressed(key) return end
   if key == "f1" and not CONSOLE and (state == "world" or state == "team") then openLauncher() return end
-  if key == "m" then
-    Options.set("sound", not Options.get("sound"))
+  if key == "m" then                          -- música liga/desliga (os efeitos continuam)
+    Options.set("music", not Options.get("music"))
     Options.apply()
+    saveOptions()
+    return
+  end
+  if key == "f11" and not CONSOLE then
+    Options.set("fullscreen", not Options.get("fullscreen"))
+    pcall(love.window.setFullscreen, Options.get("fullscreen"))
     saveOptions()
     return
   end
@@ -570,17 +584,31 @@ function love.touchpressed()
   if dual and CONSOLE then love.keypressed("z") end
 end
 
-function love.mousepressed(mx, my, button)
-  if dual or state ~= "battle" or not battle.cam then return end
-  local b = battle
-  if b.result then campaign:save(); openWorld() return end
-  if b.mode == "dialog" then
-    local l = b.dialogLayout or { shown = 3, total = 1 }
-    b:advanceDialog(l.shown, l.total)
-    return
+local function toolbarAction(id)
+  if id == "music" then love.keypressed("m")
+  elseif id == "fullscreen" then love.keypressed("f11")
+  elseif id == "minimize" then pcall(love.window.minimize)
+  elseif id == "config" and (state == "world" or state == "team") then openLauncher()
   end
-  if button == 2 then b:cancel() return end
-  if b.mode == "menu" or b.mode == "bonus" then b:confirm() return end
+end
+
+-- Mouse no PC: barra de botões, regiões clicáveis das telas (menus, listas, lugares do mapa) e, na
+-- batalha, as casas do mapa. Botão direito = voltar; clique durante a animação pula a cena.
+function love.mousepressed(mx, my, button)
+  if CONSOLE then return end
+  if state == "launcher" then launcher:mousepressed(mx, my, button) return end
+  if dual then return end
+  local tb = Toolbar.hit(mx, my)
+  if tb then toolbarAction(tb) return end
+  if button == 2 then love.keypressed("x") return end
+  if button ~= 1 then return end
+  local hit = View.hitAt(mx, my)
+  if hit then hit.fn() return end
+  if state == "world" and world.mode == "dialog" then love.keypressed("z") return end
+  if state ~= "battle" or not battle.cam then return end
+  local b = battle
+  if scene or b.result or b.mode == "dialog" then love.keypressed("z") return end
+  if b.mode == "menu" or b.mode == "bonus" then return end
   local x, y = View.cellAt(b, mx, my)
   if b.mode == "target" then
     for i, t in ipairs(b.targets) do
@@ -589,9 +617,27 @@ function love.mousepressed(mx, my, button)
     return
   end
   if x >= 0 and y >= 0 and x < b.stage.cols and y < b.stage.rows then
-    b.cursor.x, b.cursor.y = x, y
-    b:confirm()
+    if b.phase ~= "player" then return end
+    if b.cursor.x == x and b.cursor.y == y or b.mode == "move" or b:unitAt(x, y) then
+      b.cursor.x, b.cursor.y = x, y
+      b:confirm()
+    else
+      b.cursor.x, b.cursor.y = x, y
+    end
   end
+end
+
+function love.mousemoved(mx, my)
+  if CONSOLE then return end
+  if state == "launcher" then launcher:mousemoved(mx, my) return end
+  if dual then return end
+  local hit = View.hitAt(mx, my)
+  if hit and hit.hover then hit.hover() end
+end
+
+function love.wheelmoved(_, dy)
+  if CONSOLE or dual then return end
+  if state == "launcher" then launcher:wheelmoved(dy) end
 end
 
 local function drawMessage(w, h)
@@ -653,6 +699,7 @@ function love.draw(screen)
     return
   end
   local w, h = love.graphics.getDimensions()
+  View.hits = {}
   if state == "launcher" then launcher:draw(fonts) return end
   if state == "battle" and scene then
     love.graphics.clear(0, 0, 0)
@@ -666,6 +713,9 @@ function love.draw(screen)
     View.drawTeam(teamsel, data)
   else
     drawMessage(w, h)
+  end
+  if state == "battle" or state == "world" or state == "team" then
+    Toolbar.draw(w - Toolbar.width() - 10, h - Toolbar.size - 26, state == "world" or state == "team", View.small)
   end
 end
 

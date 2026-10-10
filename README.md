@@ -105,8 +105,9 @@ love engine --test               # testes contra valores do jogo original
 love engine --build-rom saida.gbc   # gera a ROM traduzida sem abrir a tela
 ```
 
-Teclado: setas movem, Z/Enter confirma, X volta, Esc encerra o turno, N troca o idioma, M liga/desliga
-o som, F1 abre a configuração. Mais detalhes em [`engine/README.md`](engine/README.md).
+Teclado ou mouse: setas (ou clique) movem, Z/Enter/clique confirma, X/botão direito volta, Esc encerra o
+turno, N troca o idioma, M liga/desliga a música, F11 tela cheia, F1 abre a configuração. Os botões no
+canto da tela também ligam a música, a tela cheia, minimizam e abrem a configuração. Mais detalhes em [`engine/README.md`](engine/README.md).
 
 ## Para quem quer contribuir
 

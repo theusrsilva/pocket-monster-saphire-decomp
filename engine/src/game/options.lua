@@ -10,9 +10,10 @@ local Options = {
     ai = "original",        -- IA dos inimigos: "original" ou "melhorada"
     fixHeal = true,         -- corrige o bug da autocura do inimigo passar do HP máximo
     undo = true,            -- desfazer o movimento antes de agir
-    anims = true,           -- animações de batalha do jogo original (executadas da ROM)
+    anims = true,           -- animações de batalha do jogo original (src/anim)
     enemySpeed = "normal",  -- "normal" ou "rapida"
     sound = true,
+    music = true,           -- música (os efeitos continuam com a música desligada)
     volume = 0.5,
     fullscreen = false,
     launcher = true,        -- mostrar a configuração ao abrir (PC)
@@ -52,6 +53,7 @@ function Options.apply()
   local Sound = require("src.audio.sound")
   Sound.enabled, Sound.volume = v.sound, v.volume
   if Sound.src then Sound.src:setVolume(v.sound and v.volume or 0) end
+  Sound.setMusic(v.music)
 end
 
 return Options
