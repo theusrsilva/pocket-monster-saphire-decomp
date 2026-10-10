@@ -27,7 +27,8 @@ test -n "$ANDROID_HOME" || { echo "ANDROID_HOME não definido"; exit 1; }
 export ANDROID_HOME ANDROID_SDK_ROOT="$ANDROID_HOME"
 sdkm=$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)
 if [ ! -d "$ANDROID_HOME/ndk/$NDK" ] && [ -n "$sdkm" ]; then
-  yes | "$sdkm" --install "ndk;$NDK" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+  ( yes 2>/dev/null || true ) | "$sdkm" --licenses >/dev/null || true
+  "$sdkm" --install "ndk;$NDK" "platforms;android-34" "build-tools;34.0.0" | tail -3
 fi
 
 git clone -q --depth 1 --branch "$LOVE_ANDROID_TAG" --recurse-submodules --shallow-submodules \
