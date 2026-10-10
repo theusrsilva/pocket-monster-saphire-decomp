@@ -47,11 +47,40 @@ love engine --stage 26              # vai direto para uma fase (sem passar pelo 
 love engine --node 9 --cleared 8    # testes: cursor no nó 9, fases 1-8 vencidas (save_test.lua)
 love engine --test                  # roda os testes automáticos e sai
 love engine --stage 2 --script "wait20 z" --shot out.png   # entradas automáticas + screenshot
+love engine --stage 2 --script "pad:a pad:dpdown"          # botões do controle no roteiro
+love engine --stage 2 --mobile 1 --script "touch:880,320"  # simula o celular (controle na tela, toque)
 ```
 
 Controles: setas/WASD movem o cursor · Z/Enter/Espaço ou clique confirmam · X/Backspace ou botão
 direito voltam · Esc encerra o turno (pede confirmação se alguém ainda não agiu) · M liga/desliga a música · F11 tela cheia · N alterna entre **PT** (falas traduzidas, nomes oficiais) e
 **original** (falas e nomes como no jogo).
+
+### Controle (`src/ui/pad.lua`)
+
+Qualquer controle que o SDL reconheça como gamepad (DualSense e DualShock por USB ou Bluetooth,
+Xbox, Switch Pro, 8BitDo...) funciona no Windows, Linux, macOS e Android, inclusive na tela de
+configuração: Cruz/A = A, Bola/B = B, OPTIONS/START = START (na configuração: Jogar), Create/Back =
+configuração (F1), Triângulo/Y = música, Quadrado/X = idioma. O direcional e o analógico esquerdo
+(zona morta 0,5, solta abaixo de 0,3) repetem como tecla segurada: 0,30 s até repetir, depois a
+cada 0,09 s. O controle pode ser ligado com o jogo aberto (aviso no canto); usando o controle, o
+cursor do mouse some e as dicas de botões passam a ser as do controle.
+
+## Android
+
+`tools/build_android.sh <versão> <jogo.love>` gera o APK com o
+[love-android](https://github.com/love2d/love-android) 11.5a (JDK 17, Android SDK 34, NDK
+25.2.9519653). O release faz isso no CI (job "Android"). `tools/love-android.patch` acrescenta ao
+`GameActivity`:
+
+- **seletor de arquivo**: `love.system.openURL("saphire-recomp:pickrom")` abre o seletor do Android;
+  o arquivo escolhido é copiado para a pasta de dados (`picked.gbc`) e o jogo importa a ROM;
+- **"Abrir com"**: abrir um `.gbc` com o app faz a mesma cópia.
+
+No celular (`src/ui/touch.lua`) aparecem um direcional, A, B e START na tela; os toques fora deles
+valem como cliques (menus, casas do mapa). O controle da tela some enquanto um controle físico é
+usado. O "voltar" do Android vale como B; a barra do canto fica só com música e configuração; a
+configuração não mostra tela cheia nem "Gerar ROM traduzida" (o arquivo ficaria dentro do app).
+Para ver no PC: `love engine --mobile 1`. **Não testado em aparelho.**
 
 `src/game/names.lua` e `src/game/translation_pt.lua` são os únicos arquivos com conteúdo do jogo: os
 nomes transcritos das imagens e a tradução das falas. O texto original em inglês não fica no
@@ -154,6 +183,8 @@ src/ui/gbhud.lua          HUD da batalha e falas com essas telas (cursor, opçõ
 src/ui/opening.lua        abertura (cenas do original + texto) e título (NOVO JOGO / RECORDES)
 src/ui/toolbar.lua        barra de botões do PC (música, tela cheia, minimizar, configuração)
 src/ui/launcher.lua       tela de configuração (ROM e opções)
+src/ui/pad.lua            controles (botões, direcional e analógico com repetição, aviso de conexão)
+src/ui/touch.lua          controle na tela do celular (direcional, A, B, START)
 src/game/options.lua      opções do jogador
 src/game/i18n.lua         textos da interface em inglês
 src/game/ai_plus.lua      IA melhorada (opcional)

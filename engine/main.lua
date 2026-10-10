@@ -28,6 +28,11 @@ local Sound = require("src.audio.sound")
 local Dual = require("src.ui.dual")
 -- LÖVE Potion (3DS/Switch) define love._console; o 3DS tem duas telas.
 local CONSOLE = love._console or love._console_name
+-- Android/iOS: controle na tela, seletor de arquivo para a ROM, voltar do sistema = B.
+local OS = love.system and love.system.getOS and love.system.getOS() or ""
+local MOBILE = OS == "Android" or OS == "iOS"
+local Pad = require("src.ui.pad")
+local Touch = require("src.ui.touch")
 local dual = false
 local campaign, world, teamsel
 
@@ -231,12 +236,28 @@ local function runScriptStep()
     scriptWait = 2
     return
   end
+  local pb = tok:match("^pad:(%a+)$")                              -- botão do controle (testes)
+  if pb then
+    love.gamepadpressed(nil, pb)
+    love.gamepadreleased(nil, pb)
+    scriptWait = 2
+    return
+  end
+  local tx, ty = tok:match("^touch:(%d+),(%d+)$")                  -- toque na tela (testes, --mobile 1)
+  if tx then
+    love.touchpressed("t", tonumber(tx), tonumber(ty))
+    love.mousepressed(tonumber(tx), tonumber(ty), 1, true)
+    love.touchreleased("t")
+    scriptWait = 2
+    return
+  end
   love.keypressed(tok)
   scriptWait = 2
 end
 
 ---------------------------------------------------------------- configuração (launcher)
 local fonts
+local pickingRom = false
 local assetsLoaded = false
 
 local function openLauncher(msg)
@@ -247,15 +268,20 @@ local function openLauncher(msg)
       if data then return T("ROM importada; o cache fica em ") .. love.filesystem.getSaveDirectory() end
       return T("Nenhuma ROM importada ainda. Precisa ser a versão Fixed (SHA-1 9fa7da61...).")
     end,
-    loadRom = function(path, file)
-      local bytes
-      if file then file:open("r"); bytes = file:read(); file:close() else bytes = readFile(path) end
+    loadRom = function(path, file, bytes)
+      if bytes then
+      elseif file then file:open("r"); bytes = file:read(); file:close() else bytes = readFile(path) end
       if not bytes then return false, T("Não consegui abrir o arquivo: ") .. path end
       love.filesystem.write("saphire.gbc", bytes)   -- cópia para gerar a ROM traduzida depois
       fromLauncher = true
       startImport(bytes)
       return true, T("Importando...")
     end,
+    pickRom = MOBILE and function()                 -- seletor de arquivo do Android (tools/love-android.patch)
+      pickingRom = true
+      return love.system.openURL("saphire-recomp:pickrom")
+    end or nil,
+    mobile = MOBILE,
     play = function()
       if not assetsLoaded then loadAssets() end
       openOpening()
@@ -294,6 +320,14 @@ function love.load(args)
   Options.load()
   Options.apply()
   parseArgs(args or {})
+  if opts.mobile then MOBILE = true end         -- desenvolvimento: simula o celular no PC
+  Touch.enabled = MOBILE
+  if MOBILE then                                -- celular: sem tela cheia/minimizar na barra
+    for i = #Toolbar.items, 1, -1 do
+      local id = Toolbar.items[i].id
+      if id == "fullscreen" or id == "minimize" then table.remove(Toolbar.items, i) end
+    end
+  end
   if opts.script or opts.shot then
     -- em execução automática, um erro encerra o processo em vez de parar na tela de erro
     function love.errorhandler(msg)
@@ -474,8 +508,27 @@ function love.filedropped(file)
   startImport(bytes)
 end
 
+-- ROM escolhida no seletor do Android ou aberta com "Abrir com" (o patch do love-android copia o
+-- arquivo para a pasta de dados como picked.gbc).
+local pickTimer = 0
+local function checkPickedRom(dt)
+  pickTimer = pickTimer + dt
+  if pickTimer < 0.5 then return end
+  pickTimer = 0
+  if not love.filesystem.getInfo("picked.gbc") then return end
+  local bytes = love.filesystem.read("picked.gbc")
+  love.filesystem.remove("picked.gbc")
+  pickingRom = false
+  if not bytes then return end
+  if state ~= "launcher" then openLauncher() end
+  local ok, msg = launcher.ctx.loadRom("picked.gbc", nil, bytes)
+  launcher.msg = msg
+end
+
 function love.update(dt)
   Sound.update()
+  Pad.update(dt)
+  if MOBILE and (state == "launcher" or state == "needrom") then checkPickedRom(dt) end
   if quitSoon then
     quitSoon = quitSoon - 1
     if quitSoon <= 0 then love.event.quit() end
@@ -535,10 +588,12 @@ end
 local KEY = {
   up = "up", w = "up", down = "down", s = "down", left = "left", a = "left", right = "right", d = "right",
   z = "a", ["return"] = "a", space = "a", kpenter = "a",
-  x = "b", backspace = "b", escape = "start", tab = "select",
+  x = "b", backspace = "b", escape = "start", pause = "start", tab = "select",
 }
 
 function love.keypressed(key)
+  -- Android: o "voltar" do sistema chega como escape e vale como B (fora da configuração)
+  if MOBILE and key == "escape" and state ~= "launcher" then key = "x" end
   local k = KEY[key] or key
   if state == "launcher" then launcher:keypressed(key) return end
   if key == "f1" and not CONSOLE and (state == "world" or state == "team") then openLauncher() return end
@@ -628,10 +683,14 @@ function love.keypressed(key)
   end
 end
 
--- Toque na tela de baixo do 3DS: confirma (como o botão A).
-function love.touchpressed()
-  if dual and CONSOLE then love.keypressed("z") end
+-- Toque na tela de baixo do 3DS: confirma (como o botão A). Android/iOS: controle na tela.
+function love.touchpressed(id, x, y)
+  if dual and CONSOLE then love.keypressed("z") return end
+  if state ~= "launcher" then Touch.pressed(id, x, y) end
 end
+
+function love.touchmoved(id, x, y) Touch.moved(id, x, y) end
+function love.touchreleased(id) Touch.released(id) end
 
 local function toolbarAction(id)
   if id == "music" then love.keypressed("m")
@@ -643,8 +702,10 @@ end
 
 -- Mouse no PC: barra de botões, regiões clicáveis das telas (menus, listas, lugares do mapa) e, na
 -- batalha, as casas do mapa. Botão direito = voltar; clique durante a animação pula a cena.
-function love.mousepressed(mx, my, button)
+function love.mousepressed(mx, my, button, istouch)
   if CONSOLE then return end
+  if istouch and state ~= "launcher" and Touch.inside(mx, my) then return end   -- foi no controle na tela
+  if not istouch then love.mouse.setVisible(true) end
   if state == "launcher" then launcher:mousepressed(mx, my, button) return end
   if dual then return end
   local tb = Toolbar.hit(mx, my)
@@ -676,8 +737,9 @@ function love.mousepressed(mx, my, button)
   end
 end
 
-function love.mousemoved(mx, my)
+function love.mousemoved(mx, my, _, _, istouch)
   if CONSOLE then return end
+  if not istouch and not MOBILE then love.mouse.setVisible(true) end
   if state == "launcher" then launcher:mousemoved(mx, my) return end
   if dual then return end
   local hit = View.hitAt(mx, my)
@@ -750,7 +812,7 @@ function love.draw(screen)
   end
   local w, h = love.graphics.getDimensions()
   View.hits = {}
-  if state == "launcher" then launcher:draw(fonts) return end
+  if state == "launcher" then launcher:draw(fonts); Pad.drawToast(fonts.font) return end
   if state == "battle" and scene then
     love.graphics.clear(0, 0, 0)
     local sc = math.max(1, math.floor(math.min(w / 160, h / 144)))
@@ -767,14 +829,29 @@ function love.draw(screen)
     drawMessage(w, h)
   end
   if state == "battle" or state == "world" or state == "team" or state == "opening" then
-    Toolbar.draw(w - Toolbar.width() - 10, h - Toolbar.size - 26, state == "world" or state == "team", View.small)
+    if MOBILE then Toolbar.draw(w - Toolbar.width() - 10, 10, state == "world" or state == "team", View.small)
+    else Toolbar.draw(w - Toolbar.width() - 10, h - Toolbar.size - 26, state == "world" or state == "team", View.small) end
+    Touch.draw(View.small)
   end
+  if View.small then Pad.drawToast(View.small) end
 end
 
--- Controles (3DS/Switch e controles no PC): botões viram as teclas equivalentes.
-local PAD = { a = "z", b = "x", start = "escape", x = "n", y = "m", dpup = "up", dpdown = "down",
-  dpleft = "left", dpright = "right" }
+-- Controles (DualSense, Xbox... no PC e no Android; botões do 3DS/Switch): src/ui/pad.lua.
 function love.gamepadpressed(_, button)
-  local k = PAD[button]
-  if k then love.keypressed(k) end
+  if not CONSOLE then pcall(love.mouse.setVisible, false) end
+  Pad.pressed(button)
+end
+
+function love.gamepadreleased(_, button) Pad.released(button) end
+
+function love.joystickadded(j)
+  if CONSOLE then return end
+  local ok, name = pcall(j.getName, j)
+  Pad.notify(T("Controle conectado: ") .. (ok and name or "?"))
+end
+
+function love.joystickremoved(j)
+  if CONSOLE then return end
+  Pad.hold, Pad.stick = nil, nil
+  Pad.notify(T("Controle desconectado"))
 end

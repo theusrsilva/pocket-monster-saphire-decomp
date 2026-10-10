@@ -25,6 +25,8 @@ gera uma **ROM traduzida** para jogar no Game Boy Color/Advance.
 - **Tradução completa para o português** (falas, menus, golpes, lugares e itens); dá para trocar
   para o inglês original a qualquer momento.
 - **Conversor de ROM**: gera uma ROM de GBC já traduzida para jogar no emulador ou no cartucho.
+- **Windows, Linux, macOS, Android e 3DS**, com teclado, mouse, toque ou controle (DualSense,
+  DualShock, Xbox, Switch Pro...).
 
 ## O que tem de novo em relação ao original
 
@@ -37,7 +39,8 @@ gera uma **ROM traduzida** para jogar no Game Boy Color/Advance.
 | IA dos inimigos | a original (só ataque normal, sem planejar) | original ou **melhorada** (usa golpes, foca quem pode derrubar, cura aliados) |
 | Bug da autocura do inimigo | passa do HP máximo | corrigido (opcional) |
 | Turno inimigo | ritmo fixo | normal (unidades andando como no original) ou rápido |
-| Tela | 160×144 | janela grande, tela cheia ou as duas telas do 3DS |
+| Tela | 160×144 | janela grande, tela cheia, celular (Android) ou as duas telas do 3DS |
+| Controles | botões do Game Boy | teclado, mouse, controle (DualSense, DualShock, Xbox, Switch Pro...) ou toque no Android |
 | Animações de batalha | — | as originais, que podem ser puladas (A, B ou START) |
 | Abertura e título | inglês | a abertura e o título do jogo, em português (pula com START) |
 | Menus e falas | inglês | as telas do próprio jogo (painel, menu de ação, golpes, itens, Estado, bônus de nível, falas com retrato), em português, clicáveis |
@@ -77,6 +80,20 @@ Baixe o arquivo da sua plataforma na página de
    `xattr -dr com.apple.quarantine SaphireRecomp.app` no Terminal).
 3. Configure a ROM na tela de configuração (passos 3 e 4 do Windows).
 
+### Android
+
+1. Baixe `SaphireRecomp-<versão>-android.apk` no celular e abra o arquivo. O Android pede para
+   permitir a instalação de "fontes desconhecidas" para o navegador/gerenciador de arquivos.
+2. Na tela de configuração, toque em **ROM** e escolha o seu `.gbc` no seletor de arquivos (ou, no
+   gerenciador de arquivos, abra o `.gbc` com o **Saphire Recomp**). A ROM é conferida e importada
+   uma vez só (leva alguns segundos).
+3. Toque em **Jogar**. Sem controle, aparecem na tela um direcional, A, B e START; tocar direto
+   nos menus e nas casas do mapa também funciona. Um controle Bluetooth (DualSense, Xbox...)
+   funciona como no PC, e o controle da tela some enquanto ele é usado. O "voltar" do Android é o B.
+
+Ao atualizar, se o Android disser que o app não pode ser instalado, desinstale a versão anterior
+antes (o progresso fica na pasta do app e é apagado junto).
+
 ### Nintendo 3DS
 
 1. Baixe `SaphireRecomp-<versão>-3ds.3dsx` e copie para a pasta `/3ds/` do cartão SD (precisa do
@@ -109,7 +126,9 @@ love engine --build-rom saida.gbc   # gera a ROM traduzida sem abrir a tela
 
 O manual completo está em [Manual do jogo](#manual-do-jogo). Teclado ou mouse: setas (ou clique) movem, Z/Enter/clique confirma, X/botão direito volta, Esc encerra o
 turno, N troca o idioma, M liga/desliga a música, F11 tela cheia, F1 abre a configuração. Os botões no
-canto da tela também ligam a música, a tela cheia, minimizam e abrem a configuração. Mais detalhes em [`engine/README.md`](engine/README.md).
+canto da tela também ligam a música, a tela cheia, minimizam e abrem a configuração. Com um controle
+(DualSense, Xbox...): direcional ou analógico movem, Cruz/A confirma, Bola/B volta, OPTIONS/START
+encerra o turno, Create/Back abre a configuração. Mais detalhes em [`engine/README.md`](engine/README.md).
 
 ## Manual do jogo
 
@@ -211,16 +230,19 @@ e SP enchem e as formas finais aprendem um golpe novo. A insígnia é gasta.
 
 ### Controles
 
-| Ação | PC (teclado) | PC (mouse) | 3DS |
-|---|---|---|---|
-| Mover cursor / escolher | setas ou WASD | clique | direcional |
-| Confirmar | Z, Enter ou Espaço | clique | A ou tocar na tela de baixo |
-| Voltar / cancelar | X ou Backspace | botão direito | B |
-| Encerrar o turno / pular cena | Esc | — | START |
-| Trocar idioma (PT/EN) | N | — | X |
-| Música liga/desliga | M | botão no canto | Y |
-| Tela cheia | F11 | botão no canto | — |
-| Configuração | F1 (no mapa) | botão no canto | — |
+| Ação | PC (teclado) | PC (mouse) | Controle (DualSense / Xbox) | Android (toque) | 3DS |
+|---|---|---|---|---|---|
+| Mover cursor / escolher | setas ou WASD | clique | direcional ou analógico esquerdo | direcional na tela ou tocar | direcional ou Circle Pad |
+| Confirmar | Z, Enter ou Espaço | clique | Cruz / A | A ou tocar | A ou tocar na tela de baixo |
+| Voltar / cancelar | X ou Backspace | botão direito | Bola / B | B ou "voltar" do Android | B |
+| Encerrar o turno / pular cena | Esc | — | OPTIONS / START | START | START |
+| Trocar idioma (PT/EN) | N | — | Quadrado / X | — | X |
+| Música liga/desliga | M | botão no canto | Triângulo / Y | botão no canto | Y |
+| Tela cheia | F11 | botão no canto | — | — | — |
+| Configuração | F1 (no mapa) | botão no canto | Create / Back (no mapa) | botão no canto | — |
+
+Segurar uma direção (no teclado, no controle ou na tela) repete o movimento. O controle pode ser
+ligado com o jogo aberto; um aviso no canto mostra quando ele conecta ou desconecta.
 
 ## Para quem quer contribuir
 

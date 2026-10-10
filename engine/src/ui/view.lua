@@ -367,7 +367,15 @@ function View.drawHud(b, s, ox, oy, camx, camy)
   -- ajuda de controles
   love.graphics.setFont(View.small)
   love.graphics.setColor(1, 1, 1, 0.75)
-  local help = T("Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: idioma (%s)   M: música"):format(I18n.lang == "pt" and "PT" or "EN")
+  local Pad = require("src.ui.pad")
+  local help
+  if Pad.last == "pad" then
+    help = T("Controle: Cruz/A confirmar   Bola/B voltar   OPTIONS/START: fim do turno   Quadrado/X: idioma (%s)   Triângulo/Y: música"):format(I18n.lang == "pt" and "PT" or "EN")
+  elseif Pad.last == "touch" or require("src.ui.touch").enabled then
+    help = T("Toque: escolher   B: voltar   START: fim do turno")
+  else
+    help = T("Setas: mover   Z/Enter/clique: confirmar   X/botão direito: voltar   Esc: fim do turno   N: idioma (%s)   M: música"):format(I18n.lang == "pt" and "PT" or "EN")
+  end
   love.graphics.printf(help, gb and 14 or 0, gb and 44 or h - 16, w - 10, gb and "left" or "right")
   love.graphics.setFont(View.font)
 
@@ -606,8 +614,16 @@ function View.drawWorld(wd, data, campaign, mapOnly)
   end
   love.graphics.setFont(View.small)
   love.graphics.setColor(1, 1, 1, 0.75)
-  love.graphics.printf(T("Setas/clique: andar   Z/Enter: entrar   X: voltar   N: idioma (%s)   M: música   Delete: novo jogo"):format(I18n.lang == "pt" and "PT" or "EN"),
-    0, h - 18, w - 10, "right")
+  local Pad = require("src.ui.pad")
+  local help
+  if Pad.last == "pad" then
+    help = T("Controle: direcional anda   Cruz/A: entrar   Bola/B: voltar   Create/Back: configuração   Triângulo/Y: música")
+  elseif require("src.ui.touch").enabled then
+    help = T("Toque: andar e entrar   B: voltar")
+  else
+    help = T("Setas/clique: andar   Z/Enter: entrar   X: voltar   N: idioma (%s)   M: música   Delete: novo jogo"):format(I18n.lang == "pt" and "PT" or "EN")
+  end
+  love.graphics.printf(help, 0, h - 18, w - 10, "right")
   love.graphics.setFont(View.font)
 end
 

@@ -1,6 +1,7 @@
--- Tela de configuração (abre antes do jogo no PC, como o launcher do Gen1Recomp): escolhe a ROM,
--- liga/desliga as melhorias e começa o jogo ou gera a ROM traduzida. Funciona com teclado
--- (setas, Enter) e mouse (clique nos interruptores, opções e botões; arrastar o .gbc para a janela).
+-- Tela de configuração (abre antes do jogo no PC e no Android, como o launcher do Gen1Recomp):
+-- escolhe a ROM, liga/desliga as melhorias e começa o jogo ou gera a ROM traduzida. Funciona com
+-- teclado (setas, Enter), controle (direcional/analógico, A, OPTIONS/START joga), mouse (clique nos
+-- interruptores, opções e botões; arrastar o .gbc para a janela) e toque (Android: seletor de arquivo).
 local Options = require("src.game.options")
 local I18n = require("src.game.i18n")
 
@@ -17,7 +18,8 @@ local ON = { 0.25, 0.80, 0.45 }
 local OFF = { 0.35, 0.38, 0.50 }
 local ACCENT = { 1, 0.85, 0.35 }
 
--- ctx: { hasData(), romInfo(), loadRom(path) -> ok, msg, play(), quit(), buildRom() (opcional) }
+-- ctx: { hasData(), romInfo(), loadRom(path) -> ok, msg, play(), quit(), buildRom() (opcional),
+--        pickRom() (opcional: seletor de arquivo do Android), mobile }
 function Launcher.new(ctx)
   local self = setmetatable({ ctx = ctx, index = 1, editing = false, input = "", msg = nil, hits = {} },
     Launcher)
@@ -28,7 +30,14 @@ function Launcher.new(ctx)
   local function item(t, extra) for k, v in pairs(extra) do t[k] = v end return t end
   self.items = {
     { id = "rom", kind = "rom", label = function() return "ROM" end,
-      enter = function() self.editing = true; self.input = Options.get("romPath") end },
+      enter = function()
+        if ctx.pickRom then
+          self.msg = ctx.pickRom() and L("Escolha o arquivo .gbc...", "Choose the .gbc file...")
+            or L("Não consegui abrir o seletor de arquivos.", "Could not open the file picker.")
+          return
+        end
+        self.editing = true; self.input = Options.get("romPath")
+      end },
     item(choice("lang", { { "pt", "Português" }, { "en", "English" } }),
       { id = "lang", section = 1, label = function() return L("Idioma", "Language") end }),
     item(choice("names", { { "oficial", function() return L("Oficiais", "Official") end },
@@ -66,6 +75,12 @@ function Launcher.new(ctx)
       end },
     { id = "quit", kind = "button", label = function() return L("Sair", "Quit") end, enter = function() ctx.quit() end },
   }
+  if ctx.mobile then                      -- celular: sem tela cheia/janela e sem gravar a ROM fora do app
+    for i = #self.items, 1, -1 do
+      local id = self.items[i].id
+      if id == "fullscreen" or id == "build" then table.remove(self.items, i) end
+    end
+  end
   for i, it in ipairs(self.items) do if it.id == "play" then self.index = i end end
   return self
 end
@@ -133,6 +148,7 @@ function Launcher:keypressed(key)
   elseif key == "right" or key == "d" then self:change(it, 1)
   elseif key == "return" or key == "kpenter" or key == "space" or key == "z" then
     if it.enter then it.enter() else self:change(it, 1) end
+  elseif key == "pause" then self:play()             -- START/OPTIONS do controle
   elseif key == "escape" then self.ctx.quit()
   end
 end
@@ -318,6 +334,10 @@ function Launcher:draw(fonts)
     txt = hasData and L("já importada  -  clique para trocar", "already imported  -  click to change")
       or L("clique e digite o caminho, ou arraste o .gbc para esta janela", "click and type the path, or drop the .gbc here")
   end
+  if self.ctx.pickRom and not self.editing then
+    txt = hasData and L("já importada  -  toque para escolher outra", "already imported  -  tap to choose another")
+      or L("toque para escolher o arquivo .gbc", "tap to choose the .gbc file")
+  end
   love.graphics.printf(txt, bx + 8, by + 5, bw - 16, "left")
   hit(self, bx, by, bw, bh, romIdx, function() self.items[romIdx].enter() end)
 
@@ -370,8 +390,18 @@ function Launcher:draw(fonts)
   end
   love.graphics.setFont(fonts.small)
   love.graphics.setColor(1, 1, 1, 0.55)
-  love.graphics.printf(L("Mouse ou teclado (setas, Enter)  -  no jogo: F1 volta aqui, M música, F11 tela cheia",
-    "Mouse or keyboard (arrows, Enter)  -  in game: F1 back here, M music, F11 fullscreen"), 0, h - 22, w - 16, "right")
+  local Pad = require("src.ui.pad")
+  local help
+  if Pad.last == "pad" then
+    help = L("Controle: direcional muda a opção, Cruz/A confirma, OPTIONS/START joga  -  no jogo: Create/Back volta aqui",
+      "Controller: d-pad changes options, Cross/A confirms, OPTIONS/START plays  -  in game: Create/Back returns here")
+  elseif self.ctx.mobile then
+    help = L("Toque nas opções  -  um controle Bluetooth também funciona", "Tap the options  -  a Bluetooth controller works too")
+  else
+    help = L("Mouse, teclado (setas, Enter) ou controle  -  no jogo: F1 volta aqui, M música, F11 tela cheia",
+      "Mouse, keyboard (arrows, Enter) or controller  -  in game: F1 back here, M music, F11 fullscreen")
+  end
+  love.graphics.printf(help, 0, h - 22, w - 16, "right")
 end
 
 return Launcher

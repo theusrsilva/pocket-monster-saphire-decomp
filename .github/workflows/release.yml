@@ -1,5 +1,5 @@
 # Release: ao criar uma tag v* (ex.: git tag v0.1.0 && git push --tags), gera os executáveis de
-# Windows, Linux, macOS e 3DS, escreve as notas a partir dos commits desde a tag anterior e publica
+# Windows, Linux, macOS, Android (APK) e 3DS, escreve as notas a partir dos commits desde a tag anterior e publica
 # tudo no release da tag. Nada da ROM entra nos arquivos.
 # "Run workflow" (workflow_dispatch) faz o mesmo build sem publicar (os arquivos ficam nos artifacts);
 # preenchendo "tag", publica o release e o GitHub cria a tag no commit escolhido.
@@ -89,10 +89,37 @@ jobs:
           name: n3ds
           path: out3ds/*.3dsx
 
+  android:
+    name: Android (APK)
+    needs: desktop
+    runs-on: ubuntu-latest
+    continue-on-error: true          # se o love-android não compilar, o release sai sem o APK
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop
+          path: dist
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: APK (love-android 11.5a)
+        env:
+          # opcionais: chave fixa para o APK novo instalar por cima do antigo
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: tools/build_android.sh "${{ needs.desktop.outputs.version }}" dist/saphire-recomp.love
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*.apk
+
   release:
     name: Publicar
-    needs: [desktop, n3ds]
-    if: github.ref_type == 'tag' || inputs.tag != ''
+    needs: [desktop, n3ds, android]
+    if: always() && needs.desktop.result == 'success' && (github.ref_type == 'tag' || inputs.tag != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -104,6 +131,11 @@ jobs:
         with:
           name: n3ds
           path: dist
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: android
+          path: dist
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.desktop.outputs.version }}
@@ -114,4 +146,5 @@ jobs:
             dist/*.zip
             dist/*.AppImage
             dist/*.3dsx
+            dist/*.apk
             dist/*.love

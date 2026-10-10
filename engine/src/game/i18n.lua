@@ -3,6 +3,15 @@
 local I18n = { lang = "pt" }
 
 local EN = {
+  -- controles (src/ui/pad.lua, src/ui/touch.lua)
+  ["Controle: Cruz/A confirmar   Bola/B voltar   OPTIONS/START: fim do turno   Quadrado/X: idioma (%s)   Triângulo/Y: música"] =
+    "Controller: Cross/A confirm   Circle/B back   OPTIONS/START: end turn   Square/X: language (%s)   Triangle/Y: music",
+  ["Toque: escolher   B: voltar   START: fim do turno"] = "Tap: select   B: back   START: end turn",
+  ["Controle: direcional anda   Cruz/A: entrar   Bola/B: voltar   Create/Back: configuração   Triângulo/Y: música"] =
+    "Controller: d-pad walks   Cross/A: enter   Circle/B: back   Create/Back: settings   Triangle/Y: music",
+  ["Toque: andar e entrar   B: voltar"] = "Tap: walk and enter   B: back",
+  ["Controle conectado: "] = "Controller connected: ",
+  ["Controle desconectado"] = "Controller disconnected",
   -- mapa-múndi e lugares
   ["  (vencido)"] = "  (cleared)",
   ["  -  %s vencido"] = "  -  %s cleared",

@@ -555,6 +555,40 @@ function T.run(data, romBytes)
     check("abertura: 5 cenas com o texto do script $20", ok and list[1] and list[5] and data.introPal and #data.introPal == 5)
   end
 
+  -- 24) Controle (src/ui/pad.lua) e controle na tela (src/ui/touch.lua). Não é regra do jogo
+  --     original: botões viram as teclas do motor e o direcional repete como tecla segurada.
+  do
+    local Pad = require("src.ui.pad")
+    local Touch = require("src.ui.touch")
+    local got = {}
+    local oldPress = Pad.press
+    Pad.press = function(k) got[#got + 1] = k end
+    Pad.hold, Pad.stick = nil, nil
+    Pad.pressed("a"); Pad.pressed("b"); Pad.pressed("start"); Pad.pressed("back")
+    local mapOk = table.concat(got, ",") == "z,x,pause,f1"
+    got = {}
+    Pad.pressed("dpright")
+    Pad.update(0.29, 0, 0)            -- antes do atraso: nada
+    local n1 = #got
+    Pad.update(0.11, 0, 0)            -- 0.40 s: 1ª repetição
+    Pad.update(0.18, 0, 0)            -- 0.58 s: mais 2
+    local n2 = #got
+    Pad.released("dpright")
+    Pad.update(1, 0, 0)
+    check("controle: botões e repetição do direcional (0,30 s + 0,09 s)",
+      mapOk and n1 == 1 and n2 == 4 and #got == 4, table.concat(got, ","))
+    got = {}
+    Pad.update(0.01, 0.2, -0.9)       -- analógico para cima
+    Pad.update(0.01, 0.4, -0.4)       -- abaixo da zona morta mas acima da soltura: continua
+    Pad.update(0.01, 0.1, 0.1)        -- solto
+    Pad.update(0.01, 0.8, 0)          -- direita
+    check("controle: analógico com zona morta e histerese", table.concat(got, ",") == "up,right", table.concat(got, ","))
+    Pad.update(0.01, 0, 0)
+    Pad.press, Pad.hold, Pad.stick, Pad.last = oldPress, nil, nil, "keys"
+    Touch.enabled = false
+    check("controle na tela desligado fora do celular", not Touch.visible() and not Touch.pressed(1, 50, 500))
+  end
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

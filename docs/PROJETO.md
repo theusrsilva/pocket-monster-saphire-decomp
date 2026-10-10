@@ -28,6 +28,8 @@ correção de bugs e melhorias de usabilidade.
 - [x] Confirmação do fim do turno (tela `$0D`) traduzida no conversor e usada ao encerrar o turno com unidades sem agir
 - [ ] Telas do original ainda não usadas: escolha do time (`$1B`), menu do mapa (`$09/$1C`), cidades (`$17–$19`), salvar/carregar
 - [x] PC: launcher redesenhado e clicável; mouse em menus, listas e mapa-múndi; barra de botões (música, tela cheia, minimizar, configuração)
+- [x] Controle (DualSense, DualShock, Xbox, Switch Pro) no Windows, Linux, macOS e Android: direcional e analógico com repetição, launcher navegável, aviso de conexão (`src/ui/pad.lua`)
+- [x] Android (APK): love-android 11.5a com o jogo embutido e `tools/love-android.patch` (seletor de arquivo e "Abrir com" para a ROM); controle na tela (`src/ui/touch.lua`); não testado em aparelho
 - [x] Unidades andam casa a casa como no original (~6 quadros por casa; câmera no inimigo antes da ação)
 - [x] Animações de batalha: cena de ataque decodificada e reimplementada em Lua (`engine/src/anim`),
   conferida quadro a quadro contra o código original no executor de GBC (`engine/src/emu`); roda no 3DS
@@ -66,6 +68,10 @@ Cada tag `v*` (por exemplo `git tag v0.1.0 && git push origin v0.1.0`) dispara
 - Windows (`.zip` com `SaphireRecomp.exe`), Linux (`.AppImage`), macOS (`.app` em `.zip`, sem
   assinatura) e `saphire-recomp.love`: `tools/build_desktop.sh`, que funde o jogo nos binários
   oficiais do LÖVE 11.5;
+- Android (`.apk`): `tools/build_android.sh` compila o `love2d/love-android` 11.5a com
+  `tools/love-android.patch`, embute o `.love` e assina (com a chave dos secrets
+  `ANDROID_KEYSTORE_B64`/`ANDROID_KEYSTORE_PASSWORD`/`ANDROID_KEY_ALIAS`, ou uma descartável); se
+  esse passo falhar, o release sai sem ele;
 - Nintendo 3DS (`.3dsx`): compila o `lovebrew/lovepotion` (commit fixado) com
   `tools/lovepotion-queueable.patch` e funde o jogo; se esse passo falhar, o release sai sem ele;
 - notas do release a partir dos commits desde a tag anterior (`tools/release_notes.sh`).
