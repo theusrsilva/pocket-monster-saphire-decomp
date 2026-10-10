@@ -137,6 +137,10 @@ function GBHud.draw(b, w, h, s)
     end
     drawScreen(g, vx, vy, s)
     drawMenu(g, menu, vx, vy, s, 64)
+  elseif menu and menu.kind == "endturn" then
+    local g = GBHud.screen(b, "menu", GBUI.END_TURN, {})
+    drawScreen(g, vx, vy, s)
+    drawMenu(g, menu, vx, vy, s, 24)
   elseif menu and menu.kind == "goods" then
     local g = GBHud.screen(b, "menu", GBUI.GOODS, {})
     drawScreen(g, vx, vy, s)

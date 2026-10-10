@@ -31,6 +31,18 @@ Menus.SCREENS = {
     regions = {
       { 12, 15, 17, 16, align = "left", texts = { "Pontos" } },
     } },
+  -- Confirmação do fim do turno ($BC:$484C): o bloco $40:$7260 vai para $9000 inteiro (ids $00-$7F,
+  -- sem a moldura comum) e $40:$7A60 para $8800 (ids $80-$87). As telas $0E ("Quit without save?")
+  -- e $12 usam o mesmo bloco e contam para os ids exclusivos.
+  { name = "fim do turno", group = "ft", map = { 0xBD, 0x5290, 20, 6 }, chunk = { 0x40, 0x7260 },
+    tile = function(id) if id >= 0x80 then return at(0x40, 0x7A60) + (id - 0x80) * 16 end
+      return at(0x40, 0x7260) + id * 16 end,
+    alsoMaps = { { 0xBD, 0x5380, 20, 6 }, { 0xBD, 0x5650, 20, 6 } },
+    poolRange = { 0x20, 0x7F },       -- $80-$87 aparecem como $00-$07 nas outras duas: não mexe
+    regions = {
+      { 0, 1, 19, 2, align = "center", base = 14, texts = { "Encerrar o turno?" } },
+      { 1, 3, 18, 4, align = "left", base = 14, texts = { "Sim", "Não" } },
+    } },
   { name = "itens de cura", group = "ic", map = { 0xBD, 0x43A8, 20, 18 }, chunk = { 0x40, 0x49B0 },
     regions = {
       { 1, 1, 18, 2, align = "center", gap = 9, texts = { "Itens de cura" } },
@@ -249,7 +261,7 @@ local function relabel(sc, rg, canvas, W, H, bg, ink)
     else x = math.floor((p.s.x0 + p.s.x1) / 2 - tw / 2 + 0.5) end
     x = math.max(p.xmin, math.min(x, p.xmax - tw + 1))
     -- normal: corpo nas linhas 2-8 da célula (base na 8); small: 2-6 (base na 6)
-    local top = p.s.base - (font == "normal" and 8 or 6)
+    local top = (rg.base or p.s.base) - (font == "normal" and 8 or 6)   -- rg.base: linha de base fixa
     local drawn = {}
     PixelFont.draw(font, p.t, x, top, gap, function(px, py)
       if py >= 0 and py < H and px >= 0 and px < W then
@@ -275,7 +287,8 @@ end
 -- usos em todos os mapas do grupo estão dentro das regiões.
 function Menus.applyGroup(rom, screens)
   local chunk = screens[1].chunk
-  local function data(id) return readTile(rom, tileOffset(chunk, id)) end
+  local tileAt = screens[1].tile or function(id) return tileOffset(chunk, id) end
+  local function data(id) return readTile(rom, tileAt(id)) end
   -- cell = offset absoluto do byte do mapa; attrOf[cell] = offset do atributo
   local cellPx, origKey, attrOf = {}, {}, {}
   local bg
@@ -328,7 +341,13 @@ function Menus.applyGroup(rom, screens)
   end
   -- ids exclusivos: todos os usos nos mapas do grupo estão dentro das regiões
   local inRegion, total, seenMap = {}, {}, {}
+  local maps = {}
   for _, sc in ipairs(screens) do
+    maps[#maps + 1] = sc.map
+    for _, m in ipairs(sc.alsoMaps or {}) do maps[#maps + 1] = m end
+  end
+  for _, mp in ipairs(maps) do
+    local sc = { map = mp }
     local mo = at(sc.map[1], sc.map[2])
     if not seenMap[mo] then
       seenMap[mo] = true
@@ -346,13 +365,21 @@ function Menus.applyGroup(rom, screens)
     if not seen[id] then seen[id] = true; ids[#ids + 1] = id end
   end
   table.sort(ids)
+  local range = screens[1].poolRange
   for _, id in ipairs(ids) do
-    if id >= 0x20 then
+    if id >= 0x20 and (not range or (id >= range[1] and id <= range[2])) then
       local px, blank = data(id), true
       for y = 0, 7 do for x = 0, 7 do if px[y][x] ~= bg then blank = false end end end
       local k = key(tileBytes(px))
       if blank then known[k] = known[k] or id
       elseif inRegion[id] == total[id] then pool[#pool + 1] = id end
+    end
+  end
+  -- ids carregados que nenhum mapa do grupo usa também ficam livres (só com poolRange explícito:
+  -- o bloco inteiro é desta tela)
+  if range then
+    for id = range[1], range[2] do
+      if not total[id] then pool[#pool + 1] = id end
     end
   end
   -- atribui ids e grava
@@ -383,7 +410,7 @@ function Menus.applyGroup(rom, screens)
     end
     rom:set(c, id)
   end
-  for _, d in pairs(newData) do rom:write(tileOffset(chunk, d.id), d.bytes) end
+  for _, d in pairs(newData) do rom:write(tileAt(d.id), d.bytes) end
   return used, #pool
 end
 

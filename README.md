@@ -107,9 +107,120 @@ love engine --test               # testes contra valores do jogo original
 love engine --build-rom saida.gbc   # gera a ROM traduzida sem abrir a tela
 ```
 
-Teclado ou mouse: setas (ou clique) movem, Z/Enter/clique confirma, X/botão direito volta, Esc encerra o
+O manual completo está em [Manual do jogo](#manual-do-jogo). Teclado ou mouse: setas (ou clique) movem, Z/Enter/clique confirma, X/botão direito volta, Esc encerra o
 turno, N troca o idioma, M liga/desliga a música, F11 tela cheia, F1 abre a configuração. Os botões no
 canto da tela também ligam a música, a tela cheia, minimizam e abrem a configuração. Mais detalhes em [`engine/README.md`](engine/README.md).
+
+## Manual do jogo
+
+### A história
+
+A Gangue Rocket roubou a insígnia perdida e saqueou os Pokémon do mundo. O Ash (Xiaozhi) e os
+amigos tentaram detê-los e foram presos. Cabe ao **Pikachu** e aos companheiros atravessar a região,
+vencer as batalhas, encontrar os Pokémon espalhados e libertar os capturados.
+
+### O objetivo
+
+O jogo é uma campanha de **estratégia por turnos**: 25 fases no mapa-múndi, mais 6 ginásios nas
+cidades. Cada fase se vence **derrotando todos os inimigos**; perde-se quando todos os seus Pokémon
+caem (aí dá para tentar de novo). Vencer a fase 25 termina o jogo. O progresso é salvo sozinho ao
+vencer e ao sair de cada lugar.
+
+### Abertura e título
+
+A abertura conta a história (START pula). No título, **NOVO JOGO** começa do zero (se já houver um
+jogo salvo, o jogo pede confirmação) e **RECORDES** continua de onde parou.
+
+### O mapa-múndi
+
+O cursor anda de **lugar em lugar** pelas estradas (setas ou clique no lugar vizinho); A/Enter entra.
+
+- **Fases (1 a 25)**: abrem em ordem. Uma fase vencida não se repete. As fases 9, 11, 16, 19, 24 e
+  25 só abrem com um **item-chave** (Pedra da Lua, Passe, Flauta Milagrosa, Escama Vermelha, Dente de
+  Dragão e Pena Arco-Íris), que se ganha em fases anteriores.
+- **Cidades**: o **Ginásio** é uma luta de treino que pode ser repetida à vontade (bom para ganhar
+  nível); o **Prefeito** e o **Morador** contam histórias e dão dicas.
+- **Instituto do Doutor** (onde o jogo começa): explica as **vantagens de tipo** e dá dicas.
+- **BabyAlliance**: explica as **condições de evolução** e é onde os Pokémon **evoluem** (veja abaixo).
+
+### Antes da luta: o time
+
+Ao entrar numa fase escolhe-se quem luta (até o número que a fase permite, no máximo 10). Marque com
+A/clique e vá em **Lutar** (START/Esc leva direto ao botão). Os escolhidos entram nas posições
+iniciais na ordem da lista.
+
+### A batalha
+
+Cada turno tem duas partes: **você move todos os seus Pokémon** e depois **os inimigos agem**.
+
+1. Escolha um Pokémon seu (A ou clique). Aparece em azul até onde ele pode andar.
+2. Escolha a casa de destino (ou a própria casa para não andar). Ele vai andando até lá.
+3. No **menu de ação** (as cinco opções sempre aparecem; as que não dão para usar ficam apagadas):
+   - **Atacar**: ataque normal num inimigo dentro do alcance.
+   - **Golpe**: golpe especial (gasta SP; alguns curam um aliado). A caixa de baixo mostra o poder,
+     o custo e o alcance.
+   - **Itens**: de **recuperação** (Doce +200 HP, Suco +200 SP, Pão +500 HP, Leite +400 SP, Bolo HP
+     cheio, Mel +600 SP) ou **especiais** (pedras que aumentam de vez: Vida HP máx. +10, Espírito SP
+     máx. +5, Chamas ATK +2, Olho PRE +2, Fênix ESQ +2, Voo MOV +2 até 15).
+   - **Estado**: todos os números do Pokémon e os golpes dele.
+   - **Esperar**: termina a vez dele sem agir.
+4. Quando todos tiverem agido, o turno passa sozinho. Para encerrar antes, aperte **Esc/START** (o
+   jogo pergunta "Encerrar o turno?").
+
+B/X ou botão direito volta um passo; com a opção **Desfazer movimento** ligada, dá para voltar o
+Pokémon para onde estava antes de agir. Passar o cursor sobre qualquer unidade mostra o painel dela
+embaixo (nível, EXP, HP, SP).
+
+**Movimento.** Cada Pokémon tem pontos de **MOV**. Cada tipo de terreno custa um tanto, que muda
+conforme a espécie: os voadores passam por cima de árvores e água, os terrestres andam pouco na
+floresta. Não dá para atravessar inimigos.
+
+**Combate.**
+
+- **Chance de acerto** = 100 + PRE do atacante − ESQ do defensor, ajustada pelo tipo.
+- **Dano** = ATK do atacante (+ o poder do golpe especial). Não existe defesa: o dano é inteiro.
+- **Tipos**: Agilidade > Equilíbrio > Força > Superpoder > Defesa > Agilidade. Contra o tipo de que
+  é forte, o dano vale 1,5× e acerta mais; contra o tipo de que é fraco, vale metade e acerta menos.
+  O painel mostra o ícone do tipo; no Instituto o Doutor explica o ciclo.
+- **Contra-ataque**: quem é atacado e sobrevive revida na hora. Com um golpe de ataque que alcance o
+  atacante, revida com ele; senão, só revida com ataque normal se estiver colado (distância 1).
+  Atacar de longe, com alcance maior que o do inimigo, evita o contra.
+- A opção **Prévia de ataque** mostra, antes de confirmar, o dano, a chance de acerto e o contra.
+
+**Casas e baús.** Parar numa casa ou baú pela primeira vez na fase dispara uma fala e, às vezes, um
+item. O **centro de cura** (a casa com a cruz) enche HP e SP sempre que um Pokémon para nele.
+
+**Experiência e nível.** Acertar dá EXP e derrubar dá mais; quanto maior o nível do alvo em relação
+ao seu, mais EXP (alvo de nível menor dá só 1). Com **100 EXP** o Pokémon sobe de nível: HP e SP
+sobem, ATK, PRE e ESQ podem subir, e na **tela de bônus** você escolhe um atributo para ganhar um
+extra (HP, SP, ATK, PRE ou ESQ). HP e SP enchem ao subir. Cada forma tem um nível máximo (20, 40 ou
+99); no máximo, só evoluindo.
+
+**Recrutar.** Vencer certas fases traz novos Pokémon para o time (até 20 no elenco).
+
+**Os inimigos.** Na IA original, o inimigo cura a si mesmo quando está com metade do HP (se tiver o
+golpe de cura), ataca quem estiver colado e, se não houver ninguém, anda até o seu primeiro Pokémon
+que conseguir alcançar; o chefe da fase não sai do lugar. A **IA melhorada** (opcional) usa golpes,
+escolhe quem pode derrubar e foge do contra-ataque.
+
+### Evolução
+
+Cada fase vencida dá uma **insígnia** de um tipo. Na **BabyAlliance**, em "Evoluir", escolha um
+Pokémon do mesmo tipo da insígnia para evoluí-lo: a espécie avança, os atributos ganham um bônus, HP
+e SP enchem e as formas finais aprendem um golpe novo. A insígnia é gasta.
+
+### Controles
+
+| Ação | PC (teclado) | PC (mouse) | 3DS |
+|---|---|---|---|
+| Mover cursor / escolher | setas ou WASD | clique | direcional |
+| Confirmar | Z, Enter ou Espaço | clique | A ou tocar na tela de baixo |
+| Voltar / cancelar | X ou Backspace | botão direito | B |
+| Encerrar o turno / pular cena | Esc | — | START |
+| Trocar idioma (PT/EN) | N | — | X |
+| Música liga/desliga | M | botão no canto | Y |
+| Tela cheia | F11 | botão no canto | — |
+| Configuração | F1 (no mapa) | botão no canto | — |
 
 ## Para quem quer contribuir
 

@@ -50,7 +50,7 @@ love engine --stage 2 --script "wait20 z" --shot out.png   # entradas automátic
 ```
 
 Controles: setas/WASD movem o cursor · Z/Enter/Espaço ou clique confirmam · X/Backspace ou botão
-direito voltam · Esc encerra o turno · M liga/desliga a música · F11 tela cheia · N alterna entre **PT** (falas traduzidas, nomes oficiais) e
+direito voltam · Esc encerra o turno (pede confirmação se alguém ainda não agiu) · M liga/desliga a música · F11 tela cheia · N alterna entre **PT** (falas traduzidas, nomes oficiais) e
 **original** (falas e nomes como no jogo).
 
 `src/game/names.lua` e `src/game/translation_pt.lua` são os únicos arquivos com conteúdo do jogo: os

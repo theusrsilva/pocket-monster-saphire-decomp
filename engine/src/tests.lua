@@ -517,6 +517,13 @@ function T.run(data, romBytes)
     bt:openMenu(u)
     local ids = {}
     for _, it in ipairs(bt.menu.items) do ids[#ids + 1] = it.id .. (it.disabled and "-" or "+") end
+    local be = Battle.new(data, 1, Campaign.new(data))
+    be:askEndTurn()
+    local asked = be.mode == "menu" and be.menu.kind == "endturn" and #be.menu.items == 2
+    be:confirm()
+    g:show(GBUI.END_TURN, {})
+    check("encerrar o turno com unidades sem agir pede confirmação (tela $0D, 20x6)",
+      asked and be.phase == "enemy" and g.cols == 20 and g.rows == 6 and g.m.M[0xC090] == 1)
     check("menu de ação sempre com as 5 opções do original (indisponíveis apagadas)",
       #bt.menu.items == 5 and bt.menu.items[1].disabled and not bt.menu.items[4].disabled
         and not bt.menu.items[bt.menu.index].disabled, table.concat(ids, " "))

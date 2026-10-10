@@ -416,6 +416,25 @@ function Battle:afterAction()
   self:endPlayerTurn()
 end
 
+-- Encerrar o turno com Pokémon que ainda não agiram pede confirmação (tela $BC:$484C do original,
+-- "Are you sure to end this turn? Yes / No"). SUPOSIÇÃO: quando o original mostra essa tela não foi
+-- achado (o "End" do menu do mapa encerra direto); no motor ela evita encerrar sem querer.
+function Battle:askEndTurn()
+  if self.phase ~= "player" or self.result then return end
+  local pending = false
+  for _, a in ipairs(self:alive("ally")) do if not a.acted then pending = true end end
+  if not pending then self:endPlayerTurn() return end
+  self.preview, self.previewReach = nil, nil
+  local prev = { mode = self.mode, menu = self.menu }
+  local function close() self.mode, self.menu = prev.mode == "menu" and "cursor" or prev.mode, nil end
+  self.menu = { kind = "endturn", index = 1, title = T("Encerrar o turno?"), center = true, back = close,
+    items = {
+      { label = T("Sim"), action = function() self.menu = nil; self:endPlayerTurn() end },
+      { label = T("Não"), action = close },
+    } }
+  self.mode = "menu"
+end
+
 function Battle:endPlayerTurn()
   if self.phase ~= "player" or self.result then return end
   self.mode, self.selected, self.reach, self.menu = "cursor", nil, nil, nil

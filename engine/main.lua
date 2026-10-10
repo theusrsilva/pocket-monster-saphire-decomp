@@ -611,8 +611,9 @@ function love.keypressed(key)
       return
     end
     if b.mode == "menu" or b.mode == "bonus" then
-      if k == "up" then b:menuMove(-1) elseif k == "down" then b:menuMove(1)
-      elseif k == "a" then b:confirm() elseif k == "b" then b:cancel() end
+      if k == "up" or k == "left" then b:menuMove(-1) elseif k == "down" or k == "right" then b:menuMove(1)
+      elseif k == "a" or (k == "start" and b.menu and b.menu.kind == "endturn") then b:confirm()
+      elseif k == "b" then b:cancel() end
       return
     end
     if b.phase ~= "player" then return end
@@ -622,7 +623,7 @@ function love.keypressed(key)
     elseif k == "right" then b:moveCursor(1, 0)
     elseif k == "a" then b:confirm()
     elseif k == "b" then b:cancel()
-    elseif k == "start" then b:endPlayerTurn()
+    elseif k == "start" then b:askEndTurn()
     end
   end
 end

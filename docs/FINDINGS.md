@@ -637,10 +637,12 @@ por id (`$2F25–$2FF4` → `$00:$300B`: tabela `[banco, 0, ptr]`, cópia para o
 | `$07` | Estado da unidade | registro `$C900` (o sprite grande é um objeto) |
 | `$09` / `$1C` | menu do mapa | — |
 | `$0A` / `$0B` | Team show (tipos / lista) | — |
-| `$0D` / `$0E` / `$13` | caixas de fala (sem retrato / larga / com retrato `$C270`, tabela `$7C:$4108`) | — |
+| `$13` | caixa de fala com retrato `$C270` (tabela `$7C:$4108`); o motor usa a moldura da `$0E` para falas sem retrato | — |
 | `$0F` | objetivo da fase | `$C274` |
 | `$10` / `$11` | avisos "Enemy action" / "Player action" | — |
-| `$12` | confirmar fim do turno | — |
+| `$0D` | "Are you sure to end this turn? Yes / No" (cursor em `$C0B2`: x `$28`/`$58`) | — |
+| `$0E` | "Quit without save? Yes / No" | — |
+| `$12` | variante da `$0D` que carrega o bloco `$40:$7A60` em `$9000` por cima dos ids `$00–$07` (o Yes/No sai quebrado) | — |
 | `$15` | **bônus de nível**: LV, HP, SP, ATK, HIT, AGI, MOV com "+n" e Points | registro `$C900`, bônus `$CD0A–$CD0E`, pontos `$CD14`, golpe aprendido `$C1DD` |
 | `$16` | HP/SP dos dois lados | `$C90E/$C98E`... |
 | `$17–$19` | cidade, Instituto, BabyAlliance | `$C274`, `$C270` |
@@ -649,6 +651,12 @@ por id (`$2F25–$2FF4` → `$00:$300B`: tabela `[banco, 0, ptr]`, cópia para o
 | `$20` | nome do lugar | `$C27D` |
 | `$21` / `$22` | salvar / carregar | `$C0F0–` |
 | `$2F–$37` | cenários da batalha | — |
+
+**Conversor e a `$0D`**: o bloco `$40:$7260` vai inteiro para `$9000` (ids `$00–$7F`, sem a moldura
+comum) e `$40:$7A60` para `$8800` (ids `$80–$87`); as três telas `$0D/$0E/$12` dividem os tiles das
+letras, então o texto novo ("Encerrar o turno?", "Sim", "Não") usa os ids do bloco que nenhum dos
+três mapas usa e fica numa linha de tiles só. Não achei onde o original abre a `$0D` (o "End" do menu
+do mapa encerra direto); o motor a mostra ao encerrar o turno com Pokémon que ainda não agiram.
 
 O motor desenha essas telas pelo próprio interpretador (`engine/src/ui/gbui.lua`, HUD em
 `engine/src/ui/gbhud.lua`), com o registro da unidade escrito em `$C900` e as paletas de BG da fase;
