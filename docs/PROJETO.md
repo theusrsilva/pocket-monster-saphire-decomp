@@ -66,7 +66,8 @@ Cada tag `v*` (por exemplo `git tag v0.1.0 && git push origin v0.1.0`) dispara
 Nenhum arquivo contém a ROM: o jogador escolhe a própria ROM na tela de configuração. Para jogar
 no Game Boy Color/Advance (emulador ou flashcart), a mesma tela tem **Gerar ROM traduzida**, que
 cria `Pocket Monster Saphire (PT-BR).gbc` ao lado da ROM original.
-"Run workflow" na aba Actions faz o build sem publicar.
+"Run workflow" na aba Actions faz o build sem publicar; preenchendo o campo **tag** (ex.: `v1.00.00`),
+o workflow publica o release e o próprio GitHub cria a tag no commit.
 
 ## Jogar o protótipo
 

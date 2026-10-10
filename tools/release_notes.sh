@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Notas de release: os commits desde a tag anterior (assunto como título, corpo como itens).
-#   tools/release_notes.sh <tag>   >  notas.md
+#   tools/release_notes.sh <tag|HEAD> [título]   >  notas.md
 set -euo pipefail
 TAG="${1:?tag}"
+TITLE="${2:-$TAG}"
 PREV=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
 RANGE="${PREV:+$PREV..}$TAG"
-echo "## Saphire Recomp $TAG"
+echo "## Saphire Recomp $TITLE"
 echo
 if [ -n "$PREV" ]; then echo "Mudanças desde $PREV:"; else echo "Primeira versão."; fi
 echo
