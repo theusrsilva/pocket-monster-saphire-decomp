@@ -522,6 +522,32 @@ function T.run(data, romBytes)
         and not bt.menu.items[bt.menu.index].disabled, table.concat(ids, " "))
   end
 
+  -- 23) Abertura e título importados da ROM ($11:$40AC/$40C4/$40D0, paletas $19:$40F7; título
+  --     $38:$45FF): cores RGB555 conferidas contra a tela do PyBoy (cena 1 e título).
+  if love.filesystem.getInfo("generated/intro_1.png") then
+    local function c555(img, x, y)
+      local r, g, b = img:getPixel(x, y)
+      return math.floor(r * 31 + 0.5), math.floor(g * 31 + 0.5), math.floor(b * 31 + 0.5)
+    end
+    local i1 = love.image.newImageData("generated/intro_1.png")
+    local ok = i1:getWidth() == 160 and i1:getHeight() == 96
+    for _, e in ipairs({ { 10, 10, 13, 12, 17 }, { 80, 40, 30, 25, 19 }, { 120, 70, 10, 8, 6 }, { 40, 90, 23, 13, 15 } }) do
+      local r, g, b = c555(i1, e[1], e[2])
+      ok = ok and r == e[3] and g == e[4] and b == e[5]
+    end
+    local ti = love.image.newImageData("generated/title.png")
+    local r, g, b = c555(ti, 39, 14)
+    local r2, g2, b2 = c555(ti, 10, 10)
+    check("abertura e título do original importados (cores do PyBoy)", ok and ti:getHeight() == 144
+      and r == 0 and g == 0 and b == 29 and r2 == 31 and g2 == 31 and b2 == 31)
+    for n = 2, 5 do
+      local d = love.image.newImageData(("generated/intro_%d.png"):format(n))
+      ok = ok and d:getWidth() == 160
+    end
+    local list = data.messages[0] or {}
+    check("abertura: 5 cenas com o texto do script $20", ok and list[1] and list[5] and data.introPal and #data.introPal == 5)
+  end
+
   print(("\n%d ok, %d falhas"):format(T.passed, T.failed))
   return T.failed == 0
 end

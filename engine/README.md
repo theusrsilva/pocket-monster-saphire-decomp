@@ -151,6 +151,7 @@ src/import/music.lua      máquina mínima do driver + exportação em WAV (--re
 src/ui/dual.lua           telas de baixo do modo de duas telas (3DS)
 src/ui/gbui.lua           telas de interface do original (scripts $BC) desenhadas pelo interpretador
 src/ui/gbhud.lua          HUD da batalha e falas com essas telas (cursor, opções apagadas, mouse)
+src/ui/opening.lua        abertura (cenas do original + texto) e título (NOVO JOGO / RECORDES)
 src/ui/toolbar.lua        barra de botões do PC (música, tela cheia, minimizar, configuração)
 src/ui/launcher.lua       tela de configuração (ROM e opções)
 src/game/options.lua      opções do jogador

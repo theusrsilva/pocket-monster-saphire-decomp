@@ -7,7 +7,7 @@ local serialize = require("src.util.serialize")
 local at = Rom.at
 local Importer = {}
 
-Importer.CACHE_VERSION = 16
+Importer.CACHE_VERSION = 17
 local NSTAGES = 32
 local NSPECIES_TABLE = 20     -- espécies recrutáveis ($09:$4000, 20 bytes)
 local NCOST_ROWS = 76         -- linhas da tabela de custo ($09:$4190, 33 bytes)
@@ -411,6 +411,87 @@ local function importAI(rom)
   return A
 end
 
+-- Tela de tiles (abertura e título): blocos copiados para a VRAM, mapa e atributos 20 colunas,
+-- paleta de BG de 64 bytes. vram = { { banco VRAM, destino ($8000..), offset na ROM, tamanho } }.
+local function renderTiles(rom, vram, mapO, attrO, rows, palO)
+  local v = { [0] = {}, [1] = {} }
+  for _, blk in ipairs(vram) do
+    for i = 0, blk[4] - 1 do v[blk[1]][blk[2] - 0x8000 + i] = rom:u8(blk[3] + i) end
+  end
+  local pal = palettes(rom, palO, 8)
+  local img = love.image.newImageData(160, rows * 8)
+  for r = 0, rows - 1 do
+    for c = 0, 19 do
+      local t, a = rom:u8(mapO + r * 20 + c), rom:u8(attrO + r * 20 + c)
+      local base = 0x1000 + (t >= 128 and t - 256 or t) * 16
+      local vr = (math.floor(a / 8) % 2 == 1) and v[1] or v[0]
+      local p = pal[a % 8 + 1]
+      for y = 0, 7 do
+        local yy = (math.floor(a / 64) % 2 == 1) and 7 - y or y
+        local lo, hi = vr[base + yy * 2] or 0, vr[base + yy * 2 + 1] or 0
+        for x = 0, 7 do
+          local xx = (math.floor(a / 32) % 2 == 1) and 7 - x or x
+          local b = 2 ^ (7 - xx)
+          local cc = (math.floor(lo / b) % 2) + 2 * (math.floor(hi / b) % 2)
+          img:setPixel(c * 8 + x, r * 8 + y, p[cc + 1][1], p[cc + 1][2], p[cc + 1][3], 1)
+        end
+      end
+    end
+  end
+  return img
+end
+
+-- Abertura (rotina $11:$4000): cena n = tiles $11:$40AC[n] ([tamanho, ptr] -> $9000 e segue em
+-- $8800), mapa $11:$40C4[n], atributos $11:$40D0[n] (20x12), paleta $19:$40F7 + (n-1)*64.
+-- Título: tiles $38:$490F/$510F/$590F, mapa $38:$45FF, atributos $38:$4767 (20x18), paleta $38:$48CF;
+-- botões NEW GAME/RECORDS = 10 sprites 8x16 em $8C:$5310/$5460, paletas de OBJ $38:$5B9F
+-- (0 = escolhido, 1 = não).
+local function importOpening(rom, ptRom)
+  for n = 1, 5 do
+    local t = at(0x11, 0x40AC) + n * 4
+    local len, src = rom:u16(t), rom:u16(t + 2)
+    local first = math.min(len, 0x800)
+    local vram = { { 0, 0x9000, at(0x11, src), first } }
+    if len > 0x800 then vram[2] = { 0, 0x8800, at(0x11, src) + 0x800, len - 0x800 } end
+    local img = renderTiles(rom, vram, at(0x11, rom:u16(at(0x11, 0x40C4) + n * 2)),
+      at(0x11, rom:u16(at(0x11, 0x40D0) + n * 2)), 12, at(0x19, 0x40F7) + (n - 1) * 64)
+    img:encode("png", ("generated/intro_%d.png"):format(n))
+  end
+  local title = renderTiles(rom, {
+    { 0, 0x9000, at(0x38, 0x490F), 0x800 }, { 0, 0x8800, at(0x38, 0x510F), 0x800 },
+    { 1, 0x9000, at(0x38, 0x590F), 0x290 },
+  }, at(0x38, 0x45FF), at(0x38, 0x4767), 18, at(0x38, 0x48CF))
+  title:encode("png", "generated/title.png")
+  for _, lang in ipairs({ "en", "pt" }) do
+    local r = lang == "pt" and ptRom or rom
+    if r then
+      local obp = palettes(rom, at(0x38, 0x5B9F), 2)
+      local img = love.image.newImageData(80, 64)
+      for b, addr in ipairs({ 0x5310, 0x5460 }) do
+        for sel = 0, 1 do
+          local p = obp[sel + 1]
+          local oy = (b - 1) * 32 + sel * 16
+          for k = 0, 9 do
+            for hlf = 0, 1 do
+              local o = at(0x8C, addr) + k * 32 + hlf * 16
+              for y = 0, 7 do
+                local lo, hi = r:u8(o + 2 * y), r:u8(o + 2 * y + 1)
+                for x = 0, 7 do
+                  local bb = 2 ^ (7 - x)
+                  local cc = (math.floor(lo / bb) % 2) + 2 * (math.floor(hi / bb) % 2)
+                  if cc == 0 then img:setPixel(k * 8 + x, oy + hlf * 8 + y, 0, 0, 0, 0)
+                  else img:setPixel(k * 8 + x, oy + hlf * 8 + y, p[cc + 1][1], p[cc + 1][2], p[cc + 1][3], 1) end
+                end
+              end
+            end
+          end
+        end
+      end
+      img:encode("png", ("generated/title_buttons_%s.png"):format(lang))
+    end
+  end
+end
+
 -- Executa a importação. progress(msg) é chamado entre etapas. Retorna true ou nil, erro.
 function Importer.run(bytes, progress)
   progress = progress or function() end
@@ -449,6 +530,14 @@ function Importer.run(bytes, progress)
   local okPt, pt = pcall(function() return require("src.romhack.patcher").build(rom.data, {}) end)
   if okPt then love.filesystem.write("generated/ui_pt.bin", Slice.fromBanks(pt, Slice.UI_BANKS))
   else print("telas em português: " .. tostring(pt)) end
+  progress("abertura")
+  importOpening(rom, okPt and Rom.new(pt) or nil)
+  data.introPal = {}                                  -- paletas das cenas ($19:$40F7 + (n-1)*64)
+  for n = 1, 5 do
+    local t, o = {}, at(0x19, 0x40F7) + (n - 1) * 64
+    for i = 0, 63 do t[i + 1] = rom:u8(o + i) end
+    data.introPal[n] = t
+  end
   data.music = { stage = {} }
   for st = 0, NSTAGES - 1 do data.music.stage[st] = rom:u8(0x2C85 + st) end
   importSpeakers(rom):encode("png", "generated/speakers.png")

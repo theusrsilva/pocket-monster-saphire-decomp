@@ -23,6 +23,7 @@ correção de bugs e melhorias de usabilidade.
 - [x] Mapa parcial da WRAM (unidades, status, buffers do mapa)
 - [x] Inimigos de cada fase (stats completos)
 - [x] Golpes (nomes/efeitos), itens, eventos das fases
+- [x] Abertura (5 cenas com o texto do script `$20`) e tela de título com NOVO JOGO / RECORDES, importadas da ROM
 - [x] Interface do original no motor: painel da unidade, menu de ação com as 5 opções, golpes, itens, Estado, bônus de nível, avisos de turno e caixas de fala com retrato (telas `$BC` desenhadas pelo interpretador, em PT pela ROM traduzida)
 - [ ] Telas do original ainda não usadas: escolha do time (`$1B`), menu do mapa (`$09/$1C`), confirmar fim do turno (`$12`, falta traduzir), cidades (`$17–$19`), salvar/carregar
 - [x] PC: launcher redesenhado e clicável; mouse em menus, listas e mapa-múndi; barra de botões (música, tela cheia, minimizar, configuração)

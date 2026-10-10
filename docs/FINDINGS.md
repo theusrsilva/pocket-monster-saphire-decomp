@@ -600,6 +600,23 @@ pixel com o do executor.
   (`engine/src/anim/render.lua`) usa uma imagem para o cenário (atualizada por célula) e atlas de
   tiles por banco/paleta para os sprites, com o limite de 10 sprites por linha do hardware.
 
+## Abertura e título
+
+**Abertura** (rotina `$11:$4000`, cena em `[$C1CC]`, 5 cenas): tiles `$11:$40AC + n*4` =
+`[tamanho, ptr]` (copiados para `$9000` e continuando em `$8800`), mapa `$11:$40C4 + n*2` e atributos
+`$11:$40D0 + n*2` (20×12, em `$9800`), paletas de BG `$19:$40F7 + (n-1)*64`. Embaixo, a caixa de texto
+(20×6, janela em `WY=$60`) escreve o trecho n do script `$20` letra a letra (~16 letras/s no PyBoy) e
+rola linha a linha; terminada a cena, passa para a próxima. Depois vem o título.
+
+**Título**: tiles `$38:$490F` (`$9000`), `$38:$510F` (`$8800`), `$38:$590F` (banco 1, `$9000`), mapa
+`$38:$45FF` e atributos `$38:$4767` (20×18), paletas de BG `$38:$48CF`. Botões NEW GAME / RECORDS =
+10 sprites 8×16 cada em `$8C:$5310` / `$8C:$5460` (paletas de OBJ `$38:$5B9F`: 0 = escolhido, 1 = não),
+em (8, 72) e (0, 88); o escolhido anda 8 px para a direita.
+
+O motor importa as 5 cenas e o título como imagens (`generated/intro_N.png`, `title.png`, botões em
+português da ROM traduzida) e mostra a abertura antes do título (`engine/src/ui/opening.lua`);
+NOVO JOGO começa uma campanha nova (pede confirmação se houver jogo salvo) e RECORDES continua.
+
 ## Telas de interface (scripts do banco `$BC`)
 
 Todas as telas de interface do campo são **scripts do mesmo interpretador do cenário da batalha**

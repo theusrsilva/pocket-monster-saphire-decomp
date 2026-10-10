@@ -96,6 +96,22 @@ local function openWorld()
   state = "world"
 end
 
+-- Abertura e título (src/ui/opening.lua): NOVO JOGO começa uma campanha nova, RECORDES continua.
+local opening
+local function openOpening(skipIntro)
+  local Opening = require("src.ui.opening")
+  opening = Opening.new(data, love.filesystem.getInfo(Campaign.FILE) ~= nil, function(choice)
+    if choice == "new" then
+      campaign = Campaign.new(data)
+      campaign.introSeen = true                  -- a história já passou na abertura
+      campaign:save()
+    end
+    opening = nil
+    openWorld()
+  end, skipIntro)
+  state = "opening"
+end
+
 local function startImport(bytes)
   importErr = nil
   importCo = coroutine.create(function()
@@ -242,7 +258,7 @@ local function openLauncher(msg)
     end,
     play = function()
       if not assetsLoaded then loadAssets() end
-      openWorld()
+      openOpening()
     end,
     quit = function() love.event.quit() end,
     buildRom = function()
@@ -433,8 +449,12 @@ function love.load(args)
     if opts.cleared then for i = 1, tonumber(opts.cleared) do campaign.cleared[i] = true end end
     if opts.keys then for i = 0, tonumber(opts.keys) - 1 do campaign.keyItems[i] = 1 end end
     if opts.node then campaign.node = tonumber(opts.node) end
-    openWorld()
-    if opts.stage then enterStage(tonumber(opts.stage)) end
+    if automatic and not opts.opening then
+      openWorld()
+      if opts.stage then enterStage(tonumber(opts.stage)) end
+    else
+      openOpening()
+    end
   else
     local path = opts.rom or (love.filesystem.getSource() .. "/../rom/saphire.gbc")
     local bytes = readFile(path)
@@ -502,9 +522,13 @@ function love.update(dt)
     end
   elseif state == "world" then
     world:update(dt)
+  elseif state == "opening" then
+    opening:update(dt)
   end
   if #script > 0 or scriptWait > 0 or opts.shot then
-    if state == "battle" or state == "world" or state == "team" or state == "launcher" then runScriptStep() end
+    if state == "battle" or state == "world" or state == "team" or state == "launcher" or state == "opening" then
+      runScriptStep()
+    end
   end
 end
 
@@ -537,6 +561,7 @@ function love.keypressed(key)
     if battle then battle:refreshNames() end
     return
   end
+  if state == "opening" then opening:keypressed(k) return end
   if state == "world" then
     local wd = world
     if key == "delete" and wd.mode == "map" then
@@ -688,6 +713,7 @@ local function drawScreen(which)
     elseif state == "battle" then View.drawBattle(battle, true)
     elseif state == "world" then View.drawWorld(world, data, campaign, true)
     elseif state == "team" then Dual.drawTeamTop(teamsel, data)
+    elseif state == "opening" then opening:draw(Dual.TOP_W, Dual.TOP_H)
     else drawMessage(Dual.TOP_W, Dual.TOP_H) end
   else
     View.forced = { Dual.BOT_W, Dual.BOT_H }
@@ -734,10 +760,12 @@ function love.draw(screen)
     View.drawWorld(world, data, campaign)
   elseif state == "team" then
     View.drawTeam(teamsel, data)
+  elseif state == "opening" then
+    opening:draw(w, h)
   else
     drawMessage(w, h)
   end
-  if state == "battle" or state == "world" or state == "team" then
+  if state == "battle" or state == "world" or state == "team" or state == "opening" then
     Toolbar.draw(w - Toolbar.width() - 10, h - Toolbar.size - 26, state == "world" or state == "team", View.small)
   end
 end
